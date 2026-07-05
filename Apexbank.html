@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Banking Portal | Apex Horizon Bank</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #10b981;
+            border-radius: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 font-sans antialiased text-gray-800">
+
+    <div class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative flex flex-col overflow-x-hidden">
+
+        <div id="bubbleLoader" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4">
+            <div class="relative w-20 h-20 flex items-center justify-center">
+                <div class="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping"></div>
+                <div class="relative rounded-full h-14 w-14 border-4 border-emerald-400 border-t-transparent animate-spin"></div>
+            </div>
+            <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Syncing Core Ledger Nodes...</p>
+        </div>
+
+        <div id="preQualLoader" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-xs z-[9999] flex flex-col items-center justify-center space-y-4">
+            <div class="relative w-16 h-16">
+                <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-indigo-400 border-t-transparent animate-spin"></div>
+            </div>
+            <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Analyzing Risk Profile Matrix...</p>
+        </div>
+
+        <div id="receiptModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-4 relative">
+                <div class="text-center border-b border-dashed border-gray-200 pb-4">
+                    <div class="mx-auto w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
+                        <i class="fa-solid fa-receipt text-xl"></i>
+                    </div>
+                    <h3 class="text-sm font-bold tracking-tight text-gray-900 uppercase font-mono">Transaction Receipt</h3>
+                    <p class="text-[10px] text-gray-400 font-mono tracking-wider">APEX HORIZON CORE LEDGER SYSTEM</p>
+                </div>
+                <div class="space-y-2.5 font-mono text-xs">
+                    <div class="flex justify-between"><span class="text-gray-400">Description:</span><span id="modalDesc" class="font-bold text-gray-900 text-right max-w-[150px] truncate"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Trace ID:</span><span id="modalTrace" class="text-gray-700"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">Settled</span></div>
+                    <hr class="border-gray-100 my-2">
+                    <div class="flex justify-between items-center"><span class="text-gray-500 font-bold">Total Dispatched:</span><span id="modalAmount" class="text-base font-bold text-gray-950"></span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button onclick="window.print()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-print"></i> <span>Print</span>
+                    </button>
+                    <button onclick="closeReceiptModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 rounded-lg text-xs transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="successBanner" class="absolute top-0 left-0 right-0 transform -translate-y-full transition-transform duration-500 ease-out z-[999] flex justify-center p-4 drop-shadow-md pointer-events-none">
+            <div onclick="dismissAndRedirectToDashboard()" class="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center space-x-3 pointer-events-auto cursor-pointer hover:bg-gray-50 transition shadow-lg w-full">
+                <div class="bg-emerald-500 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs shrink-0 animate-bounce">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div class="flex flex-col items-start min-w-0">
+                    <span class="text-xs font-bold text-gray-900 tracking-wide truncate">Transaction Successful</span>
+                    <span class="text-[10px] text-emerald-600 font-semibold underline">Click to view dashboard</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingOverlay" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-xs z-[999] flex flex-col items-center justify-center space-y-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+            <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Securing Clearing Network...</p>
+        </div>
+
+        <div id="authScreen" class="w-full flex-1 flex items-center justify-center bg-slate-900 px-4 py-8">
+            <div class="w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                <div class="bg-slate-950 p-6 text-center border-b border-gray-800">
+                    <div class="inline-block bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2">
+                        <i class="fa-solid fa-building-columns text-2xl"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-white tracking-tight">APEX HORIZON BANK</h2>
+                    <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5">Encrypted Mobile Access</p>
+                </div>
+                
+                <form onsubmit="handleSignIn(event)" class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">User ID / Access Code</label>
+                        <input type="text" value="SarahJenkins99" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
+                        <input type="password" value="••••••••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-[11px] pt-1">
+                        <label class="flex items-center space-x-1.5 text-gray-500 cursor-pointer">
+                            <input type="checkbox" checked class="accent-emerald-600 rounded">
+                            <span>Remember device</span>
+                        </label>
+                        <a href="#" class="text-emerald-600 font-semibold hover:underline">Forgot?</a>
+                    </div>
+
+                    <button type="submit" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
+                        <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                        <span>Authenticate & Enter</span>
+                    </button>
+                </form>
+                <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 text-center">
+                    <p class="text-[10px] text-gray-400 leading-normal">Protected by multi-factor systems. FDIC Insured.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboardApp" class="hidden flex-1 flex flex-col">
+            
+            <header class="bg-slate-900 text-white h-16 sticky top-0 z-50 flex items-center justify-between px-4 shadow-md">
+                <div class="flex items-center space-x-2 cursor-pointer" onclick="triggerViewSwitch('summary')">
+                    <div class="bg-emerald-500 p-1.5 rounded-lg text-slate-900 font-bold">
+                        <i class="fa-solid fa-building-columns text-base"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-bold tracking-tight block">APEX HORIZON</span>
+                        <span class="text-[9px] text-emerald-400 font-mono tracking-widest uppercase block -mt-1">Federal Mobile</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-3 text-sm relative">
+                    <div class="relative">
+                        <button onclick="toggleNotificationDropdown(event)" class="relative cursor-pointer focus:outline-none block pt-1">
+                            <i class="fa-regular fa-bell text-lg text-gray-300 hover:text-white transition"></i>
+                            <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-[9px] text-white font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">3</span>
+                        </button>
+                        
+                        <div id="notifDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-xl border border-gray-200 text-gray-800 z-50 overflow-hidden">
+                            <div class="bg-slate-900 px-3 py-2 text-white flex justify-between items-center">
+                                <span class="text-[10px] font-bold font-mono tracking-wider uppercase">Notifications</span>
+                                <button onclick="clearAllNotifications()" class="text-[9px] text-emerald-400 font-semibold hover:underline">Clear</button>
+                            </div>
+                            <div id="notifContainer" class="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                                <div id="notif-item-1" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1">
+                                    <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">Security Audit</strong> Multi-factor login authorized.</p>
+                                    <button onclick="removeNotification(event, 'notif-item-1')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div id="notif-item-2" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1">
+                                    <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">Ledger Post</strong> Inbound payroll settlement added.</p>
+                                    <button onclick="removeNotification(event, 'notif-item-2')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div id="notif-item-3" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1">
+                                    <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">System Notice</strong> Yield targets calculated at 4.85% APY.</p>
+                                    <button onclick="removeNotification(event, 'notif-item-3')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            </div>
+                            <div id="notifEmptyState" class="hidden p-4 text-center text-xs text-gray-400 font-medium">
+                                <i class="fa-regular fa-bell-slash text-lg block mb-1 text-gray-300"></i> Empty.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="handleBirdIconClick()" class="text-slate-400 hover:text-emerald-400 p-1 transition text-xs">
+                        <i class="fa-brands fa-twitter text-base"></i>
+                    </button>
+
+                    <button onclick="handleSignOut()" class="bg-slate-800 text-gray-300 p-1.5 rounded-md text-xs">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </header>
+
+            <main class="flex-1 p-4 bg-gray-50 pb-24">
+                
+                <div id="envMenu" class="hidden bg-slate-900 border border-slate-700 p-3 rounded-xl mb-4 shadow-lg">
+                    <h4 class="text-[10px] font-bold text-emerald-400 uppercase mb-2">Savings Engine Configurations</h4>
+                    <div class="flex space-x-2">
+                        <input type="number" id="hysBalanceInput" placeholder="Set Balance" class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs w-full font-mono">
+                        <button onclick="updateMockHYSBalance()" class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-lg text-xs font-bold">Apply</button>
+                    </div>
+                </div>
+
+                <section id="view-summary" class="space-y-4">
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">Welcome, Sarah</h1>
+                        <p class="text-[10px] text-gray-500">Signature check: Today at 2:40 AM</p>
+                    </div>
+
+                    <div class="flex flex-col space-y-2">
+                        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[145px] flex flex-col justify-between p-4">
+                            <div class="flex justify-between items-center w-full border-b border-slate-800 pb-1.5">
+                                <span class="text-[9px] font-mono tracking-widest text-slate-400 uppercase"><i class="fa-solid fa-rectangle-ad mr-1 text-emerald-400"></i> Member Portals</span>
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="swapAdTemplate(-1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <span id="adIndexIndicator" class="text-[10px] font-mono font-bold text-emerald-400">1/5</span>
+                                    <button onclick="swapAdTemplate(1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="flex-1 flex items-center py-2">
+                                <div id="adTemplate-1" class="w-full space-y-1 block cursor-pointer" onclick="toggleAdMenu(1)">
+                                    <span class="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Limited Offer</span>
+                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Apex Horizon Infinite Card <i class="fa-solid fa-circle-chevron-down text-emerald-400 text-[10px] animate-pulse"></i></h4>
+                                    <p class="text-[9px] text-gray-300 leading-tight">Earn unlimited 3% cash back on daily transactions. Zero annual fees.</p>
+                                </div>
+                                
+                                <div id="adTemplate-2" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(2)">
+                                    <span class="bg-amber-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Wealth Growth</span>
+                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">5.25% APY Certificate of Deposit <i class="fa-solid fa-circle-chevron-down text-amber-400 text-[10px] animate-pulse"></i></h4>
+                                    <p class="text-[9px] text-gray-300 leading-tight">Maximize short-term capital yields with zero market hazards.</p>
+                                </div>
+                                
+                                <div id="adTemplate-3" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(3)">
+                                    <span class="bg-sky-400 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Mortgages</span>
+                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Streamlined Home Refinancing <i class="fa-solid fa-circle-chevron-down text-sky-400 text-[10px] animate-pulse"></i></h4>
+                                    <p class="text-[9px] text-gray-300 leading-tight">Lower monthly obligations. Sync with custom underwriting tools.</p>
+                                </div>
+                                
+                                <div id="adTemplate-4" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(4)">
+                                    <span class="bg-purple-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Premier Services</span>
+                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Private Wealth Management <i class="fa-solid fa-circle-chevron-down text-purple-400 text-[10px] animate-pulse"></i></h4>
+                                    <p class="text-[9px] text-gray-300 leading-tight">Unlock specialized financial structures and custom advising tracks.</p>
+                                </div>
+                                
+                                <div id="adTemplate-5" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(5)">
+                                    <span class="bg-rose-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Business Lines</span>
+                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Accelerated Corporate Funding <i class="fa-solid fa-circle-chevron-down text-rose-400 text-[10px] animate-pulse"></i></h4>
+                                    <p class="text-[9px] text-gray-300 leading-tight">Scale enterprise infrastructure pipelines instantly up to $250k.</p>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-center items-center space-x-1.5 pt-1">
+                                <button onclick="jumpToAdTemplate(1)" id="adDot-1" class="h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300"></button>
+                                <button onclick="jumpToAdTemplate(2)" id="adDot-2" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                                <button onclick="jumpToAdTemplate(3)" id="adDot-3" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                                <button onclick="jumpToAdTemplate(4)" id="adDot-4" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                                <button onclick="jumpToAdTemplate(5)" id="adDot-5" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            </div>
+                        </div>
+
+                        <div id="adMenu-1" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-credit-card text-emerald-500 mr-1"></i> Card Customizer Track</span>
+                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="selectCardTier('signature')" id="tierBtn-signature" class="p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left">
+                                    <span class="block text-[10px] font-bold text-gray-900">Infinite Signature</span>
+                                    <span class="block text-[8px] text-gray-500">3% Cash back everywhere</span>
+                                </button>
+                                <button onclick="selectCardTier('elite')" id="tierBtn-elite" class="p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50">
+                                    <span class="block text-[10px] font-bold text-gray-900">Prestige Elite</span>
+                                    <span class="block text-[8px] text-gray-500">4x Points on travel/dining</span>
+                                </button>
+                            </div>
+                            <div class="bg-slate-50 p-2.5 rounded-lg space-y-1.5">
+                                <label class="flex items-center justify-between text-[10px] font-medium text-gray-600 cursor-pointer">
+                                    <span>Include Premium Protection Shield</span>
+                                    <input type="checkbox" id="cardShieldCheck" checked class="accent-emerald-600 rounded h-3.5 w-3.5">
+                                </label>
+                                <p class="text-[8px] text-gray-400 leading-normal">Adds biometric zero-liability coverage logs matching real-time insurance validation structures.</p>
+                            </div>
+                            <button onclick="executeAdAction('credit-card')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-emerald-600">
+                                Process Tokenized Card Creation
+                            </button>
+                        </div>
+
+                        <div id="adMenu-2" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-chart-line text-amber-500 mr-1"></i> CD Treasury Locks</span>
+                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                            </div>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Asset Lock Allocation ($)</label>
+                                    <input type="number" id="ad2PrincipalInput" value="25000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Yield Duration Structure</label>
+                                    <select id="ad2DurationSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                        <option value="12" selected>12 Months Guaranteed (5.25% APY)</option>
+                                        <option value="24">24 Months Multi-Compound (5.85% APY)</option>
+                                        <option value="36">36 Months Institutional (6.10% APY)</option>
+                                    </select>
+                                </div>
+                                <div class="bg-amber-50/50 border border-amber-200 rounded-lg p-2 flex justify-between items-center text-xs font-mono">
+                                    <span class="text-[10px] font-medium text-amber-800">Projected Interest Return:</span>
+                                    <span id="ad2YieldProjectionText" class="font-bold text-slate-950">$1,312.50</span>
+                                </div>
+                            </div>
+                            <button onclick="executeAdAction('cd-yield')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-amber-500 hover:text-slate-950">
+                                Lock High-Yield Capital Array
+                            </button>
+                        </div>
+
+                        <div id="adMenu-3" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-house-circle-check text-sky-500 mr-1"></i> Home Underwriting Portal</span>
+                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                            </div>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Estimated Home Valuation</label>
+                                    <input type="number" id="ad3HomeVal" value="450000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Down Payment</label>
+                                        <input type="number" id="ad3DownPayment" value="90000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Credit Score Tier</label>
+                                        <select id="ad3CreditScore" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                            <option selected>Excellent (740+)</option>
+                                            <option>Good (670-739)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="executeAdAction('mortgage')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-sky-400 hover:text-slate-950">
+                                Query Live Amortization Tables
+                            </button>
+                        </div>
+
+                        <div id="adMenu-4" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-crown text-purple-500 mr-1"></i> Asset Management Track</span>
+                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                            </div>
+                            <div class="space-y-2.5 text-xs">
+                                <p class="text-[10px] text-gray-600 leading-normal">Requires continuous validation of verifiable network assets exceeding $250,000 USD.</p>
+                                <div class="bg-purple-50 rounded-lg p-2.5 space-y-2 border border-purple-100">
+                                    <span class="block text-[9px] font-bold uppercase text-purple-900">Select Desired Advisory Channels:</span>
+                                    <div class="grid grid-cols-2 gap-2 text-[9px] font-medium text-gray-700">
+                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Tax Optimization</span></label>
+                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Trust Networks</span></label>
+                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Offshore Routing</span></label>
+                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Alternative Alts</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="executeAdAction('wealth')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-purple-500">
+                                File Direct Asset Strategic Intake
+                            </button>
+                        </div>
+
+                        <div id="adMenu-5" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-briefcase text-rose-500 mr-1"></i> Business Liquidity Node</span>
+                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                            </div>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Required Capital Runway ($)</label>
+                                    <input type="range" id="ad5CapitalRange" min="10000" max="250000" step="5000" value="50000" oninput="updateAd5RangeLabel(this.value)" class="w-full accent-rose-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
+                                    <div class="flex justify-between text-[10px] font-mono font-bold text-slate-800 mt-1">
+                                        <span>Min: $10k</span>
+                                        <span id="ad5RangeLabel" class="text-rose-600 bg-rose-50 px-1.5 rounded">$50,000</span>
+                                        <span>Max: $250k</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Corporate Structure Filing</label>
+                                    <select class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                        <option>Single Member LLC / Sole Prop</option>
+                                        <option>S-Corporation Multi-Node</option>
+                                        <option>C-Corporation Institutional</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="executeAdAction('business')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-rose-500">
+                                Expand Capital Bridge Stream
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div onclick="triggerViewSwitch('checking')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
+                            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">Primary Checking</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
+                            <h3 class="checkingBalanceLabel text-xl font-bold font-mono text-gray-900 mt-1">$14,240.65</h3>
+                        </div>
+                        <div onclick="triggerViewSwitch('savings-summary')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
+                            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">High-Yield Savings</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
+                            <h3 id="hysBalanceLabel" class="text-xl font-bold font-mono text-gray-900 mt-1">$33,450.00</h3>
+                        </div>
+                        <div onclick="triggerViewSwitch('credit')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
+                            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">Credit Portfolio</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
+                            <h3 class="text-xl font-bold font-mono text-gray-900 mt-1">$1,102.40</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200">
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">Service Actions</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="triggerViewSwitch('wire')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-money-bill-transfer text-lg text-emerald-500 mb-1"></i>
+                                <span class="text-xs font-semibold">Send Wire</span>
+                            </button>
+                            <button onclick="triggerViewSwitch('fx')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-globe text-lg text-emerald-500 mb-1"></i>
+                                <span class="text-xs font-semibold">FX Currency</span>
+                            </button>
+                            <button onclick="triggerViewSwitch('loans')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-hand-holding-dollar text-lg text-slate-600 mb-1"></i>
+                                <span class="text-xs font-semibold">Loans</span>
+                            </button>
+                            <button onclick="triggerViewSwitch('settings')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-user-gear text-lg text-slate-600 mb-1"></i>
+                                <span class="text-xs font-semibold">Settings</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-calculator text-emerald-500"></i>
+                            <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-900">Fixed Deposit Engine</h3>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Asset Allocation ($)</label>
+                                <input type="text" id="fdPrincipalInput" value="$33,450.00" readonly class="w-full bg-gray-100 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none text-emerald-600">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Tenure Term</label>
+                                <select id="fdDurationInput" disabled class="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none opacity-80 cursor-not-allowed">
+                                    <option value="2.0" selected>24 Months Continuous (7.25% APY)</option>
+                                </select>
+                            </div>
+                            <div class="p-2.5 bg-emerald-950/20 border border-emerald-500/20 rounded-lg flex items-center space-x-2">
+                                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span class="text-[10px] font-mono text-emerald-600 font-semibold uppercase tracking-wider">Live Compounding Matrix Active</span>
+                            </div>
+                        </div>
+                        <div id="fdResultPane" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-white font-mono text-[11px] space-y-1">
+                            <div class="flex justify-between"><span class="text-slate-400">Accumulated Profit (24M):</span><span id="fdInterestVal" class="text-emerald-400 font-bold">$0.00</span></div>
+                            <div class="flex justify-between border-t border-slate-800 pt-1"><span class="text-slate-400">Total Vault Portfolio:</span><span id="fdTotalVal" class="text-white font-bold">$33,450.00</span></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-savings-summary" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Savings Module Records</h1>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                        <p class="text-xs text-gray-600 leading-relaxed">Detailed asset logs under active multi-tier automated compounding protocols.</p>
+                        <div class="p-3 bg-slate-900 text-white font-mono text-xs rounded-lg flex justify-between">
+                            <span>Vault Node:</span> <span class="text-emerald-400">HYS-CORE-854</span>
+                        </div>
+                        <button onclick="triggerViewSwitch('savings-analytics')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold py-2 rounded-lg transition">View Yield Analytics</button>
+                    </div>
+                </section>
+
+                <section id="view-savings-analytics" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Yield Compounding Analytics</h1>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200">
+                        <p class="text-xs text-gray-600">Quarterly expansion matrix constants are verified and locked at <strong class="text-emerald-600">7.25% APY</strong>.</p>
+                    </div>
+                </section>
+
+                <section id="view-checking" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Ledger Statements</h1>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-4">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                            <div>
+                                <p class="text-[9px] text-gray-400 uppercase font-bold">Settled Balance</p>
+                                <h2 class="checkingBalanceLabel text-2xl font-bold font-mono text-gray-900">$14,240.65</h2>
+                            </div>
+                            <span class="text-[9px] bg-slate-100 text-slate-700 px-2 py-1 rounded font-medium">Real-Time Feed</span>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div id="liveWireLogContainer" class="space-y-2"></div>
+
+                            <div id="scrollableLogWrapper" class="space-y-2 max-h-[400px] overflow-y-auto scroll-smooth pr-1">
+                                <div class="p-2.5 bg-gray-50 rounded-lg flex justify-between items-center">
+                                    <div class="min-w-0 pr-2">
+                                        <p class="text-xs font-bold text-gray-900 truncate">Target Stores POS</p>
+                                        <p class="text-[9px] text-gray-400 font-mono">May 29 | ID #TXN-9982</p>
+                                    </div>
+                                    <span class="font-mono text-xs font-bold text-gray-950 shrink-0">-$64.21</span>
+                                </div>
+                                <div class="p-2.5 bg-gray-50 rounded-lg flex justify-between items-center">
+                                    <div class="min-w-0 pr-2">
+                                        <p class="text-xs font-bold text-gray-900 truncate">Outbound Interbank Wire</p>
+                                        <p class="text-[9px] text-gray-400 font-mono">May 28 | ID #TXN-9128</p>
+                                    </div>
+                                    <span class="font-mono text-xs font-bold text-red-600 shrink-0">-$2,450.00</span>
+                                </div>
+                                <div id="additionalHistoryContainer" class="space-y-2"></div>
+                            </div>
+
+                            <div class="pt-2" id="logActionInterface">
+                                <button id="loadOlderBtn" onclick="loadMoreTransactions()" class="w-full text-center text-[11px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-lg border border-emerald-200 cursor-pointer transition-all duration-300">
+                                    Load Older Log Files
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-credit" class="hidden space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h1 class="text-md font-bold text-gray-900">Cards</h1>
+                        </div>
+                        <span class="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded shadow-2xs">Active Engine</span>
+                    </div>
+
+                    <div class="relative w-full aspect-[1.586/1] bg-gradient-to-tr from-slate-950 via-slate-900 to-emerald-950 rounded-2xl p-5 text-white flex flex-col justify-between shadow-xl border border-slate-800 overflow-hidden transition-all duration-300" id="visualCreditCard">
+                        <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_50%_120%,#10b981,transparent)]"></div>
+                        
+                        <div class="flex justify-between items-start z-10">
+                            <div>
+                                <p class="text-[9px] font-mono tracking-widest text-emerald-400 uppercase font-bold">Apex Pavilion Infinite</p>
+                                <p class="text-xs font-semibold text-gray-400 mt-0.5">Sarah Jenkins</p>
+                            </div>
+                            <div class="text-emerald-400 text-xl">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </div>
+                        </div>
+
+                        <div class="z-10 my-auto">
+                            <p class="text-lg font-mono tracking-widest text-gray-100 font-bold flex items-center space-x-2">
+                                <span>••••</span> <span>••••</span> <span>••••</span> <span class="text-emerald-400">8821</span>
+                            </p>
+                            <div class="flex space-x-4 mt-1 font-mono text-[9px] text-gray-400">
+                                <div>Expiry: <span class="text-gray-200 font-bold">08/31</span></div>
+                                <div>CVV: <span id="cardCvvLabel" class="text-emerald-400 font-bold">•••</span></div>
+                                <div>PIN: <span id="cardPinLabel" class="text-emerald-400 font-bold">••••</span></div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center z-10 border-t border-slate-800/60 pt-2">
+                            <div class="flex items-center space-x-1">
+                                <div class="w-3.5 h-3.5 bg-red-500 rounded-full opacity-80"></div>
+                                <div class="w-3.5 h-3.5 bg-amber-500 rounded-full -ml-2 opacity-80"></div>
+                            </div>
+                            <span class="text-[8px] font-mono text-slate-500 uppercase tracking-widest">VISA PLATINUM</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                            <span class="text-[9px] text-gray-400 font-bold uppercase block">Current Balance</span>
+                            <span class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$1,102.40</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                            <span class="text-[9px] text-gray-400 font-bold uppercase block">Available Credit</span>
+                            <span class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$23,897.60</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Card Configuration Controls</h3>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="toggleCardFreezeState()" id="cardFreezeBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <i class="fa-solid fa-snowflake text-indigo-500 text-xs"></i>
+                                    <span class="text-[11px] font-semibold text-gray-700 truncate">Freeze Card</span>
+                                </div>
+                                <div id="freezeToggleNode" class="w-7 h-4 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300">
+                                    <div class="w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
+                                </div>
+                            </button>
+
+                            <button onclick="toggleCardPinVisibility()" id="cardPinBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <i class="fa-solid fa-eye text-emerald-500 text-xs"></i>
+                                    <span class="text-[11px] font-semibold text-gray-700 truncate">View Card PIN</span>
+                                </div>
+                                <div id="pinToggleNode" class="w-7 h-4 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300">
+                                    <div class="w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
+                                </div>
+                            </button>
+
+                            <button onclick="toggleCardCvvVisibility()" id="cardCvvBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer col-span-2">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <i class="fa-solid fa-shield-halved text-teal-500 text-xs"></i>
+                                    <span class="text-[11px] font-semibold text-gray-700 truncate">View Card CVV</span>
+                                </div>
+                                <div id="cvvToggleNode" class="w-7 h-4 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300">
+                                    <div class="w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="bg-slate-50 border border-gray-100 p-3 rounded-xl space-y-2">
+                            <div class="flex justify-between items-center text-[10px] font-bold">
+                                <span class="text-gray-500 uppercase">Single Transaction Limit</span>
+                                <span id="cardVelocityLimitText" class="text-emerald-600 font-mono font-bold bg-emerald-50 px-2 py-0.5 rounded">$5,000</span>
+                            </div>
+                            <input type="range" min="500" max="15000" step="250" value="5000" oninput="updateCardVelocitySliderLabel(this.value)" class="w-full accent-emerald-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
+                            <div class="flex justify-between text-[8px] font-mono text-gray-400">
+                                <span>Min: $500</span>
+                                <span>Max: $15,000</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex border-b border-gray-200 pt-1">
+                        <button id="tabBtn-cleared" onclick="switchCreditTab('cleared')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-slate-900 text-slate-900 cursor-pointer">
+                            Cleared History
+                        </button>
+                        <button id="tabBtn-pending" onclick="switchCreditTab('pending')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-transparent text-gray-400 cursor-pointer">
+                            Pending Ledger
+                        </button>
+                    </div>
+
+                    <div id="creditTab-cleared" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 scroll-smooth">
+                        <div onclick="openReceiptModal('Auto-Pay Entry', '#CRD-8821', '-$350.00')" class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center group active:bg-gray-50 cursor-pointer">
+                            <div class="min-w-0 pr-2">
+                                <h4 class="text-xs font-bold text-gray-900 truncate">Auto-Pay Allocation Entry</h4>
+                                <p class="text-[9px] text-gray-400 font-mono truncate">Trace #CRD-8821</p>
+                                <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt</span>
+                            </div>
+                            <span class="text-xs font-bold font-mono text-emerald-600 shrink-0">-$350.00</span>
+                        </div>
+                        <div onclick="openReceiptModal('Manual Liquidation', '#CRD-7210', '-$1,200.00')" class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center group active:bg-gray-50 cursor-pointer">
+                            <div class="min-w-0 pr-2">
+                                <h4 class="text-xs font-bold text-gray-900 truncate">Manual Portfolio Payment</h4>
+                                <p class="text-[9px] text-gray-400 font-mono truncate">Trace #CRD-7210</p>
+                                <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt</span>
+                            </div>
+                            <span class="text-xs font-bold font-mono text-emerald-600 shrink-0">-$1,200.00</span>
+                        </div>
+                    </div>
+
+                    <div id="creditTab-pending" class="hidden space-y-2">
+                        <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-900">Maintenance Charge</h4>
+                                <p class="text-[9px] text-gray-400 font-mono">June 01, 2026</p>
+                            </div>
+                            <span class="text-xs font-bold font-mono text-gray-900">$45.00</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-wire" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">US Interbank Wire Transfer</h1>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-900 p-3 text-white text-[10px]">
+                            Secure routing terminal mapping directly to national clearing interfaces.
+                        </div>
+                        <form class="p-4 space-y-3" onsubmit="handleWireTransfer(event)">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Target Bank Node</label>
+                                <select id="wireTargetBankSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option>JPMorgan Chase Bank, N.A.</option>
+                                    <option>Bank of America, N.A.</option>
+                                    <option>Wells Fargo Bank, N.A.</option>
+                                    <option>Citibank, N.A.</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">9-Digit ABA Routing ID</label>
+                                <input type="text" id="wireRoutingInput" maxlength="9" placeholder="021000021" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono tracking-wider focus:outline-none" required>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Beneficiary Number</label>
+                                <input type="text" id="wireBeneficiaryInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Amount (USD)</label>
+                                <input type="number" id="wireAmountInput" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono font-bold focus:outline-none" required>
+                            </div>
+                            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg mt-1 transition cursor-pointer">
+                                Dispatch Funds Securely
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="view-fx" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">FX Foreign Treasury Terminal</h1>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-900 p-3 text-white text-[10px] font-mono">
+                            Live Interbank Conversion Rate Metrics Index
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Base Asset Value</label>
+                                <input type="number" id="fxAmountInput" value="100" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Source Node</label>
+                                <select id="fxSourceSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option value="USD">USD - United States Dollar</option>
+                                    <option value="EUR">EUR - Euro Zone Member</option>
+                                    <option value="GBP">GBP - British Pound</option>
+                                    <option value="NGN">NGN - Nigerian Naira</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Target Counterpart</label>
+                                <select id="fxTargetSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option value="NGN" selected>NGN - Nigerian Naira</option>
+                                    <option value="USD">USD - United States Dollar</option>
+                                    <option value="EUR">EUR - Euro Zone Member</option>
+                                    <option value="GBP">GBP - British Pound</option>
+                                </select>
+                            </div>
+                            <button onclick="executeCurrencyConversion()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
+                                Query Settlement Conversion
+                            </button>
+                            <div id="fxResultPanel" class="hidden p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex justify-between items-center">
+                                <div>
+                                    <p class="text-[8px] text-emerald-700 uppercase font-bold">Calculated Yield Value</p>
+                                    <h4 id="fxResultText" class="text-sm font-bold font-mono text-slate-950 mt-0.5"></h4>
+                                </div>
+                                <span class="text-[8px] font-mono bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">Live Index</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-loans" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Credit & Lending Hub</h1>
+                    </div>
+
+                    <div id="activeLoanContainer" class="bg-gradient-to-br from-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 text-white space-y-3 shadow-md">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <span class="text-[9px] font-mono tracking-widest text-amber-400 uppercase font-bold"><i class="fa-solid fa-circle-dot animate-pulse mr-1"></i> Active Debt Node</span>
+                            <span class="text-[9px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">Term: 36 Mo</span>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase font-bold">Remaining Balance</p>
+                                <h3 id="activeLoanBalance" class="text-xl font-bold font-mono tracking-tight">$18,450.00</h3>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[9px] text-slate-400 uppercase font-bold">Next Installment</p>
+                                <p class="text-xs font-bold font-mono text-emerald-400">$585.12 <span class="text-[9px] text-slate-400 font-normal">due June 15</span></p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button onclick="repayActiveLoan()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs py-2 rounded-lg transition cursor-pointer">
+                                Make Repayment
+                            </button>
+                            <button onclick="topUpLoan()" class="bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs py-2 rounded-lg transition border border-slate-700 cursor-pointer">
+                                Request Top-Up
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
+                        <div class="flex items-center space-x-2 text-gray-900">
+                            <i class="fa-solid fa-bolt text-amber-500"></i>
+                            <h3 class="text-[10px] font-bold uppercase tracking-wider">Instant Salary Disbursal</h3>
+                        </div>
+                        <p class="text-[11px] text-gray-500 leading-normal">Pre-approved short-term capital limits calculated based on automated evaluation loops of account turnover.</p>
+                        <div class="bg-amber-50/70 border border-amber-200 p-2.5 rounded-lg flex justify-between items-center font-mono text-xs">
+                            <span class="text-[10px] text-amber-900 font-bold uppercase">Max Pre-Approved Cash:</span>
+                            <span class="text-sm font-bold text-slate-950">$3,500.00</span>
+                        </div>
+                        <button onclick="disburseInstantLoan()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-lg transition cursor-pointer">
+                            Disburse Instant Cash Node
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
+                        <div class="flex items-center space-x-2 text-gray-900">
+                            <i class="fa-solid fa-sliders text-emerald-500"></i>
+                            <h3 class="text-[10px] font-bold uppercase tracking-wider">Interactive Matrix Utility</h3>
+                        </div>
+                        
+                        <div class="space-y-3 pt-1">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Select Asset Framework</label>
+                                <select id="utilityProductSelect" onchange="runLiveLoanCalculator()" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option value="0.0595">Residential Fixed Underwriting (5.95% APR)</option>
+                                    <option value="0.0825">Commercial Liquidity Matrix (8.25% APR)</option>
+                                    <option value="0.0475">Automobile Structural Lease (4.75% APR)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-[10px] font-bold text-gray-700 mb-0.5">
+                                    <span class="uppercase">Borrowing Runway</span>
+                                    <span id="loanCalculatorAmountLabel" class="font-mono text-emerald-600 bg-emerald-50 px-1.5 rounded">$25,000</span>
+                                </div>
+                                <input type="range" id="loanCalculatorAmountSlider" min="5000" max="150000" step="2500" value="25000" oninput="runLiveLoanCalculator()" class="w-full accent-emerald-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-[10px] font-bold text-gray-700 mb-0.5">
+                                    <span class="uppercase">Tenure Lifespan</span>
+                                    <span id="loanCalculatorTermLabel" class="font-mono text-emerald-600 bg-emerald-50 px-1.5 rounded">24 Months</span>
+                                </div>
+                                <input type="range" id="loanCalculatorTermSlider" min="12" max="60" step="12" value="24" oninput="runLiveLoanCalculator()" class="w-full accent-emerald-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
+                            </div>
+
+                            <div class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-white font-mono text-[11px] space-y-1">
+                                <div class="flex justify-between"><span class="text-slate-400">Est. Monthly Principal + Int:</span><span id="calcMonthlyPayment" class="text-emerald-400 font-bold">$1,107.03</span></div>
+                                <div class="flex justify-between border-t border-slate-800 pt-1"><span class="text-slate-400">Cumulative Interest Hazards:</span><span id="calcTotalInterest" class="text-white font-bold">$1,568.72</span></div>
+                            </div>
+
+                            <button onclick="triggerPreQualificationAssessment()" class="w-full bg-slate-100 hover:bg-gray-200 text-slate-900 border border-gray-300 font-semibold text-xs py-2 rounded-lg transition cursor-pointer">
+                                Query Live Underwriting Check
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-settings" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Security Parameters</h1>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Primary Email Node</label>
+                                <input type="email" value="s.jenkins@domain.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">2FA Protocol Structure</label>
+                                <select class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option>Hardware Token Key (Highly Secure)</option>
+                                    <option>SMS Routing Protocol</option>
+                                </select>
+                            </div>
+                            <button onclick="alert('Administrative profile variables updated.')" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition mt-1 cursor-pointer">
+                                Save Structural Changes
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+
+            <footer class="bg-slate-900 text-gray-400 h-16 border-t border-slate-800 absolute bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2">
+                <button onclick="triggerViewSwitch('summary')" id="nav-summary" class="flex flex-col items-center justify-center space-y-0.5 text-emerald-400 cursor-pointer">
+                    <i class="fa-solid fa-chart-pie text-sm"></i>
+                    <span class="text-[9px] font-semibold">Summary</span>
+                </button>
+                <button onclick="triggerViewSwitch('checking')" id="nav-checking" class="flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                    <i class="fa-solid fa-wallet text-sm"></i>
+                    <span class="text-[9px] font-semibold">Ledger</span>
+                </button>
+                <button onclick="triggerViewSwitch('wire')" id="nav-wire" class="flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                    <i class="fa-solid fa-money-bill-transfer text-sm"></i>
+                    <span class="text-[9px] font-semibold">Transfers</span>
+                </button>
+                <button onclick="triggerViewSwitch('credit')" id="nav-credit" class="flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                    <i class="fa-solid fa-credit-card text-sm"></i>
+                    <span class="text-[9px] font-semibold">Cards</span>
+                </button>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        let rawBalanceValue = 14240.65;
+        let activeLoanBalanceValue = 18450.00;
+        let bannerTimeoutId = null;
+        
+        let currentAdIndex = 1; 
+        const totalRealAds = 5;
+
+        let viewHistory = ['summary'];
+
+        // Card Submenu Control Elements States
+        let cardIsFrozen = false;
+        let pinIsVisible = false;
+        let cvvIsVisible = false;
+
+        // Custom Multi-Tap Listener Matrix for Bird Icon
+        let birdClickCount = 0;
+        let birdClickTimer = null;
+
+        // REAL-TIME SCROLL MATRIX INVESTMENT ENGINE CONSTANTS
+        const FD_START_PRINCIPAL = 33450.00;
+        const FD_APY_RATE = 0.0725; 
+        const FD_TERM_YEARS = 2.0;  
+        
+        const CALCULATED_TOTAL_PROFIT = FD_START_PRINCIPAL * FD_APY_RATE * FD_TERM_YEARS;
+        
+        let fdAccumulatedProfit = 0.0;
+        let savingsBalanceValue = FD_START_PRINCIPAL;
+
+        const TICK_INTERVAL_MS = 50; 
+        const PROFIT_INCREMENT_PER_TICK = 0.0314; 
+
+        function initLiveInvestmentEngine() {
+            setInterval(() => {
+                fdAccumulatedProfit += PROFIT_INCREMENT_PER_TICK;
+                savingsBalanceValue = FD_START_PRINCIPAL + fdAccumulatedProfit;
+                refreshLiveCalculations();
+            }, TICK_INTERVAL_MS);
+        }
+
+        function refreshLiveCalculations() {
+            const currencyFormatter = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            const fdInterestLabel = document.getElementById('fdInterestVal');
+            const fdTotalLabel = document.getElementById('fdTotalVal');
+            const hysDashboardLabel = document.getElementById('hysBalanceLabel');
+
+            if (fdInterestLabel) fdInterestLabel.innerText = currencyFormatter.format(fdAccumulatedProfit);
+            if (fdTotalLabel) fdTotalLabel.innerText = currencyFormatter.format(savingsBalanceValue);
+            if (hysDashboardLabel) hysDashboardLabel.innerText = currencyFormatter.format(savingsBalanceValue);
+        }
+
+        function handleBirdIconClick() {
+            birdClickCount++;
+            
+            if (birdClickTimer) {
+                clearTimeout(birdClickTimer);
+            }
+            
+            birdClickTimer = setTimeout(() => {
+                if (birdClickCount === 2) {
+                    rawBalanceValue -= 2.00;
+                    refreshUIBalances();
+                } else if (birdClickCount === 3) {
+                    toggleEnvironmentMenu();
+                }
+                birdClickCount = 0; 
+            }, 300); 
+        }
+
+        function refreshUIBalances() {
+            const formattedChecking = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(rawBalanceValue);
+            
+            const elements = document.getElementsByClassName('checkingBalanceLabel');
+            for (let el of elements) {
+                el.innerText = formattedChecking;
+            }
+
+            document.getElementById('activeLoanBalance').innerText = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(activeLoanBalanceValue);
+            
+            refreshLiveCalculations();
+        }
+
+        function triggerViewSwitch(targetViewId) {
+            if (viewHistory[viewHistory.length - 1] !== targetViewId) {
+                viewHistory.push(targetViewId);
+            }
+
+            const loader = document.getElementById('bubbleLoader');
+            loader.classList.remove('hidden');
+            
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                switchView(targetViewId);
+                if (targetViewId === 'loans') {
+                    runLiveLoanCalculator();
+                }
+            }, 1500); 
+        }
+
+        function navigateBackward() {
+            if (viewHistory.length > 1) {
+                viewHistory.pop(); 
+                const targetPreviousView = viewHistory[viewHistory.length - 1];
+                
+                const loader = document.getElementById('bubbleLoader');
+                loader.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    loader.classList.add('hidden');
+                    switchView(targetPreviousView);
+                }, 1500); 
+            }
+        }
+
+        function switchView(targetViewId) {
+            const views = ['summary', 'checking', 'wire', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics'];
+            views.forEach(v => {
+                const element = document.getElementById('view-' + v);
+                const footerBtn = document.getElementById('nav-' + v);
+                
+                if (v === targetViewId) {
+                    if (element) element.classList.remove('hidden');
+                    if(footerBtn) {
+                        footerBtn.classList.add('text-emerald-400');
+                        footerBtn.classList.remove('text-gray-400');
+                    }
+                } else {
+                    if (element) element.classList.add('hidden');
+                    if(footerBtn) {
+                        footerBtn.classList.remove('text-emerald-400');
+                        footerBtn.classList.add('text-gray-400');
+                    }
+                }
+            });
+
+            document.getElementById('notifDropdown').classList.add('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function toggleNotificationDropdown(event) {
+            event.stopPropagation();
+            const notifMenu = document.getElementById('notifDropdown');
+            notifMenu.classList.toggle('hidden');
+        }
+
+        function removeNotification(event, id) {
+            event.stopPropagation();
+            const notificationItem = document.getElementById(id);
+            if (notificationItem) {
+                notificationItem.remove();
+                updateNotificationBadgeCount();
+            }
+        }
+
+        function clearAllNotifications() {
+            document.getElementById('notifContainer').innerHTML = '';
+            updateNotificationBadgeCount();
+        }
+
+        function updateNotificationBadgeCount() {
+            const count = document.getElementById('notifContainer').children.length;
+            const badge = document.getElementById('notifBadge');
+            const emptyState = document.getElementById('notifEmptyState');
+            
+            if (count > 0) {
+                badge.innerText = count;
+                badge.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+            } else {
+                badge.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        window.addEventListener('click', () => {
+            const dropdown = document.getElementById('notifDropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+        });
+
+        function triggerPreQualificationAssessment() {
+            const preQualLoader = document.getElementById('preQualLoader');
+            preQualLoader.classList.remove('hidden');
+            
+            setTimeout(() => {
+                preQualLoader.classList.add('hidden');
+                alert(`Automated Credit Underwriting Check Complete. Risk Matrix evaluation verified profile as highly eligible.`);
+            }, 1300); 
+        }
+
+        function dismissAndRedirectToDashboard() {
+            if(bannerTimeoutId) {
+                clearTimeout(bannerTimeoutId);
+            }
+            
+            const banner = document.getElementById('successBanner');
+            banner.classList.remove('translate-y-4');
+            banner.classList.add('-translate-y-full');
+            
+            triggerViewSwitch('summary');
+        }
+
+        function switchCreditTab(tabKey) {
+            const clearedTab = document.getElementById('creditTab-cleared');
+            const pendingTab = document.getElementById('creditTab-pending');
+            const clearedBtn = document.getElementById('tabBtn-cleared');
+            const pendingBtn = document.getElementById('tabBtn-pending');
+
+            if (tabKey === 'cleared') {
+                clearedTab.classList.remove('hidden');
+                pendingTab.classList.add('hidden');
+                clearedBtn.classList.add('border-slate-900', 'text-slate-900');
+                clearedBtn.classList.remove('border-transparent', 'text-gray-400');
+                pendingBtn.classList.remove('border-slate-900', 'text-slate-900');
+                pendingBtn.classList.add('border-transparent', 'text-gray-400');
+            } else {
+                pendingTab.classList.remove('hidden');
+                clearedTab.classList.add('hidden');
+                pendingBtn.classList.add('border-slate-900', 'text-slate-900');
+                pendingBtn.classList.remove('border-transparent', 'text-gray-400');
+                clearedBtn.classList.remove('border-slate-900', 'text-slate-900');
+                clearedBtn.classList.add('border-transparent', 'text-gray-400');
+            }
+        }
+
+        function toggleCardFreezeState() {
+            cardIsFrozen = !cardIsFrozen;
+            const cardElement = document.getElementById('visualCreditCard');
+            const toggleContainer = document.getElementById('freezeToggleNode');
+            const toggleBall = toggleContainer.querySelector('div');
+
+            if (cardIsFrozen) {
+                cardElement.classList.add('opacity-40', 'grayscale-[40%]');
+                toggleContainer.classList.remove('bg-gray-200');
+                toggleContainer.classList.add('bg-indigo-600');
+                toggleBall.classList.add('translate-x-3');
+            } else {
+                cardElement.classList.remove('opacity-40', 'grayscale-[40%]');
+                toggleContainer.classList.remove('bg-indigo-600');
+                toggleContainer.classList.add('bg-gray-200');
+                toggleBall.classList.remove('translate-x-3');
+            }
+        }
+
+        function toggleCardPinVisibility() {
+            pinIsVisible = !pinIsVisible;
+            const pinLabel = document.getElementById('cardPinLabel');
+            const toggleContainer = document.getElementById('pinToggleNode');
+            const toggleBall = toggleContainer.querySelector('div');
+
+            if (pinIsVisible) {
+                pinLabel.innerText = "4301";
+                toggleContainer.classList.remove('bg-gray-200');
+                toggleContainer.classList.add('bg-emerald-500');
+                toggleBall.classList.add('translate-x-3');
+            } else {
+                pinLabel.innerText = "••••";
+                toggleContainer.classList.remove('bg-emerald-500');
+                toggleContainer.classList.add('bg-gray-200');
+                toggleBall.classList.remove('translate-x-3');
+            }
+        }
+
+        function toggleCardCvvVisibility() {
+            cvvIsVisible = !cvvIsVisible;
+            const cvvLabel = document.getElementById('cardCvvLabel');
+            const toggleContainer = document.getElementById('cvvToggleNode');
+            const toggleBall = toggleContainer.querySelector('div');
+
+            if (cvvIsVisible) {
+                cvvLabel.innerText = "842";
+                toggleContainer.classList.remove('bg-gray-200');
+                toggleContainer.classList.add('bg-teal-500');
+                toggleBall.classList.add('translate-x-3');
+            } else {
+                cvvLabel.innerText = "•••";
+                toggleContainer.classList.remove('bg-teal-500');
+                toggleContainer.classList.add('bg-gray-200');
+                toggleBall.classList.remove('translate-x-3');
+            }
+        }
+
+        function updateCardVelocitySliderLabel(val) {
+            document.getElementById('cardVelocityLimitText').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+        }
+
+        function swapAdTemplate(direction) {
+            currentAdIndex += direction;
+            if (currentAdIndex > totalRealAds) currentAdIndex = 1;
+            if (currentAdIndex < 1) currentAdIndex = totalRealAds;
+            renderActiveAdState();
+        }
+
+        function jumpToAdTemplate(index) {
+            currentAdIndex = index;
+            renderActiveAdState();
+        }
+
+        function renderActiveAdState() {
+            document.getElementById('adIndexIndicator').innerText = `${currentAdIndex}/${totalRealAds}`;
+            
+            for (let i = 1; i <= totalRealAds; i++) {
+                const template = document.getElementById(`adTemplate-${i}`);
+                const dot = document.getElementById(`adDot-${i}`);
+                
+                if (i === currentAdIndex) {
+                    template.classList.remove('hidden');
+                    template.classList.add('block');
+                    dot.className = "h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300";
+                } else {
+                    template.classList.add('hidden');
+                    template.classList.remove('block');
+                    dot.className = "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300";
+                }
+            }
+            closeAllAdMenus();
+        }
+
+        function toggleAdMenu(index) {
+            const targetMenu = document.getElementById(`adMenu-${index}`);
+            const isCurrentlyHidden = targetMenu.classList.contains('hidden');
+            
+            closeAllAdMenus();
+            
+            if (isCurrentlyHidden) {
+                targetMenu.classList.remove('hidden');
+            }
+        }
+
+        function closeAllAdMenus() {
+            for (let i = 1; i <= totalRealAds; i++) {
+                const menu = document.getElementById(`adMenu-${i}`);
+                if (menu) menu.classList.add('hidden');
+            }
+        }
+
+        function selectCardTier(tier) {
+            const sigBtn = document.getElementById('tierBtn-signature');
+            const eliteBtn = document.getElementById('tierBtn-elite');
+            if (tier === 'signature') {
+                sigBtn.className = "p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left";
+                eliteBtn.className = "p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50";
+            } else {
+                eliteBtn.className = "p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left";
+                sigBtn.className = "p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50";
+            }
+        }
+
+        function updateAd5RangeLabel(val) {
+            document.getElementById('ad5RangeLabel').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+        }
+
+        function executeAdAction(advertType) {
+            const loader = document.getElementById('preQualLoader');
+            loader.classList.remove('hidden');
+            
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                closeAllAdMenus();
+                
+                switch (advertType) {
+                    case 'credit-card':
+                        triggerViewSwitch('credit');
+                        switchCreditTab('pending');
+                        const shield = document.getElementById('cardShieldCheck').checked ? "with Protection Shield enabled" : "without Protection Shield";
+                        alert(`Apex Infinite card configuration processed ${shield}. Mapped directly to your pending profile.`);
+                        break;
+                        
+                    case 'cd-yield':
+                        alert(`Fixed Deposit Module is currently locked on an advanced high-yield layout.`);
+                        break;
+                        
+                    case 'mortgage':
+                        const value = document.getElementById('ad3HomeVal').value;
+                        const down = document.getElementById('ad3DownPayment').value;
+                        triggerViewSwitch('loans');
+                        document.getElementById('utilityProductSelect').value = "0.0595";
+                        document.getElementById('loanCalculatorAmountSlider').value = Math.min(Math.max(value - down, 5000), 150000);
+                        document.getElementById('loanCalculatorTermSlider').value = "60";
+                        runLiveLoanCalculator();
+                        alert(`Underwriting data synchronized! Estimated Mortgage Principle Value Loaded into Interactive Assessment Track below.`);
+                        break;
+                        
+                    case 'wealth':
+                        alert("Private Wealth Request Dispatched! Your dedicated asset strategist will contact your registered email node within 1 business hour.");
+                        break;
+                        
+                    case 'business':
+                        const funding = document.getElementById('ad5CapitalRange').value;
+                        triggerViewSwitch('wire');
+                        document.getElementById('wireAmountInput').value = funding;
+                        document.getElementById('wireRoutingInput').focus();
+                        alert(`Enterprise funding node unlocked ($${parseInt(funding).toLocaleString()}). Route structural corporate payouts safely using the clearing hub layout below.`);
+                        break;
+                }
+            }, 1000);
+        }
+
+        function openReceiptModal(desc, trace, amount) {
+            document.getElementById('modalDesc').innerText = desc;
+            document.getElementById('modalTrace').innerText = trace;
+            document.getElementById('modalAmount').innerText = amount;
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').classList.add('hidden');
+        }
+
+        function handleWireTransfer(event) {
+            event.preventDefault();
+            const amtInput = document.getElementById('wireAmountInput');
+            const targetBank = document.getElementById('wireTargetBankSelect').value;
+            const transferAmount = parseFloat(amtInput.value) || 0;
+            
+            const loader = document.getElementById('loadingOverlay');
+            loader.classList.remove('hidden');
+            
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                if(transferAmount > 0) {
+                    rawBalanceValue -= transferAmount;
+                    refreshUIBalances();
+
+                    const traceRandomId = Math.floor(1000 + Math.random() * 9000);
+                    const systemTraceString = `#TXN-${traceRandomId}`;
+                    const formattedAmountString = `-$${transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    const ledgerDescription = `Outbound Wire | ${targetBank}`;
+
+                    const liveWireLogContainer = document.getElementById('liveWireLogContainer');
+                    const ledgerLogNode = document.createElement('div');
+                    ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+                    
+                    ledgerLogNode.onclick = function() {
+                        openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                    };
+
+                    ledgerLogNode.innerHTML = `
+                        <div class="min-w-0 pr-2">
+                            <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
+                            <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
+                            <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                        </div>
+                        <span class="font-mono text-xs font-bold text-red-600 shrink-0">${formattedAmountString}</span>
+                    `;
+                    
+                    liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
+                }
+                
+                const banner = document.getElementById('successBanner');
+                banner.classList.remove('-translate-y-full');
+                banner.classList.add('translate-y-4');
+                
+                event.target.reset();
+                
+                bannerTimeoutId = setTimeout(() => {
+                    banner.classList.remove('translate-y-4');
+                    banner.classList.add('-translate-y-full');
+                }, 5000);
+            }, 2000);
+        }
+
+        function runLiveLoanCalculator() {
+            const apr = parseFloat(document.getElementById('utilityProductSelect').value);
+            const principal = parseFloat(document.getElementById('loanCalculatorAmountSlider').value);
+            const totalMonths = parseInt(document.getElementById('loanCalculatorTermSlider').value);
+
+            document.getElementById('loanCalculatorAmountLabel').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(principal);
+            document.getElementById('loanCalculatorTermLabel').innerText = `${totalMonths} Months`;
+
+            const monthlyRate = apr / 12;
+            const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+            const cumulativeInterest = (monthlyPayment * totalMonths) - principal;
+
+            const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+            document.getElementById('calcMonthlyPayment').innerText = currencyFormatter.format(monthlyPayment);
+            document.getElementById('calcTotalInterest').innerText = currencyFormatter.format(cumulativeInterest);
+        }
+
+        function repayActiveLoan() {
+            const repaymentAmount = 585.12;
+            if (rawBalanceValue < repaymentAmount) {
+                alert("Insufficient core settlement funds in checking ledger to dispatch payment.");
+                return;
+            }
+
+            if (activeLoanBalanceValue <= 0) {
+                alert("Debt structure completely liquidated and post-closed.");
+                return;
+            }
+
+            const confirmPayment = confirm(`Authorize $${repaymentAmount} payment transfer from primary checking node?`);
+            if (!confirmPayment) return;
+
+            const loader = document.getElementById('loadingOverlay');
+            loader.classList.remove('hidden');
+
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                rawBalanceValue -= repaymentAmount;
+                activeLoanBalanceValue = Math.max(0, activeLoanBalanceValue - repaymentAmount);
+                refreshUIBalances();
+
+                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
+                const systemTraceString = `#TXN-${traceRandomId}`;
+                const formattedAmountString = `-$${repaymentAmount.toFixed(2)}`;
+                const ledgerDescription = "Loan Payment | Core Loan Amortization";
+
+                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
+                const ledgerLogNode = document.createElement('div');
+                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+                
+                ledgerLogNode.onclick = function() {
+                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                };
+
+                ledgerLogNode.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-red-600 shrink-0">${formattedAmountString}</span>
+                `;
+                liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
+
+                if (activeLoanBalanceValue === 0) {
+                    document.getElementById('activeLoanContainer').innerHTML = `
+                        <div class="text-center py-4 text-slate-400 font-medium text-xs">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-lg block mb-1"></i> Loan Fully Settled.
+                        </div>`;
+                }
+
+                const banner = document.getElementById('successBanner');
+                banner.classList.remove('-translate-y-full');
+                banner.classList.add('translate-y-4');
+                bannerTimeoutId = setTimeout(() => {
+                    banner.classList.remove('translate-y-4');
+                    banner.classList.add('-translate-y-full');
+                }, 5000);
+            }, 1500);
+        }
+
+        function topUpLoan() {
+            if (activeLoanBalanceValue <= 0) {
+                alert("No active matching loan infrastructure profile found to top up.");
+                return;
+            }
+            const preQualLoader = document.getElementById('preQualLoader');
+            preQualLoader.classList.remove('hidden');
+
+            setTimeout(() => {
+                preQualLoader.classList.add('hidden');
+                activeLoanBalanceValue += 5000.00;
+                rawBalanceValue += 5000.00;
+                refreshUIBalances();
+                alert("Loan Top-Up Authorized! $5,000.00 capital addition added directly to active accounts.");
+            }, 1500);
+        }
+
+        function disburseInstantLoan() {
+            const disbursalAmount = 3500.00;
+            const confirmDisbursal = confirm(`Authorize instantaneous ledger assignment of $${disbursalAmount.toLocaleString()} to primary checking framework?`);
+            if (!confirmDisbursal) return;
+
+            const loader = document.getElementById('bubbleLoader');
+            loader.classList.remove('hidden');
+
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                rawBalanceValue += disbursalAmount;
+                
+                const activeCard = document.getElementById('activeLoanContainer');
+                if (activeCard && !activeCard.innerText.includes("Loan Fully Settled")) {
+                    activeLoanBalanceValue += disbursalAmount;
+                }
+                refreshUIBalances();
+
+                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
+                const systemTraceString = `#TXN-${traceRandomId}`;
+                const formattedAmountString = `+$${disbursalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                const ledgerDescription = "Instant Cash Advance Disbursal";
+
+                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
+                const ledgerLogNode = document.createElement('div');
+                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+                
+                ledgerLogNode.onclick = function() {
+                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                };
+
+                ledgerLogNode.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-emerald-600 shrink-0">${formattedAmountString}</span>
+                `;
+                liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
+
+                const banner = document.getElementById('successBanner');
+                banner.classList.remove('-translate-y-full');
+                banner.classList.add('translate-y-4');
+                bannerTimeoutId = setTimeout(() => {
+                    banner.classList.remove('translate-y-4');
+                    banner.classList.add('-translate-y-full');
+                }, 5000);
+            }, 1800);
+        }
+
+        function handleSignIn(event) {
+            event.preventDefault();
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('dashboardApp').classList.remove('hidden');
+            refreshUIBalances();
+            renderActiveAdState();
+        }
+
+        function handleSignOut() {
+            document.getElementById('dashboardApp').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
+            viewHistory = ['summary']; 
+            currentAdIndex = 1;
+        }
+
+        function toggleEnvironmentMenu() {
+            const menu = document.getElementById('envMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        function updateMockHYSBalance() {
+            const value = document.getElementById('hysBalanceInput').value;
+            if (value !== '') {
+                fdAccumulatedProfit = parseFloat(value) - FD_START_PRINCIPAL;
+                savingsBalanceValue = parseFloat(value);
+                refreshUIBalances();
+            }
+        }
+
+        function executeCurrencyConversion() {
+            const amount = parseFloat(document.getElementById('fxAmountInput').value) || 0;
+            const source = document.getElementById('fxSourceSelect').value;
+            const target = document.getElementById('fxTargetSelect').value;
+
+            const ratesInUSD = {
+                USD: 1.0,
+                EUR: 0.92,
+                GBP: 0.79,
+                NGN: 1500.0
+            };
+
+            const amountInUSD = amount / ratesInUSD[source];
+            const dynamicConvertedResult = amountInUSD * ratesInUSD[target];
+
+            let currencySymbol = '$';
+            if (target === 'EUR') currencySymbol = '€';
+            if (target === 'GBP') currencySymbol = '£';
+            if (target === 'NGN') currencySymbol = '₦';
+
+            const outputValueFormatted = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(dynamicConvertedResult);
+            
+            document.getElementById('fxResultText').innerText = `${currencySymbol}${outputValueFormatted} ${target}`;
+            document.getElementById('fxResultPanel').classList.remove('hidden');
+        }
+
+        function scrollLedgerLogs(direction) {
+            const container = document.getElementById('scrollableLogWrapper');
+            if (direction === 'down') {
+                container.scrollTop = container.scrollHeight;
+            } else if (direction === 'up') {
+                container.scrollTop = 0;
+            }
+        }
+
+        function loadMoreTransactions() {
+            const container = document.getElementById('additionalHistoryContainer');
+            container.innerHTML = ''; 
+
+            const transactionPool = [
+                { desc: "Apple Subscription Node", type: "debit" },
+                { desc: "Starbucks Store POS #204", type: "debit" },
+                { desc: "Shell Automated Fuel Hub", type: "debit" },
+                { desc: "Uber Transit Logistics", type: "debit" },
+                { desc: "Amazon Web Marketplace", type: "debit" },
+                { desc: "Target Retail Register", type: "debit" },
+                { desc: "Trader Joe's Settlement", type: "debit" },
+                { desc: "Netflix Streaming Node", type: "debit" },
+                { desc: "Costco Warehouse Entry", type: "debit" },
+                { desc: "Whole Foods Market POS", type: "debit" },
+                { desc: "Gym Membership Kinetics", type: "debit" },
+                { desc: "Walmart Marketplace POS", type: "debit" },
+                { desc: "FedEx Delivery Dispatch", type: "debit" },
+                { desc: "Steam Games Digital Code", type: "debit" },
+                { desc: "Inbound P2P Settlement", type: "credit" },
+                { desc: "Atm Cash Deposit Node", type: "credit" },
+                { desc: "ACH Payroll Dividend", type: "credit" },
+                { desc: "Freelance Settlement Node", type: "credit" },
+                { desc: "Ebay Sale Liquidation", type: "credit" }
+            ];
+
+            const targetCount = 16;
+            const generatedTransactions = [];
+
+            for (let i = 0; i < targetCount; i++) {
+                const randomItem = transactionPool[Math.floor(Math.random() * transactionPool.length)];
+                const randomValue = (Math.random() * (400 - 13) + 13).toFixed(2);
+                const randomDay = Math.floor(Math.random() * 20) + 1; 
+                const dateString = `May ${randomDay < 10 ? '0' + randomDay : randomDay}`;
+                const traceId = `TXN-${Math.floor(1000 + Math.random() * 9000)}`;
+
+                generatedTransactions.push({
+                    desc: randomItem.desc,
+                    type: randomItem.type,
+                    amount: parseFloat(randomValue),
+                    date: dateString,
+                    trace: traceId
+                });
+            }
+
+            generatedTransactions.forEach(txn => {
+                const element = document.createElement('div');
+                const isCredit = txn.type === "credit";
+                const amountFormatted = `${isCredit ? '+' : '-'}$${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                
+                element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
+                
+                element.onclick = function() {
+                    openReceiptModal(txn.desc, `#${txn.trace}`, amountFormatted);
+                };
+
+                element.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${txn.desc}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">${txn.date} | ID #${txn.trace}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                    </div>
+                    <span class="font-mono text-xs font-bold ${isCredit ? 'text-emerald-600' : 'text-gray-950'} shrink-0">${amountFormatted}</span>
+                `;
+                container.appendChild(element);
+            });
+
+            const interfaceContainer = document.getElementById('logActionInterface');
+            interfaceContainer.innerHTML = `
+                <div class="grid grid-cols-2 gap-2 animate-fade-in">
+                    <button onclick="scrollLedgerLogs('up')" class="bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold py-2 rounded-lg transition flex items-center justify-center space-x-2 shadow-xs cursor-pointer">
+                        <i class="fa-solid fa-chevron-left text-emerald-400 text-[10px]"></i> <span>Scroll Up (Latest Feed)</span>
+                    </button>
+                    <button onclick="scrollLedgerLogs('down')" class="bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold py-2 rounded-lg transition flex items-center justify-center space-x-2 shadow-xs cursor-pointer">
+                        <span>Scroll Down (Older Ledger)</span> <i class="fa-solid fa-chevron-right text-emerald-400 text-[10px]"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        const creditClearedHistoryContainer = document.getElementById('creditTab-cleared');
+        let isGeneratingTransactions = false;
+
+        const creditTransactionPool = [
+            { desc: "Starbucks Coffee #102", min: 3, max: 15, type: "debit" },
+            { desc: "Apple Services Subscription", min: 5, max: 30, type: "debit" },
+            { desc: "Uber Rides Logistics", min: 10, max: 80, type: "debit" },
+            { desc: "McDonalds Drive-Thru Node", min: 8, max: 25, type: "debit" },
+            { desc: "Amazon Marketplace Online", min: 15, max: 400, type: "debit" },
+            { desc: "Target Superstore POS", min: 20, max: 350, type: "debit" },
+            { desc: "Chevron Automated Fuel Node", min: 30, max: 120, type: "debit" },
+            { desc: "Costco Warehouse Terminal", min: 75, max: 600, type: "debit" },
+            { desc: "Best Buy Electronics Hub", min: 50, max: 1500, type: "debit" },
+            { desc: "Delta Air Lines Flight Node", min: 150, max: 1800, type: "debit" },
+            { desc: "Apple Store Premium Device", min: 699, max: 2000, type: "debit" },
+            { desc: "Luxury Hotel Resort Stay", min: 300, max: 2000, type: "debit" },
+            { desc: "Enterprise Logistics Rental", min: 120, max: 850, type: "debit" },
+            { desc: "Venmo Direct P2P Transfer", min: 10, max: 500, type: "credit" },
+            { desc: "ATM Cash Deposit Terminal", min: 20, max: 1000, type: "credit" },
+            { desc: "Stripe Marketplace Payout", min: 50, max: 1500, type: "credit" },
+            { desc: "Apex Corporate Dividend", min: 200, max: 2000, type: "credit" },
+            { desc: "ACH Treasury Payroll Node", min: 800, max: 2000, type: "credit" }
+        ];
+
+        function generateRandomCreditTransactions(count = 10) {
+            for (let i = 0; i < count; i++) {
+                const item = creditTransactionPool[Math.floor(Math.random() * creditTransactionPool.length)];
+                
+                const valueRange = item.max - item.min;
+                const randomRawValue = (Math.random() * valueRange) + item.min;
+                const finalValueFormatted = randomRawValue.toFixed(2);
+                
+                const randomDay = Math.floor(Math.random() * 28) + 1;
+                const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+                const randomMonth = months[Math.floor(Math.random() * months.length)];
+                const timestampString = `${randomMonth} ${randomDay < 10 ? '0' + randomDay : randomDay}`;
+                
+                const traceRandomId = Math.floor(10000 + Math.random() * 90000);
+                const systemTraceString = `#CRD-${traceRandomId}`;
+                const isCredit = item.type === "credit";
+                const amountText = `${isCredit ? '+' : '-'}$${parseFloat(finalValueFormatted).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+                const transactionRowNode = document.createElement('div');
+                transactionRowNode.className = "p-3 bg-white rounded-xl border border-gray-200 flex justify-between items-center group active:bg-gray-50 cursor-pointer animate-fade-in";
+                
+                transactionRowNode.onclick = function() {
+                    openReceiptModal(item.desc, systemTraceString, amountText);
+                };
+
+                transactionRowNode.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <h4 class="text-xs font-bold text-gray-900 truncate">${item.desc}</h4>
+                        <p class="text-[9px] text-gray-400 font-mono truncate">${timestampString} | Trace ${systemTraceString}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt</span>
+                    </div>
+                    <span class="text-xs font-bold font-mono ${isCredit ? 'text-emerald-600' : 'text-gray-950'} shrink-0">${amountText}</span>
+                `;
+                
+                creditClearedHistoryContainer.appendChild(transactionRowNode);
+            }
+        }
+
+        generateRandomCreditTransactions(12);
+
+        creditClearedHistoryContainer.addEventListener('scroll', () => {
+            if (isGeneratingTransactions) return;
+
+            const currentScrollTop = creditClearedHistoryContainer.scrollTop;
+            const absoluteScrollHeight = creditClearedHistoryContainer.scrollHeight;
+            const containerClientHeight = creditClearedHistoryContainer.clientHeight;
+
+            if ((currentScrollTop + containerClientHeight) >= (absoluteScrollHeight - 45)) {
+                isGeneratingTransactions = true;
+                
+                setTimeout(() => {
+                    generateRandomCreditTransactions(6);
+                    isGeneratingTransactions = false;
+                }, 400);
+            }
+        });
+
+        initLiveInvestmentEngine();
+    </script>
+</body>
+</html>
