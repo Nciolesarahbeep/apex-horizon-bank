@@ -1596,7 +1596,7 @@
                     const prevLabel = prevStepEl.querySelector('.loginStepLabel');
                     prevStepEl.classList.remove('opacity-40');
                     prevIcon.className = "loginStepIcon w-6 h-6 rounded-full bg-emerald-500 border-2 border-emerald-500 flex items-center justify-center shrink-0";
-                    prevIcon.querySelector('i').className = "fa-solid fa-check text-[10px] text-slate-950";
+                    prevIcon.innerHTML = '<i class="fa-solid fa-check text-[10px] text-slate-950"></i>';
                     prevLabel.className = "loginStepLabel text-[11px] font-mono text-emerald-400 tracking-wide";
                 }
 
@@ -1618,7 +1618,7 @@
                 const activeLabel = activeStepEl.querySelector('.loginStepLabel');
                 activeStepEl.classList.remove('opacity-40');
                 activeIcon.className = "loginStepIcon w-6 h-6 rounded-full border-2 border-emerald-400 flex items-center justify-center shrink-0 relative";
-                activeIcon.innerHTML = '<div class="absolute inset-0 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin"></div>';
+                activeIcon.innerHTML = '<div class="absolute inset-0 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin"></div><i class="fa-solid fa-check text-[10px] text-transparent"></i>';
                 activeLabel.className = "loginStepLabel text-[11px] font-mono text-white font-semibold tracking-wide";
 
                 const pct = Math.round((currentStep / totalSteps) * 100);
