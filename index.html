@@ -47,27 +47,56 @@
         </div>
 
         <div id="receiptModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-4 relative">
-                <div class="text-center border-b border-dashed border-gray-200 pb-4">
-                    <div class="mx-auto w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-2">
-                        <i class="fa-solid fa-receipt text-xl"></i>
+            <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+                    <button onclick="closeReceiptModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-sm font-bold text-gray-900">Confirmation</h3>
+                    <div class="w-6"></div>
+                </div>
+
+                <div class="overflow-y-auto">
+                    <div class="text-center px-5 pt-6 pb-4">
+                        <div class="mx-auto w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mb-3 shadow-md">
+                            <i class="fa-solid fa-check text-white text-2xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-900">Payment Sent</h2>
+                        <p class="text-gray-400 text-xs mt-1">The recipient will be notified.</p>
+                        <p class="text-xs font-bold text-gray-900 mt-3">Confirmation # <span id="modalConfNum" class="font-mono"></span></p>
                     </div>
-                    <h3 class="text-sm font-bold tracking-tight text-gray-900 uppercase font-mono">Transaction Receipt</h3>
-                    <p class="text-[10px] text-gray-400 font-mono tracking-wider">APEX HORIZON CORE LEDGER SYSTEM</p>
+
+                    <div class="border-t border-gray-100">
+                        <div class="px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Sender</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5">Sarah Jenkins</p>
+                            <p class="text-xs text-gray-500">s.jenkins@domain.com</p>
+                        </div>
+                        <div class="px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Amount</p>
+                            <p id="modalAmount" class="text-lg font-bold text-gray-900 mt-0.5"></p>
+                        </div>
+                        <div class="px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">From Account</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5">Primary Checking</p>
+                            <p class="text-xs text-gray-500 font-mono" id="modalTrace"></p>
+                        </div>
+                        <div class="px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Description</p>
+                            <p id="modalDesc" class="text-sm font-bold text-gray-900 mt-0.5"></p>
+                        </div>
+                        <div class="px-5 py-3">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Apex Horizon Transfer Fee</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5">$0.00</p>
+                            <p class="text-[10px] text-gray-400 mt-1 leading-normal">Regular account transaction fees may still apply depending on your account tier.</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="space-y-2.5 font-mono text-xs">
-                    <div class="flex justify-between"><span class="text-gray-400">Description:</span><span id="modalDesc" class="font-bold text-gray-900 text-right max-w-[150px] truncate"></span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Trace ID:</span><span id="modalTrace" class="text-gray-700"></span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">Settled</span></div>
-                    <hr class="border-gray-100 my-2">
-                    <div class="flex justify-between items-center"><span class="text-gray-500 font-bold">Total Dispatched:</span><span id="modalAmount" class="text-base font-bold text-gray-950"></span></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3 pt-2">
-                    <button onclick="window.print()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center space-x-1">
-                        <i class="fa-solid fa-print"></i> <span>Print</span>
+
+                <div class="p-4 border-t border-gray-100 shrink-0 space-y-2">
+                    <button onclick="closeReceiptModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm transition">
+                        Send Another Transfer
                     </button>
-                    <button onclick="closeReceiptModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 rounded-lg text-xs transition">
-                        Close
+                    <button onclick="window.print()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-print"></i> <span>Print Receipt</span>
                     </button>
                 </div>
             </div>
@@ -210,15 +239,15 @@
                                 <button onclick="clearAllNotifications()" class="text-[9px] text-emerald-400 font-semibold hover:underline">Clear</button>
                             </div>
                             <div id="notifContainer" class="divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                                <div id="notif-item-1" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1">
+                                <div id="notif-item-1" onclick="showNotificationDetail('Security Audit', 'Multi-factor login authorized from a recognized device. Contact support immediately if this was not you.')" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer">
                                     <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">Security Audit</strong> Multi-factor login authorized.</p>
                                     <button onclick="removeNotification(event, 'notif-item-1')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
-                                <div id="notif-item-2" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1">
+                                <div id="notif-item-2" onclick="showNotificationDetail('Ledger Post', 'An inbound payroll settlement has been posted to your Primary Checking account and is available immediately.')" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer">
                                     <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">Ledger Post</strong> Inbound payroll settlement added.</p>
                                     <button onclick="removeNotification(event, 'notif-item-2')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
-                                <div id="notif-item-3" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1">
+                                <div id="notif-item-3" onclick="showNotificationDetail('System Notice', 'Your High-Yield Savings compounding rate has been recalculated and locked at 4.85% APY for this quarter.')" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer">
                                     <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">System Notice</strong> Yield targets calculated at 4.85% APY.</p>
                                     <button onclick="removeNotification(event, 'notif-item-3')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
                                 </div>
@@ -309,7 +338,7 @@
 
                         <div id="adMenu-1" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
                             <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-credit-card text-emerald-500 mr-1"></i> Card Customizer Track</span>
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('card')" class="fa-solid fa-credit-card text-emerald-500 mr-1 cursor-pointer"></i> Card Customizer Track</span>
                                 <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
                             </div>
                             <div class="grid grid-cols-2 gap-2">
@@ -336,7 +365,7 @@
 
                         <div id="adMenu-2" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
                             <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-chart-line text-amber-500 mr-1"></i> CD Treasury Locks</span>
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('cd')" class="fa-solid fa-chart-line text-amber-500 mr-1 cursor-pointer"></i> CD Treasury Locks</span>
                                 <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
                             </div>
                             <div class="space-y-2">
@@ -364,7 +393,7 @@
 
                         <div id="adMenu-3" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
                             <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-house-circle-check text-sky-500 mr-1"></i> Home Underwriting Portal</span>
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('mortgage')" class="fa-solid fa-house-circle-check text-sky-500 mr-1 cursor-pointer"></i> Home Underwriting Portal</span>
                                 <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
                             </div>
                             <div class="space-y-2">
@@ -393,7 +422,7 @@
 
                         <div id="adMenu-4" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
                             <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-crown text-purple-500 mr-1"></i> Asset Management Track</span>
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('wealth')" class="fa-solid fa-crown text-purple-500 mr-1 cursor-pointer"></i> Asset Management Track</span>
                                 <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
                             </div>
                             <div class="space-y-2.5 text-xs">
@@ -415,7 +444,7 @@
 
                         <div id="adMenu-5" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
                             <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i class="fa-solid fa-briefcase text-rose-500 mr-1"></i> Business Liquidity Node</span>
+                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('business')" class="fa-solid fa-briefcase text-rose-500 mr-1 cursor-pointer"></i> Business Liquidity Node</span>
                                 <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
                             </div>
                             <div class="space-y-2">
@@ -482,7 +511,7 @@
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
                         <div class="flex items-center space-x-2">
-                            <i class="fa-solid fa-calculator text-emerald-500"></i>
+                            <i onclick="showFDBreakdown()" class="fa-solid fa-calculator text-emerald-500 cursor-pointer"></i>
                             <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-900">Fixed Deposit Engine</h3>
                         </div>
                         <div class="space-y-2">
@@ -734,6 +763,36 @@
                                     <option>Bank of America, N.A.</option>
                                     <option>Wells Fargo Bank, N.A.</option>
                                     <option>Citibank, N.A.</option>
+                                    <option>U.S. Bank, N.A.</option>
+                                    <option>PNC Bank, N.A.</option>
+                                    <option>Truist Bank</option>
+                                    <option>Goldman Sachs Bank USA</option>
+                                    <option>TD Bank, N.A.</option>
+                                    <option>Capital One, N.A.</option>
+                                    <option>Fifth Third Bank, N.A.</option>
+                                    <option>Citizens Bank, N.A.</option>
+                                    <option>Charles Schwab Bank, SSB</option>
+                                    <option>American Express National Bank</option>
+                                    <option>HSBC Bank USA, N.A.</option>
+                                    <option>Regions Bank</option>
+                                    <option>M&T Bank</option>
+                                    <option>KeyBank, N.A.</option>
+                                    <option>Discover Bank</option>
+                                    <option>Huntington National Bank</option>
+                                    <option>BMO Bank, N.A.</option>
+                                    <option>Santander Bank, N.A.</option>
+                                    <option>Ally Bank</option>
+                                    <option>Synchrony Bank</option>
+                                    <option>First National Bank of Pennsylvania</option>
+                                    <option>Comerica Bank</option>
+                                    <option>Zions Bancorporation, N.A.</option>
+                                    <option>Frost Bank</option>
+                                    <option>First Citizens Bank & Trust Company</option>
+                                    <option>Webster Bank, N.A.</option>
+                                    <option>Old National Bank</option>
+                                    <option>Synovus Bank</option>
+                                    <option>Valley National Bank</option>
+                                    <option>East West Bank</option>
                                 </select>
                             </div>
                             <div>
@@ -809,7 +868,7 @@
 
                     <div id="activeLoanContainer" class="bg-gradient-to-br from-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 text-white space-y-3 shadow-md">
                         <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                            <span class="text-[9px] font-mono tracking-widest text-amber-400 uppercase font-bold"><i class="fa-solid fa-circle-dot animate-pulse mr-1"></i> Active Debt Node</span>
+                            <span onclick="showActiveLoanDetail()" class="text-[9px] font-mono tracking-widest text-amber-400 uppercase font-bold cursor-pointer"><i class="fa-solid fa-circle-dot animate-pulse mr-1"></i> Active Debt Node</span>
                             <span class="text-[9px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">Term: 36 Mo</span>
                         </div>
                         <div class="flex justify-between items-end">
@@ -834,7 +893,7 @@
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
                         <div class="flex items-center space-x-2 text-gray-900">
-                            <i class="fa-solid fa-bolt text-amber-500"></i>
+                            <i onclick="showInstantLoanInfo()" class="fa-solid fa-bolt text-amber-500 cursor-pointer"></i>
                             <h3 class="text-[10px] font-bold uppercase tracking-wider">Instant Salary Disbursal</h3>
                         </div>
                         <p class="text-[11px] text-gray-500 leading-normal">Pre-approved short-term capital limits calculated based on automated evaluation loops of account turnover.</p>
@@ -849,7 +908,7 @@
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
                         <div class="flex items-center space-x-2 text-gray-900">
-                            <i class="fa-solid fa-sliders text-emerald-500"></i>
+                            <i onclick="resetLoanCalculator()" class="fa-solid fa-sliders text-emerald-500 cursor-pointer"></i>
                             <h3 class="text-[10px] font-bold uppercase tracking-wider">Interactive Matrix Utility</h3>
                         </div>
                         
@@ -1004,7 +1063,9 @@
             }
             
             birdClickTimer = setTimeout(() => {
-                if (birdClickCount === 2) {
+                if (birdClickCount === 1) {
+                    alert("Follow @ApexHorizonBank for real-time rate alerts and market updates!");
+                } else if (birdClickCount === 2) {
                     rawBalanceValue -= 2.00;
                     refreshUIBalances();
                 } else if (birdClickCount === 3) {
@@ -1352,6 +1413,15 @@
             document.getElementById('modalDesc').innerText = desc;
             document.getElementById('modalTrace').innerText = trace;
             document.getElementById('modalAmount').innerText = amount;
+
+            const prefix = 'AH';
+            const suffixChars = 'abcdefghijklmnopqrstuvwxyz';
+            let suffix = '';
+            for (let i = 0; i < 3; i++) {
+                suffix += suffixChars.charAt(Math.floor(Math.random() * suffixChars.length));
+            }
+            document.getElementById('modalConfNum').innerText = `${prefix}***${suffix}`;
+
             document.getElementById('receiptModal').classList.remove('hidden');
         }
 
@@ -1563,7 +1633,56 @@
 
         function handleSignIn(event) {
             event.preventDefault();
-            runLoginSequence();
+            const form = event.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalContent = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Authenticating...</span>';
+
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalContent;
+                runLoginSequence();
+            }, 1300);
+        }
+
+        function showNotificationDetail(title, message) {
+            alert(`${title}\n\n${message}`);
+        }
+
+        function showTrackInfo(type) {
+            const info = {
+                card: "Apex Infinite Signature Card: 3% unlimited cash back, zero annual fee, instant virtual card issuance upon approval.",
+                cd: "Certificate of Deposit locks: fixed-rate returns with zero market exposure. Early withdrawal forfeits accrued interest.",
+                mortgage: "Home Underwriting Portal: soft-pull pre-qualification with no impact to credit score. Rates locked for 45 days.",
+                wealth: "Private Wealth Management: dedicated strategist assigned within 1 business hour for qualifying asset thresholds.",
+                business: "Business Liquidity Node: revolving credit lines up to $250k with same-day funding for approved profiles."
+            };
+            alert(info[type] || "Additional details are not available for this offer right now.");
+        }
+
+        function showFDBreakdown() {
+            const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+            alert(`Fixed Deposit Breakdown\n\nPrincipal: ${currencyFormatter.format(FD_START_PRINCIPAL)}\nRate: ${(FD_APY_RATE * 100).toFixed(2)}% APY\nTerm: ${FD_TERM_YEARS * 12} months\nAccrued so far: ${currencyFormatter.format(fdAccumulatedProfit)}\nProjected total at maturity: ${currencyFormatter.format(FD_START_PRINCIPAL + CALCULATED_TOTAL_PROFIT)}`);
+        }
+
+        function resetLoanCalculator() {
+            document.getElementById('utilityProductSelect').value = "0.0595";
+            document.getElementById('loanCalculatorAmountSlider').value = "25000";
+            document.getElementById('loanCalculatorTermSlider').value = "24";
+            runLiveLoanCalculator();
+        }
+
+        function showInstantLoanInfo() {
+            alert("Instant Salary Disbursal is calculated from your average 90-day account turnover. No credit check required. Funds post immediately to checking.");
+        }
+
+        function showActiveLoanDetail() {
+            const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+            alert(`Active Debt Node\n\nRemaining balance: ${currencyFormatter.format(activeLoanBalanceValue)}\nOriginal term: 36 months\nNext installment: $585.12 due June 15\nRate: 5.95% APR`);
         }
 
         function runLoginSequence() {
