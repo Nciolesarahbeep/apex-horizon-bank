@@ -1,5 +1,7 @@
-const { sql } = require('@vercel/postgres');
-const { getUserFromRequest } = require('../lib/auth');
+const { neon } = require('@neondatabase/serverless');
+const { getUserFromRequest } = require('./auth');
+
+const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -16,10 +18,10 @@ module.exports = async function handler(req, res) {
     const userResult = await sql`
       SELECT id, email, full_name FROM users WHERE id = ${session.userId} LIMIT 1
     `;
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    const user = userResult.rows[0];
+    const user = userResult[0];
 
     const accountsResult = await sql`
       SELECT id, account_type, account_number, balance
@@ -29,7 +31,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({
       user: { id: user.id, email: user.email, fullName: user.full_name },
-      accounts: accountsResult.rows,
+      accounts: accountsResult,
     });
   } catch (err) {
     console.error('Me endpoint error:', err);
