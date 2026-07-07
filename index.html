@@ -931,19 +931,79 @@
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Source Node</label>
                                 <select id="fxSourceSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                    <option value="USD">USD - United States Dollar</option>
-                                    <option value="EUR">EUR - Euro Zone Member</option>
+                                    <option value="USD" selected>USD - United States Dollar</option>
+                                    <option value="EUR">EUR - Euro</option>
                                     <option value="GBP">GBP - British Pound</option>
-                                    <option value="NGN">NGN - Nigerian Naira</option>
+                                    <option value="JPY">JPY - Japanese Yen</option>
+                                    <option value="CAD">CAD - Canadian Dollar</option>
+                                    <option value="AUD">AUD - Australian Dollar</option>
+                                    <option value="CHF">CHF - Swiss Franc</option>
+                                    <option value="CNY">CNY - Chinese Yuan</option>
+                                    <option value="INR">INR - Indian Rupee</option>
+                                    <option value="BRL">BRL - Brazilian Real</option>
+                                    <option value="MXN">MXN - Mexican Peso</option>
+                                    <option value="ZAR">ZAR - South African Rand</option>
+                                    <option value="SGD">SGD - Singapore Dollar</option>
+                                    <option value="HKD">HKD - Hong Kong Dollar</option>
+                                    <option value="KRW">KRW - South Korean Won</option>
+                                    <option value="SEK">SEK - Swedish Krona</option>
+                                    <option value="NOK">NOK - Norwegian Krone</option>
+                                    <option value="DKK">DKK - Danish Krone</option>
+                                    <option value="NZD">NZD - New Zealand Dollar</option>
+                                    <option value="AED">AED - UAE Dirham</option>
+                                    <option value="SAR">SAR - Saudi Riyal</option>
+                                    <option value="TRY">TRY - Turkish Lira</option>
+                                    <option value="RUB">RUB - Russian Ruble</option>
+                                    <option value="PLN">PLN - Polish Złoty</option>
+                                    <option value="THB">THB - Thai Baht</option>
+                                    <option value="IDR">IDR - Indonesian Rupiah</option>
+                                    <option value="MYR">MYR - Malaysian Ringgit</option>
+                                    <option value="PHP">PHP - Philippine Peso</option>
+                                    <option value="VND">VND - Vietnamese Dong</option>
+                                    <option value="EGP">EGP - Egyptian Pound</option>
+                                    <option value="ILS">ILS - Israeli Shekel</option>
+                                    <option value="CZK">CZK - Czech Koruna</option>
+                                    <option value="HUF">HUF - Hungarian Forint</option>
+                                    <option value="RON">RON - Romanian Leu</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Target Counterpart</label>
                                 <select id="fxTargetSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                    <option value="NGN" selected>NGN - Nigerian Naira</option>
+                                    <option value="EUR" selected>EUR - Euro</option>
                                     <option value="USD">USD - United States Dollar</option>
-                                    <option value="EUR">EUR - Euro Zone Member</option>
                                     <option value="GBP">GBP - British Pound</option>
+                                    <option value="JPY">JPY - Japanese Yen</option>
+                                    <option value="CAD">CAD - Canadian Dollar</option>
+                                    <option value="AUD">AUD - Australian Dollar</option>
+                                    <option value="CHF">CHF - Swiss Franc</option>
+                                    <option value="CNY">CNY - Chinese Yuan</option>
+                                    <option value="INR">INR - Indian Rupee</option>
+                                    <option value="BRL">BRL - Brazilian Real</option>
+                                    <option value="MXN">MXN - Mexican Peso</option>
+                                    <option value="ZAR">ZAR - South African Rand</option>
+                                    <option value="SGD">SGD - Singapore Dollar</option>
+                                    <option value="HKD">HKD - Hong Kong Dollar</option>
+                                    <option value="KRW">KRW - South Korean Won</option>
+                                    <option value="SEK">SEK - Swedish Krona</option>
+                                    <option value="NOK">NOK - Norwegian Krone</option>
+                                    <option value="DKK">DKK - Danish Krone</option>
+                                    <option value="NZD">NZD - New Zealand Dollar</option>
+                                    <option value="AED">AED - UAE Dirham</option>
+                                    <option value="SAR">SAR - Saudi Riyal</option>
+                                    <option value="TRY">TRY - Turkish Lira</option>
+                                    <option value="RUB">RUB - Russian Ruble</option>
+                                    <option value="PLN">PLN - Polish Złoty</option>
+                                    <option value="THB">THB - Thai Baht</option>
+                                    <option value="IDR">IDR - Indonesian Rupiah</option>
+                                    <option value="MYR">MYR - Malaysian Ringgit</option>
+                                    <option value="PHP">PHP - Philippine Peso</option>
+                                    <option value="VND">VND - Vietnamese Dong</option>
+                                    <option value="EGP">EGP - Egyptian Pound</option>
+                                    <option value="ILS">ILS - Israeli Shekel</option>
+                                    <option value="CZK">CZK - Czech Koruna</option>
+                                    <option value="HUF">HUF - Hungarian Forint</option>
+                                    <option value="RON">RON - Romanian Leu</option>
                                 </select>
                             </div>
                             <button onclick="executeCurrencyConversion()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
@@ -2313,22 +2373,27 @@
             const target = document.getElementById('fxTargetSelect').value;
 
             const ratesInUSD = {
-                USD: 1.0,
-                EUR: 0.92,
-                GBP: 0.79,
-                NGN: 1500.0
+                USD: 1.0, EUR: 0.92, GBP: 0.79, JPY: 156.5, CAD: 1.36,
+                AUD: 1.52, CHF: 0.90, CNY: 7.25, INR: 83.5, BRL: 5.45,
+                MXN: 18.2, ZAR: 18.7, SGD: 1.34, HKD: 7.81, KRW: 1385,
+                SEK: 10.5, NOK: 10.6, DKK: 6.86, NZD: 1.64, AED: 3.67,
+                SAR: 3.75, TRY: 32.1, RUB: 89.5, PLN: 3.98, THB: 36.4,
+                IDR: 15850, MYR: 4.72, PHP: 58.6, VND: 25400, EGP: 47.9,
+                ILS: 3.72, CZK: 23.4, HUF: 358, RON: 4.57
+            };
+
+            const currencySymbols = {
+                USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', CHF: 'CHF ',
+                INR: '₹', KRW: '₩', ILS: '₪', THB: '฿', VND: '₫', TRY: '₺'
             };
 
             const amountInUSD = amount / ratesInUSD[source];
             const dynamicConvertedResult = amountInUSD * ratesInUSD[target];
 
-            let currencySymbol = '$';
-            if (target === 'EUR') currencySymbol = '€';
-            if (target === 'GBP') currencySymbol = '£';
-            if (target === 'NGN') currencySymbol = '₦';
+            const currencySymbol = currencySymbols[target] || (target + ' ');
 
             const outputValueFormatted = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(dynamicConvertedResult);
-            
+
             document.getElementById('fxResultText').innerText = `${currencySymbol}${outputValueFormatted} ${target}`;
             document.getElementById('fxResultPanel').classList.remove('hidden');
         }
@@ -2698,8 +2763,6 @@
         initLiveInvestmentEngine();
     </script>
 <!-- ===== Apex Horizon Bank — Floating Help Widget ===== -->
-<!-- Paste this block right before the closing </body> tag in index.html -->
-
 <style>
   #ahb-help-widget {
     position: fixed;
@@ -2738,7 +2801,6 @@
     filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));
   }
 
-  /* Dangling/shaking pendant motion — pauses briefly then swings, like it's hanging and got nudged */
   @keyframes ahb-dangle {
     0%, 55% { transform: rotate(0deg); }
     58% { transform: rotate(-10deg); }
@@ -3007,7 +3069,7 @@
   bubble.addEventListener('touchstart', onPointerDown, { passive: true });
 
   bubble.addEventListener('click', function () {
-    if (didDrag) return; // don't open the card right after a drag
+    if (didDrag) return;
     card.classList.toggle('ahb-open');
   });
 
