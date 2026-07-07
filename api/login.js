@@ -1,33 +1,50 @@
+const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
+const { normalizeEmail, signToken, setSessionCookie } = require('./auth');
 
-module.exports = async (req, res) => {
-  // Allows your frontend bank interface to connect securely
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    // Grabs the credentials typed into your login form
-    const { email, password } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    
-    // Connects to your database automatically using Vercel's link
-    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-    const sql = neon(connectionString);
-    
-    // Verifies if the email exists in your accounts table
-    const users = await sql`SELECT * FROM accounts WHERE email = ${email};`;
-    
-    // If user doesn't exist or password fails, reject the login cleanly
-    if (users.length === 0 || users[0].password !== password) {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+
+    const result = await sql`
+      SELECT id, email, password_hash, full_name
+      FROM users
+      WHERE email = ${normalizedEmail}
+      LIMIT 1
+    `;
+
+    if (result.length === 0) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    
-    // Success! Pass your user data back to load the dashboard view
-    return res.status(200).json(users[0]);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+
+    const user = result[0];
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
+
+    if (!passwordMatches) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = signToken({ userId: user.id, email: user.email });
+    setSessionCookie(res, token);
+
+    return res.status(200).json({
+      user: { id: user.id, email: user.email, fullName: user.full_name },
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 };
