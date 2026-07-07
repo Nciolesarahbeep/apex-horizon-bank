@@ -16,8 +16,6 @@ function verifyToken(token) {
   }
 }
 
-// Normalize emails consistently everywhere (signup AND login) so a user
-// typed with different casing/whitespace never fails to match.
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
