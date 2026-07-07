@@ -40,10 +40,10 @@ module.exports = async function handler(req, res) {
 
     // Seed a checking and savings account for the new user
     await sql`
-      INSERT INTO accounts (user_id, account_type, account_number, balance)
+      INSERT INTO accounts (user_id, account_type, balance)
       VALUES
-        (${user.id}, 'checking', ${'CHK-' + Date.now().toString().slice(-8)}, 5000.00),
-        (${user.id}, 'savings', ${'SAV-' + Date.now().toString().slice(-8)}, 12500.00)
+        (${user.id}, 'checking', 5000.00),
+        (${user.id}, 'savings', 12500.00)
     `;
 
     const token = signToken({ userId: user.id, email: user.email });
