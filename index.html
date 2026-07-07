@@ -2697,5 +2697,339 @@
 
         initLiveInvestmentEngine();
     </script>
+<!-- ===== Apex Horizon Bank — Floating Help Widget ===== -->
+<!-- Paste this block right before the closing </body> tag in index.html -->
+
+<style>
+  #ahb-help-widget {
+    position: fixed;
+    z-index: 9999;
+    bottom: 28px;
+    right: 24px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #ahb-help-bubble {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #10b981, #059669);
+    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.45), 0 2px 4px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    transform-origin: top center;
+    animation: ahb-dangle 4.5s ease-in-out infinite;
+    transition: box-shadow 0.2s ease;
+  }
+
+  #ahb-help-bubble:active {
+    cursor: grabbing;
+    animation-play-state: paused;
+  }
+
+  #ahb-help-bubble svg {
+    width: 28px;
+    height: 28px;
+    fill: #ffffff;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));
+  }
+
+  /* Dangling/shaking pendant motion — pauses briefly then swings, like it's hanging and got nudged */
+  @keyframes ahb-dangle {
+    0%, 55% { transform: rotate(0deg); }
+    58% { transform: rotate(-10deg); }
+    61% { transform: rotate(8deg); }
+    64% { transform: rotate(-6deg); }
+    67% { transform: rotate(4deg); }
+    70% { transform: rotate(-2deg); }
+    73%, 100% { transform: rotate(0deg); }
+  }
+
+  #ahb-help-bubble.ahb-no-shake {
+    animation: none;
+  }
+
+  #ahb-help-card {
+    position: absolute;
+    bottom: 74px;
+    right: 0;
+    width: 260px;
+    background: #0b1220;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.45);
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+
+  #ahb-help-card.ahb-open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  #ahb-help-card h4 {
+    margin: 0 0 6px 0;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  #ahb-help-card p {
+    margin: 0 0 12px 0;
+    color: #9ca7b8;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  #ahb-help-topics {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  #ahb-help-topics button {
+    text-align: left;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #d1d8e2;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  #ahb-help-topics button:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+
+  #ahb-help-answer {
+    display: none;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #d1d8e2;
+    line-height: 1.5;
+  }
+
+  #ahb-help-answer.ahb-visible {
+    display: block;
+  }
+
+  #ahb-help-back {
+    background: none;
+    border: none;
+    color: #10b981;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 0 10px 0;
+    display: none;
+  }
+
+  #ahb-help-back.ahb-visible {
+    display: block;
+  }
+
+  #ahb-help-card a.ahb-call-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: #10b981;
+    color: #05140f;
+    font-weight: 700;
+    font-size: 13.5px;
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 10px;
+    box-sizing: border-box;
+  }
+
+  #ahb-help-card .ahb-hours {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #5b6577;
+    text-align: center;
+  }
+
+  #ahb-help-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    color: #9ca7b8;
+    border: none;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+</style>
+
+<div id="ahb-help-widget">
+  <div id="ahb-help-card">
+    <button id="ahb-help-close" aria-label="Close">&times;</button>
+    <h4>Need a hand?</h4>
+    <p>Pick what's going on, or call us directly.</p>
+
+    <button id="ahb-help-back">&larr; Back to topics</button>
+    <div id="ahb-help-answer"></div>
+
+    <div id="ahb-help-topics">
+      <button data-topic="login">Trouble logging in</button>
+      <button data-topic="transfer">A transfer didn't go through</button>
+      <button data-topic="card">Report a lost or stolen card</button>
+      <button data-topic="fraud">Suspicious activity on my account</button>
+    </div>
+
+    <a class="ahb-call-btn" href="tel:+18005551234">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.57.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.49a1 1 0 011 1 11.36 11.36 0 00.57 3.57 1 1 0 01-.25 1.02z"/></svg>
+      Call (800) 555-1234
+    </a>
+    <div class="ahb-hours">Mon–Fri, 8am–9pm ET</div>
+  </div>
+
+  <div id="ahb-help-bubble" role="button" aria-label="Get help" tabindex="0">
+    <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.57.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.49a1 1 0 011 1 11.36 11.36 0 00.57 3.57 1 1 0 01-.25 1.02z"/></svg>
+  </div>
+</div>
+
+<script>
+(function () {
+  const widget = document.getElementById('ahb-help-widget');
+  const bubble = document.getElementById('ahb-help-bubble');
+  const card = document.getElementById('ahb-help-card');
+  const closeBtn = document.getElementById('ahb-help-close');
+  const topicsBox = document.getElementById('ahb-help-topics');
+  const answerBox = document.getElementById('ahb-help-answer');
+  const backBtn = document.getElementById('ahb-help-back');
+
+  const ANSWERS = {
+    login: "If your password isn't working, double check for extra spaces or caps lock. Still stuck? Use \"Forgot?\" on the sign-in screen to reset it, or call us and we'll verify your identity over the phone.",
+    transfer: "Transfers between your own accounts post instantly. If one seems missing, check the Transactions tab first — it may just be pending. If it's been more than a few minutes, call us with the amount and time so we can trace it.",
+    card: "If your card is lost or stolen, call us right away so we can freeze it and issue a replacement. Don't wait for unusual charges to appear first.",
+    fraud: "If you see a transaction you don't recognize, don't dispute it yourself in the app — call us immediately so we can lock your account and start an investigation."
+  };
+
+  topicsBox.addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-topic]');
+    if (!btn) return;
+    const topic = btn.getAttribute('data-topic');
+    answerBox.textContent = ANSWERS[topic] || '';
+    answerBox.classList.add('ahb-visible');
+    topicsBox.style.display = 'none';
+    backBtn.classList.add('ahb-visible');
+  });
+
+  backBtn.addEventListener('click', function () {
+    answerBox.classList.remove('ahb-visible');
+    topicsBox.style.display = 'flex';
+    backBtn.classList.remove('ahb-visible');
+  });
+
+  let isDragging = false;
+  let didDrag = false;
+  let startX = 0, startY = 0;
+  let startRight = 0, startBottom = 0;
+
+  function getOffsets() {
+    const rect = widget.getBoundingClientRect();
+    return {
+      right: window.innerWidth - rect.right,
+      bottom: window.innerHeight - rect.bottom,
+    };
+  }
+
+  function clamp(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+  }
+
+  function onPointerDown(e) {
+    isDragging = true;
+    didDrag = false;
+    bubble.classList.add('ahb-no-shake');
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    const offsets = getOffsets();
+    startRight = offsets.right;
+    startBottom = offsets.bottom;
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('mouseup', onPointerUp);
+    document.addEventListener('touchmove', onPointerMove, { passive: false });
+    document.addEventListener('touchend', onPointerUp);
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    const point = e.touches ? e.touches[0] : e;
+    const dx = point.clientX - startX;
+    const dy = point.clientY - startY;
+
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) didDrag = true;
+
+    const rect = widget.getBoundingClientRect();
+    let newRight = clamp(startRight - dx, 8, window.innerWidth - rect.width - 8);
+    let newBottom = clamp(startBottom - dy, 8, window.innerHeight - rect.height - 8);
+
+    widget.style.right = newRight + 'px';
+    widget.style.bottom = newBottom + 'px';
+  }
+
+  function onPointerUp() {
+    isDragging = false;
+    bubble.classList.remove('ahb-no-shake');
+    document.removeEventListener('mousemove', onPointerMove);
+    document.removeEventListener('mouseup', onPointerUp);
+    document.removeEventListener('touchmove', onPointerMove);
+    document.removeEventListener('touchend', onPointerUp);
+  }
+
+  bubble.addEventListener('mousedown', onPointerDown);
+  bubble.addEventListener('touchstart', onPointerDown, { passive: true });
+
+  bubble.addEventListener('click', function () {
+    if (didDrag) return; // don't open the card right after a drag
+    card.classList.toggle('ahb-open');
+  });
+
+  bubble.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.classList.toggle('ahb-open');
+    }
+  });
+
+  closeBtn.addEventListener('click', function () {
+    card.classList.remove('ahb-open');
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!widget.contains(e.target)) {
+      card.classList.remove('ahb-open');
+    }
+  });
+})();
+</script>
+<!-- ===== End Apex Horizon Bank Help Widget ===== -->
+
 </body>
 </html>
