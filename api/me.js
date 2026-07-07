@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
     const user = userResult[0];
 
     const accountsResult = await sql`
-      SELECT id, account_type, account_number, balance
+      SELECT id, account_type, balance
       FROM accounts
       WHERE user_id = ${user.id}
     `;
