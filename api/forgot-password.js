@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
-const { normalizeEmail } = require('./auth');
+const { normalizeEmail } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
