@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
-const { normalizeEmail, signToken, setSessionCookie } = require('./auth');
+const { normalizeEmail, signToken, setSessionCookie } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
