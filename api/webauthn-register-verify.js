@@ -1,6 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { verifyRegistrationResponse } = require('@simplewebauthn/server');
-const { getUserFromRequest } = require('./auth');
+const { getUserFromRequest } = require('../lib/auth');
 const { readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('./webauthn');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
