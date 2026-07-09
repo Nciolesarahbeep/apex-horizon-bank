@@ -1213,14 +1213,18 @@
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Security</h3>
                         <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
                             <div class="w-full flex items-center justify-between p-3.5">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-regular fa-face-smile"></i></div>
-                                    <span class="text-sm font-medium text-gray-900">Face ID</span>
-                                </div>
-                                <button onclick="toggleFaceID()" id="faceIdToggle" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer">
-                                    <div class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform duration-300"></div>
-                                </button>
-                            </div>
+    <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-regular fa-face-smile"></i></div>
+        <div>
+            <span class="text-sm font-medium text-gray-900 block">Face ID</span>
+            <span id="faceIdStatusLabel" class="text-[10px] text-gray-400">Checking status...</span>
+        </div>
+    </div>
+    <button onclick="handleFaceIdToggleClick()" id="faceIdToggle" class="w-11 h-6 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer">
+        <div class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
+    </button>
+</div>
+
                             <button onclick="triggerViewSwitch('settings-linked-devices')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-mobile-screen"></i></div>
