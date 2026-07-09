@@ -18,16 +18,17 @@ module.exports = async function handler(req, res) {
 
     const normalizedEmail = normalizeEmail(email);
 
-    const userRows = await sql`SELECT id FROM users WHERE email = ${normalizedEmail} LIMIT 1`;
-
     const genericResponse = {
       success: true,
-      message: 'If an account exists for that email, a reset link has been generated.',
+      message: 'If an account exists for that email, a reset link has been sent.',
     };
 
-    // If user doesn't exist in database, stop here
+    const userRows = await sql`SELECT id FROM users WHERE email = ${normalizedEmail} LIMIT 1`;
+
+    // Same response whether or not the account exists — don't let this endpoint
+    // be used to check which emails are registered.
     if (userRows.length === 0) {
-      return res.status(400).json({ error: 'No account found for that email.' });
+      return res.status(200).json(genericResponse);
     }
 
     const user = userRows[0];
@@ -44,9 +45,9 @@ module.exports = async function handler(req, res) {
 
     const resetLink = `https://apex-horizon-bank-eight.vercel.app/reset-password.html?token=${rawToken}`;
 
-    // 2. Send the real live email via Resend
+    // 2. Send the reset email via Resend
     try {
-      await fetch('https://api.resend.com/emails', {
+      const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
@@ -60,24 +61,28 @@ module.exports = async function handler(req, res) {
             <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
               <h2 style="color: #0f172a; margin-bottom: 5px;">Apex Horizon Bank</h2>
               <p style="color: #334155; font-size: 15px;">We received a request to reset your online banking password.</p>
-              <p style="color: #334155; font-size: 15px;">Click the secure link below to configure your new credentials.</p>
+              <p style="color: #334155; font-size: 15px;">Click the secure link below to configure your new credentials. This link expires in 30 minutes.</p>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${resetLink}" style="background-color: #0f172a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">Reset Password</a>
               </div>
+              <p style="color: #94a3b8; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
             </div>
           `,
         }),
       });
+
+      if (!emailRes.ok) {
+        const errText = await emailRes.text();
+        console.error('Resend responded with an error:', emailRes.status, errText);
+      }
     } catch (emailError) {
       console.error('Failed to send email via Resend:', emailError);
-      // We continue anyway so the frontend can still simulate the reset if needed during testing
+      // Don't fail the whole request just because email delivery failed —
+      // the token still exists in the DB and the response stays generic either way.
     }
 
-    // 3. Return BOTH success and the demo token to keep your frontend UI happy!
-    return res.status(200).json({
-      ...genericResponse,
-      demoResetToken: rawToken, 
-    });
+    // 3. Always return the generic response — never the raw token.
+    return res.status(200).json(genericResponse);
 
   } catch (err) {
     console.error('Forgot password error:', err);
