@@ -43,7 +43,7 @@ module.exports = async function handler(req, res) {
       VALUES (${user.id}, ${tokenHash}, ${expiresAt.toISOString()})
     `;
 
-    const resetLink = `https://apex-horizon-bank-eight.vercel.app/reset-password.html?token=${rawToken}`;
+    const resetLink = `https://apex-horizon-bank-eight.vercel.app/?resetToken=${rawToken}`;
 
     // 2. Send the reset email via Resend
     try {
