@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/@simplewebauthn/browser@9/dist/bundle/index.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 
     <style>
         ::-webkit-scrollbar {
@@ -733,20 +734,7 @@
                             <div id="liveWireLogContainer" class="space-y-2"></div>
 
                             <div id="scrollableLogWrapper" class="space-y-2 max-h-[400px] overflow-y-auto scroll-smooth pr-1">
-                                <div class="p-2.5 bg-gray-50 rounded-lg flex justify-between items-center">
-                                    <div class="min-w-0 pr-2">
-                                        <p class="text-xs font-bold text-gray-900 truncate">Target Stores POS</p>
-                                        <p class="text-[9px] text-gray-400 font-mono">May 29 | ID #TXN-9982</p>
-                                    </div>
-                                    <span class="font-mono text-xs font-bold text-gray-950 shrink-0">-$64.21</span>
-                                </div>
-                                <div class="p-2.5 bg-gray-50 rounded-lg flex justify-between items-center">
-                                    <div class="min-w-0 pr-2">
-                                        <p class="text-xs font-bold text-gray-900 truncate">Outbound Interbank Wire</p>
-                                        <p class="text-[9px] text-gray-400 font-mono">May 28 | ID #TXN-9128</p>
-                                    </div>
-                                    <span class="font-mono text-xs font-bold text-red-600 shrink-0">-$2,450.00</span>
-                                </div>
+                                <div id="realTransactionContainer" class="space-y-2"></div>
                                 <div id="additionalHistoryContainer" class="space-y-2"></div>
                             </div>
 
@@ -755,7 +743,34 @@
                                     Load Older Log Files
                                 </button>
                             </div>
+
+                            <button onclick="triggerViewSwitch('spending-insights')" class="w-full text-center text-[11px] font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 py-2 rounded-lg border border-slate-200 transition-all duration-300">
+                                <i class="fa-solid fa-chart-pie mr-1"></i> View Spending Insights
+                            </button>
                         </div>
+                    </div>
+                </section>
+
+                <section id="view-spending-insights" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Spending Insights</h1>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                        <p class="text-[9px] text-gray-400 uppercase font-bold">This Month by Category</p>
+                        <canvas id="spendingCategoryChart" height="220"></canvas>
+                        <div id="spendingCategoryLegend" class="grid grid-cols-2 gap-2 pt-1"></div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                        <p class="text-[9px] text-gray-400 uppercase font-bold">Last 6 Months</p>
+                        <canvas id="spendingTrendChart" height="180"></canvas>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-1">
+                        <p class="text-[9px] text-gray-400 uppercase font-bold">Total Spent This Month</p>
+                        <h2 id="spendingTotalLabel" class="text-2xl font-bold font-mono text-gray-900">$0.00</h2>
                     </div>
                 </section>
 
@@ -1575,7 +1590,7 @@
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics'];
+            const views = ['summary', 'checking', 'wire', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -2183,6 +2198,7 @@
 
             refreshUIBalances();
             refreshLiveCalculations();
+            await fetchTransactions();
         }
 
         function toggleAuthMode() {
@@ -2464,69 +2480,89 @@
             }
         }
 
-        function loadMoreTransactions() {
-            const container = document.getElementById('additionalHistoryContainer');
-            container.innerHTML = ''; 
+        // ===== Real transactions + spending insights (replaces the old mock generator) =====
 
-            const transactionPool = [
-                { desc: "Apple Subscription Node", type: "debit" },
-                { desc: "Starbucks Store POS #204", type: "debit" },
-                { desc: "Shell Automated Fuel Hub", type: "debit" },
-                { desc: "Uber Transit Logistics", type: "debit" },
-                { desc: "Amazon Web Marketplace", type: "debit" },
-                { desc: "Target Retail Register", type: "debit" },
-                { desc: "Trader Joe's Settlement", type: "debit" },
-                { desc: "Netflix Streaming Node", type: "debit" },
-                { desc: "Costco Warehouse Entry", type: "debit" },
-                { desc: "Whole Foods Market POS", type: "debit" },
-                { desc: "Gym Membership Kinetics", type: "debit" },
-                { desc: "Walmart Marketplace POS", type: "debit" },
-                { desc: "FedEx Delivery Dispatch", type: "debit" },
-                { desc: "Steam Games Digital Code", type: "debit" },
-                { desc: "Inbound P2P Settlement", type: "credit" },
-                { desc: "Atm Cash Deposit Node", type: "credit" },
-                { desc: "ACH Payroll Dividend", type: "credit" },
-                { desc: "Freelance Settlement Node", type: "credit" },
-                { desc: "Ebay Sale Liquidation", type: "credit" }
-            ];
+        let allTransactions = [];
 
-            const targetCount = 16;
-            const generatedTransactions = [];
+        const CATEGORY_RULES = [
+            { name: 'Food & Dining', color: '#10b981', keywords: ['starbucks', 'restaurant', 'trader joe', 'whole foods', 'costco', 'grocery', 'cafe', 'dining', 'mcdonald'] },
+            { name: 'Transport', color: '#4a86e8', keywords: ['uber', 'lyft', 'shell', 'fuel', 'gas', 'transit', 'parking'] },
+            { name: 'Shopping', color: '#a479e2', keywords: ['amazon', 'target', 'walmart', 'ebay', 'store', 'marketplace', 'retail'] },
+            { name: 'Subscriptions', color: '#f2c960', keywords: ['netflix', 'apple', 'subscription', 'streaming', 'gym', 'membership', 'steam'] },
+            { name: 'Bills & Utilities', color: '#e07798', keywords: ['fedex', 'utility', 'electric', 'water', 'internet', 'phone'] },
+            { name: 'Income', color: '#16a766', keywords: ['payroll', 'deposit', 'freelance', 'p2p', 'dividend', 'refund'] },
+            { name: 'Transfers', color: '#666666', keywords: ['wire', 'transfer', 'interbank'] },
+        ];
 
-            for (let i = 0; i < targetCount; i++) {
-                const randomItem = transactionPool[Math.floor(Math.random() * transactionPool.length)];
-                const randomValue = (Math.random() * (400 - 13) + 13).toFixed(2);
-                const randomDay = Math.floor(Math.random() * 20) + 1; 
-                const dateString = `May ${randomDay < 10 ? '0' + randomDay : randomDay}`;
-                const traceId = `TXN-${Math.floor(1000 + Math.random() * 9000)}`;
-
-                generatedTransactions.push({
-                    desc: randomItem.desc,
-                    type: randomItem.type,
-                    amount: parseFloat(randomValue),
-                    date: dateString,
-                    trace: traceId
-                });
+        function categorizeTransaction(description) {
+            const desc = (description || '').toLowerCase();
+            for (const cat of CATEGORY_RULES) {
+                if (cat.keywords.some(k => desc.includes(k))) return cat;
             }
+            return { name: 'Other', color: '#999999' };
+        }
 
-            generatedTransactions.forEach(txn => {
+        async function fetchTransactions() {
+            try {
+                const res = await fetch('/api/transactions', { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to load transactions');
+                const data = await res.json();
+                allTransactions = data.transactions || [];
+                renderTransactionLedger();
+                renderSpendingInsights();
+            } catch (err) {
+                console.error('Transaction fetch failed:', err);
+            }
+        }
+
+        function renderTransactionLedger() {
+            const container = document.getElementById('realTransactionContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            allTransactions.slice(0, 10).forEach(txn => {
+                const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
+                const amountAbs = Math.abs(parseFloat(txn.amount));
+                const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+
                 const element = document.createElement('div');
-                const isCredit = txn.type === "credit";
-                const amountFormatted = `${isCredit ? '+' : '-'}$${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                
                 element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
-                
-                element.onclick = function() {
-                    openReceiptModal(txn.desc, `#${txn.trace}`, amountFormatted);
+                element.onclick = function () {
+                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted);
                 };
-
                 element.innerHTML = `
                     <div class="min-w-0 pr-2">
-                        <p class="text-xs font-bold text-gray-900 truncate">${txn.desc}</p>
-                        <p class="text-[9px] text-gray-400 font-mono">${txn.date} | ID #${txn.trace}</p>
-                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                        <p class="text-xs font-bold text-gray-900 truncate">${txn.description}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">${dateStr} | ID #TXN-${txn.id}</p>
                     </div>
-                    <span class="font-mono text-xs font-bold ${isCredit ? 'text-emerald-600' : 'text-gray-950'} shrink-0">${amountFormatted}</span>
+                    <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
+                `;
+                container.appendChild(element);
+            });
+        }
+
+        function loadMoreTransactions() {
+            const container = document.getElementById('additionalHistoryContainer');
+            container.innerHTML = '';
+
+            allTransactions.slice(10, 26).forEach(txn => {
+                const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
+                const amountAbs = Math.abs(parseFloat(txn.amount));
+                const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+
+                const element = document.createElement('div');
+                element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
+                element.onclick = function () {
+                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted);
+                };
+                element.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${txn.description}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">${dateStr} | ID #TXN-${txn.id}</p>
+                    </div>
+                    <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
                 `;
                 container.appendChild(element);
             });
@@ -2542,6 +2578,78 @@
                     </button>
                 </div>
             `;
+        }
+
+        let categoryChartInstance = null;
+        let trendChartInstance = null;
+
+        function renderSpendingInsights() {
+            const now = new Date();
+            const thisMonthTxns = allTransactions.filter(t => {
+                const d = new Date(t.created_at);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && (t.type === 'debit' || parseFloat(t.amount) < 0);
+            });
+
+            const totals = {};
+            thisMonthTxns.forEach(t => {
+                const cat = categorizeTransaction(t.description);
+                totals[cat.name] = (totals[cat.name] || 0) + Math.abs(parseFloat(t.amount));
+            });
+
+            const totalSpent = Object.values(totals).reduce((a, b) => a + b, 0);
+            const totalLabel = document.getElementById('spendingTotalLabel');
+            if (totalLabel) totalLabel.innerText = '$' + totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            const labels = Object.keys(totals);
+            const values = Object.values(totals);
+            const colors = labels.map(l => (CATEGORY_RULES.find(c => c.name === l) || { color: '#999999' }).color);
+
+            const chartCanvas = document.getElementById('spendingCategoryChart');
+            if (chartCanvas) {
+                if (categoryChartInstance) categoryChartInstance.destroy();
+                categoryChartInstance = new Chart(chartCanvas, {
+                    type: 'doughnut',
+                    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+                    options: { plugins: { legend: { display: false } }, cutout: '65%' }
+                });
+            }
+
+            const legendContainer = document.getElementById('spendingCategoryLegend');
+            if (legendContainer) {
+                legendContainer.innerHTML = labels.map((l, i) => `
+                    <div class="flex items-center space-x-1.5 text-[10px]">
+                        <span class="w-2 h-2 rounded-full" style="background:${colors[i]}"></span>
+                        <span class="text-gray-600 truncate">${l}</span>
+                        <span class="font-mono font-bold text-gray-900 ml-auto">$${values[i].toFixed(0)}</span>
+                    </div>
+                `).join('');
+            }
+
+            const monthBuckets = {};
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const key = d.toLocaleDateString('en-US', { month: 'short' });
+                monthBuckets[key] = 0;
+            }
+            allTransactions.forEach(t => {
+                if (t.type !== 'debit' && parseFloat(t.amount) >= 0) return;
+                const d = new Date(t.created_at);
+                const key = d.toLocaleDateString('en-US', { month: 'short' });
+                if (key in monthBuckets) monthBuckets[key] += Math.abs(parseFloat(t.amount));
+            });
+
+            const trendCanvas = document.getElementById('spendingTrendChart');
+            if (trendCanvas) {
+                if (trendChartInstance) trendChartInstance.destroy();
+                trendChartInstance = new Chart(trendCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(monthBuckets),
+                        datasets: [{ data: Object.values(monthBuckets), backgroundColor: '#10b981', borderRadius: 4 }]
+                    },
+                    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
         }
 
         const creditClearedHistoryContainer = document.getElementById('creditTab-cleared');
@@ -2858,17 +2966,35 @@ async function submitForgotPasswordEmail() {
             return;
         }
 
-        if (data.demoResetToken) {
-            fpCurrentToken = data.demoResetToken;
-            document.getElementById('fpStep1').classList.add('hidden');
-            document.getElementById('fpStep2').classList.remove('hidden');
-        } else {
-            errBanner.textContent = 'No account found for that email.';
-            errBanner.classList.remove('hidden');
-        }
+        // Backend always returns success here whether or not the email exists —
+        // that's intentional (prevents email enumeration). Show the "check your inbox" step.
+        document.getElementById('fpStep1').classList.add('hidden');
+        document.getElementById('fpStep3').classList.remove('hidden');
+        document.getElementById('fpStep3').innerHTML = `
+            <div class="text-center py-4">
+                <i class="fa-solid fa-envelope-circle-check text-emerald-500 text-3xl mb-3"></i>
+                <p class="text-sm font-bold text-gray-900">Check your inbox</p>
+                <p class="text-xs text-gray-500 mt-1">If that email is registered, a reset link is on its way. It expires in 30 minutes.</p>
+            </div>
+        `;
     } catch (err) {
         errBanner.textContent = 'Network error. Please try again.';
         errBanner.classList.remove('hidden');
+    }
+}
+
+function checkForResetTokenInUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('resetToken');
+    if (token) {
+        fpCurrentToken = token;
+        document.getElementById('forgotPasswordModal').classList.remove('hidden');
+        document.getElementById('fpStep1').classList.add('hidden');
+        document.getElementById('fpStep2').classList.remove('hidden');
+        document.getElementById('fpStep3').classList.add('hidden');
+        document.getElementById('fpErrorBanner1').classList.add('hidden');
+        // Remove the token from the visible URL/history once it's been captured
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
 
@@ -3057,6 +3183,7 @@ async function handleFaceIdLogin() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    checkForResetTokenInUrl();
     if (document.getElementById('faceIdStatusLabel')) {
         refreshFaceIdStatus();
     }
@@ -3194,6 +3321,25 @@ document.addEventListener('DOMContentLoaded', () => {
     display: block;
   }
 
+  .ahb-ai-bubble {
+    max-width: 85%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .ahb-ai-user {
+    align-self: flex-end;
+    background: #10b981;
+    color: #05140f;
+    font-weight: 600;
+  }
+  .ahb-ai-bot {
+    align-self: flex-start;
+    background: rgba(255,255,255,0.06);
+    color: #d1d8e2;
+  }
+
   #ahb-help-back {
     background: none;
     border: none;
@@ -3262,6 +3408,16 @@ document.addEventListener('DOMContentLoaded', () => {
       <button data-topic="transfer">A transfer didn't go through</button>
       <button data-topic="card">Report a lost or stolen card</button>
       <button data-topic="fraud">Suspicious activity on my account</button>
+      <button id="ahb-ai-trigger">💬 Ask Apex AI</button>
+    </div>
+
+    <div id="ahb-ai-panel" style="display:none;">
+      <div id="ahb-ai-messages" style="max-height:220px; overflow-y:auto; margin-bottom:10px; display:flex; flex-direction:column; gap:8px;"></div>
+      <div style="display:flex; gap:6px;">
+        <input id="ahb-ai-input" type="text" placeholder="Ask about your balance, spending..."
+          style="flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:8px 10px; font-size:12px; color:#e2e8f0; outline:none;">
+        <button id="ahb-ai-send" style="background:#10b981; color:#05140f; border:none; border-radius:8px; padding:0 12px; font-weight:700; font-size:12px;">Send</button>
+      </div>
     </div>
 
     <a class="ahb-call-btn" href="tel:+18005551234">
@@ -3307,6 +3463,64 @@ document.addEventListener('DOMContentLoaded', () => {
     answerBox.classList.remove('ahb-visible');
     topicsBox.style.display = 'flex';
     backBtn.classList.remove('ahb-visible');
+    aiPanel.style.display = 'none';
+  });
+
+  const aiTrigger = document.getElementById('ahb-ai-trigger');
+  const aiPanel = document.getElementById('ahb-ai-panel');
+  const aiMessages = document.getElementById('ahb-ai-messages');
+  const aiInput = document.getElementById('ahb-ai-input');
+  const aiSend = document.getElementById('ahb-ai-send');
+
+  aiTrigger.addEventListener('click', function () {
+    topicsBox.style.display = 'none';
+    aiPanel.style.display = 'block';
+    backBtn.classList.add('ahb-visible');
+    if (aiMessages.children.length === 0) {
+      appendAiMessage('bot', "Hi! I'm Apex, your AI assistant. Ask me about your balance, recent spending, or how a feature works.");
+    }
+  });
+
+  function appendAiMessage(who, text) {
+    const bubble = document.createElement('div');
+    bubble.className = 'ahb-ai-bubble ' + (who === 'user' ? 'ahb-ai-user' : 'ahb-ai-bot');
+    bubble.textContent = text;
+    aiMessages.appendChild(bubble);
+    aiMessages.scrollTop = aiMessages.scrollHeight;
+  }
+
+  async function sendAiMessage() {
+    const text = aiInput.value.trim();
+    if (!text) return;
+    appendAiMessage('user', text);
+    aiInput.value = '';
+    aiSend.disabled = true;
+
+    const thinkingBubble = document.createElement('div');
+    thinkingBubble.className = 'ahb-ai-bubble ahb-ai-bot';
+    thinkingBubble.textContent = '...';
+    aiMessages.appendChild(thinkingBubble);
+    aiMessages.scrollTop = aiMessages.scrollHeight;
+
+    try {
+      const res = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json();
+      thinkingBubble.textContent = res.ok ? data.reply : (data.error || 'Something went wrong.');
+    } catch (err) {
+      thinkingBubble.textContent = 'Connection error. Try again in a moment.';
+    } finally {
+      aiSend.disabled = false;
+    }
+  }
+
+  aiSend.addEventListener('click', sendAiMessage);
+  aiInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') sendAiMessage();
   });
 
   let isDragging = false;
