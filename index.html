@@ -2816,6 +2816,252 @@
 
         renderLanguageList();
         renderLinkedDevices();
+// ===== FORGOT PASSWORD =====
+let fpCurrentToken = null;
+
+function openForgotPasswordModal() {
+    document.getElementById('forgotPasswordModal').classList.remove('hidden');
+    document.getElementById('fpStep1').classList.remove('hidden');
+    document.getElementById('fpStep2').classList.add('hidden');
+    document.getElementById('fpStep3').classList.add('hidden');
+    document.getElementById('fpEmailInput').value = '';
+    document.getElementById('fpErrorBanner1').classList.add('hidden');
+}
+
+function closeForgotPasswordModal() {
+    document.getElementById('forgotPasswordModal').classList.add('hidden');
+    fpCurrentToken = null;
+}
+
+async function submitForgotPasswordEmail() {
+    const email = document.getElementById('fpEmailInput').value;
+    const errBanner = document.getElementById('fpErrorBanner1');
+    errBanner.classList.add('hidden');
+
+    if (!email || !email.includes('@')) {
+        errBanner.textContent = 'Enter a valid email address.';
+        errBanner.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            errBanner.textContent = data.error || 'Something went wrong.';
+            errBanner.classList.remove('hidden');
+            return;
+        }
+
+        if (data.demoResetToken) {
+            fpCurrentToken = data.demoResetToken;
+            document.getElementById('fpStep1').classList.add('hidden');
+            document.getElementById('fpStep2').classList.remove('hidden');
+        } else {
+            errBanner.textContent = 'No account found for that email.';
+            errBanner.classList.remove('hidden');
+        }
+    } catch (err) {
+        errBanner.textContent = 'Network error. Please try again.';
+        errBanner.classList.remove('hidden');
+    }
+}
+
+async function submitNewPassword() {
+    const newPassword = document.getElementById('fpNewPasswordInput').value;
+    const errBanner = document.getElementById('fpErrorBanner2');
+    errBanner.classList.add('hidden');
+
+    if (!newPassword || newPassword.length < 8) {
+        errBanner.textContent = 'Password must be at least 8 characters.';
+        errBanner.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: fpCurrentToken, newPassword })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            errBanner.textContent = data.error || 'Something went wrong.';
+            errBanner.classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('fpStep2').classList.add('hidden');
+        document.getElementById('fpStep3').classList.remove('hidden');
+    } catch (err) {
+        errBanner.textContent = 'Network error. Please try again.';
+        errBanner.classList.remove('hidden');
+    }
+}
+
+// ===== FACE ID (real WebAuthn) =====
+
+function isWebAuthnSupported() {
+    return typeof window.SimpleWebAuthnBrowser !== 'undefined' &&
+           window.PublicKeyCredential !== undefined;
+}
+
+let faceIdEnabledForAccount = false;
+
+async function refreshFaceIdStatus() {
+    const label = document.getElementById('faceIdStatusLabel');
+    const toggle = document.getElementById('faceIdToggle');
+    if (!label || !toggle) return;
+
+    if (!isWebAuthnSupported()) {
+        label.textContent = 'Not supported on this device';
+        return;
+    }
+
+    try {
+        const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (!available) {
+            label.textContent = 'Not available on this device';
+            return;
+        }
+    } catch (err) {
+        label.textContent = 'Not available on this device';
+        return;
+    }
+
+    label.textContent = faceIdEnabledForAccount
+        ? 'Enabled for this account'
+        : 'Tap to enable on this device';
+
+    const ball = toggle.querySelector('div');
+    if (faceIdEnabledForAccount) {
+        toggle.classList.remove('bg-gray-200');
+        toggle.classList.add('bg-emerald-500');
+        ball.classList.add('translate-x-5');
+    } else {
+        toggle.classList.remove('bg-emerald-500');
+        toggle.classList.add('bg-gray-200');
+        ball.classList.remove('translate-x-5');
+    }
+}
+
+async function handleFaceIdToggleClick() {
+    if (faceIdEnabledForAccount) {
+        alert('Face ID is already enabled for this account on a device. To remove it, contact support.');
+        return;
+    }
+    await enrollFaceId();
+}
+
+async function enrollFaceId() {
+    if (!isWebAuthnSupported()) {
+        alert('Face ID / biometric login is not supported on this browser or device.');
+        return;
+    }
+
+    try {
+        const optionsRes = await fetch('/api/webauthn-register-options', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const options = await optionsRes.json();
+        if (!optionsRes.ok) {
+            alert(options.error || 'Could not start Face ID setup.');
+            return;
+        }
+
+        const attestationResponse = await window.SimpleWebAuthnBrowser.startRegistration(options);
+
+        const verifyRes = await fetch('/api/webauthn-register-verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                attestationResponse,
+                deviceName: navigator.userAgentData?.platform || navigator.platform || 'This device'
+            })
+        });
+        const verifyData = await verifyRes.json();
+
+        if (!verifyRes.ok) {
+            alert(verifyData.error || 'Could not enable Face ID.');
+            return;
+        }
+
+        faceIdEnabledForAccount = true;
+        refreshFaceIdStatus();
+        alert('Face ID enabled! You can now sign in using Face ID on this device.');
+    } catch (err) {
+        if (err.name === 'NotAllowedError') {
+            return;
+        }
+        console.error('Face ID enrollment error:', err);
+        alert('Could not set up Face ID. Please try again.');
+    }
+}
+
+async function handleFaceIdLogin() {
+    if (!isWebAuthnSupported()) {
+        alert('Face ID / biometric login is not supported on this browser or device.');
+        return;
+    }
+
+    const email = document.getElementById('loginEmailInput').value;
+    if (!email) {
+        alert('Enter your email above first, then tap "Sign in with Face ID".');
+        return;
+    }
+
+    try {
+        const optionsRes = await fetch('/api/webauthn-login-options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const options = await optionsRes.json();
+        if (!optionsRes.ok) {
+            alert(options.error || 'Face ID sign-in is not available for this account yet.');
+            return;
+        }
+
+        const assertionResponse = await window.SimpleWebAuthnBrowser.startAuthentication(options);
+
+        const verifyRes = await fetch('/api/webauthn-login-verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ assertionResponse })
+        });
+        const data = await verifyRes.json();
+
+        if (!verifyRes.ok) {
+            alert(data.error || 'Face ID sign-in failed.');
+            return;
+        }
+
+        await loadRealAccountData();
+        runLoginSequence();
+    } catch (err) {
+        if (err.name === 'NotAllowedError') {
+            return;
+        }
+        console.error('Face ID login error:', err);
+        alert('Face ID sign-in failed. Please try again or use your password.');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('faceIdStatusLabel')) {
+        refreshFaceIdStatus();
+    }
+});
+
 
         initLiveInvestmentEngine();
     </script>
