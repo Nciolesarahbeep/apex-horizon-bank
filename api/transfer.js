@@ -3,9 +3,58 @@ const { getUserFromRequest } = require('./auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+// Real-bank-style daily P2P sending limit. Adjust as needed.
+const DAILY_P2P_LIMIT = 2500;
+
 module.exports = async function handler(req, res) {
+  // ===== Recipient lookup (for the "Send $50 to Sarah J.?" confirm step) =====
+  // GET /api/transfer?lookupEmail=someone@example.com
+  if (req.method === 'GET') {
+    try {
+      const session = getUserFromRequest(req);
+      if (!session) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const lookupEmail = (req.query && req.query.lookupEmail || '').trim().toLowerCase();
+      if (!lookupEmail) {
+        return res.status(400).json({ error: 'lookupEmail is required.' });
+      }
+
+      const rows = await sql`
+        SELECT id, full_name, email FROM users
+        WHERE LOWER(email) = ${lookupEmail}
+        LIMIT 1
+      `;
+
+      if (rows.length === 0) {
+        return res.status(404).json({ error: 'No Apex Horizon account found for that email.' });
+      }
+
+      const recipient = rows[0];
+
+      if (recipient.id === session.userId) {
+        return res.status(400).json({ error: "You can't send money to yourself." });
+      }
+
+      // Never leak the full name or account details — only first name + last initial,
+      // same principle real banks use for Zelle-style recipient confirmation.
+      const nameParts = (recipient.full_name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Apex';
+      const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : '';
+
+      return res.status(200).json({
+        found: true,
+        displayName: lastInitial ? `${firstName} ${lastInitial}.` : firstName,
+      });
+    } catch (err) {
+      console.error('Recipient lookup error:', err);
+      return res.status(500).json({ error: 'Something went wrong looking up that recipient.' });
+    }
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -15,14 +64,10 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { fromAccountType, toAccountType, amount, description } = req.body || {};
+    const { fromAccountType, toAccountType, recipientEmail, amount, description } = req.body || {};
 
-    if (!fromAccountType || !toAccountType || !amount) {
-      return res.status(400).json({ error: 'From account, to account, and amount are required.' });
-    }
-
-    if (fromAccountType === toAccountType) {
-      return res.status(400).json({ error: 'Choose two different accounts to transfer between.' });
+    if (!fromAccountType || !amount) {
+      return res.status(400).json({ error: 'From account and amount are required.' });
     }
 
     const transferAmount = Number(amount);
@@ -30,32 +75,111 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Enter a valid transfer amount greater than zero.' });
     }
 
-    // Load both of this user's accounts, locking neither (Neon's HTTP driver
-    // doesn't support multi-statement transactions), but we re-check the
-    // balance right before writing to minimize any race window.
+    const isP2P = !!recipientEmail;
+
+    if (!isP2P && !toAccountType) {
+      return res.status(400).json({ error: 'To account is required for internal transfers.' });
+    }
+
+    if (!isP2P && fromAccountType === toAccountType) {
+      return res.status(400).json({ error: 'Choose two different accounts to transfer between.' });
+    }
+
+    // Load the sender's source account (owned by the authenticated user)
     const fromRows = await sql`
       SELECT id, balance FROM accounts
       WHERE user_id = ${session.userId} AND account_type = ${fromAccountType}
       LIMIT 1
     `;
-    const toRows = await sql`
-      SELECT id, balance FROM accounts
-      WHERE user_id = ${session.userId} AND account_type = ${toAccountType}
-      LIMIT 1
-    `;
 
-    if (fromRows.length === 0 || toRows.length === 0) {
-      return res.status(404).json({ error: 'One of the selected accounts could not be found.' });
+    if (fromRows.length === 0) {
+      return res.status(404).json({ error: 'Your source account could not be found.' });
     }
 
     const fromAccount = fromRows[0];
-    const toAccount = toRows[0];
+
+    let toAccount;
+    let recipientUserId = null;
+    let note;
+    let noteIncoming;
+
+    if (isP2P) {
+      const email = String(recipientEmail).trim().toLowerCase();
+
+      const recipientRows = await sql`
+        SELECT id, full_name, email FROM users
+        WHERE LOWER(email) = ${email}
+        LIMIT 1
+      `;
+
+      if (recipientRows.length === 0) {
+        return res.status(404).json({ error: 'No Apex Horizon account found for that email.' });
+      }
+
+      const recipient = recipientRows[0];
+
+      if (recipient.id === session.userId) {
+        return res.status(400).json({ error: "You can't send money to yourself." });
+      }
+
+      recipientUserId = recipient.id;
+
+      // P2P always lands in the recipient's checking account — same as how
+      // Zelle/interbank P2P works in practice.
+      const toRows = await sql`
+        SELECT id, balance FROM accounts
+        WHERE user_id = ${recipientUserId} AND account_type = 'checking'
+        LIMIT 1
+      `;
+
+      if (toRows.length === 0) {
+        return res.status(404).json({ error: 'That recipient does not have an eligible account.' });
+      }
+
+      toAccount = toRows[0];
+
+      // Daily P2P sending limit — sum today's outbound P2P transactions from this account
+      const sentTodayRows = await sql`
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE account_id = ${fromAccount.id}
+          AND type = 'p2p_out'
+          AND created_at >= date_trunc('day', NOW())
+      `;
+      const sentToday = Number(sentTodayRows[0].total);
+
+      if (sentToday + transferAmount > DAILY_P2P_LIMIT) {
+        return res.status(400).json({
+          error: `This would exceed your daily P2P sending limit of $${DAILY_P2P_LIMIT.toLocaleString()}. You've sent $${sentToday.toLocaleString()} today.`,
+        });
+      }
+
+      const nameParts = (recipient.full_name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Apex user';
+      note = description || `P2P transfer to ${firstName}`;
+      noteIncoming = description || `P2P transfer received`;
+    } else {
+      const toRows = await sql`
+        SELECT id, balance FROM accounts
+        WHERE user_id = ${session.userId} AND account_type = ${toAccountType}
+        LIMIT 1
+      `;
+
+      if (toRows.length === 0) {
+        return res.status(404).json({ error: 'One of the selected accounts could not be found.' });
+      }
+
+      toAccount = toRows[0];
+      note = description || `Transfer to ${toAccountType}`;
+      noteIncoming = description || `Transfer from ${fromAccountType}`;
+    }
 
     if (Number(fromAccount.balance) < transferAmount) {
       return res.status(400).json({ error: 'Insufficient funds in the source account.' });
     }
 
-    // Debit the source account
+    // Debit the source account (guarded re-check against the race window,
+    // same pattern as the existing internal-transfer path)
     const updatedFrom = await sql`
       UPDATE accounts
       SET balance = balance - ${transferAmount}
@@ -64,7 +188,6 @@ module.exports = async function handler(req, res) {
     `;
 
     if (updatedFrom.length === 0) {
-      // Balance changed between our check and the update — bail out safely.
       return res.status(409).json({ error: 'Balance changed before the transfer completed. Please try again.' });
     }
 
@@ -76,22 +199,25 @@ module.exports = async function handler(req, res) {
       RETURNING id, balance
     `;
 
-    const note = description || `Transfer to ${toAccountType}`;
-    const noteIncoming = description || `Transfer from ${fromAccountType}`;
+    const outType = isP2P ? 'p2p_out' : 'transfer_out';
+    const inType = isP2P ? 'p2p_in' : 'transfer_in';
 
     await sql`
       INSERT INTO transactions (account_id, type, amount, description, created_at)
-      VALUES (${fromAccount.id}, 'transfer_out', ${transferAmount}, ${note}, NOW())
+      VALUES (${fromAccount.id}, ${outType}, ${transferAmount}, ${note}, NOW())
     `;
     await sql`
       INSERT INTO transactions (account_id, type, amount, description, created_at)
-      VALUES (${toAccount.id}, 'transfer_in', ${transferAmount}, ${noteIncoming}, NOW())
+      VALUES (${toAccount.id}, ${inType}, ${transferAmount}, ${noteIncoming}, NOW())
     `;
 
     return res.status(200).json({
       success: true,
+      isP2P,
       from: { accountType: fromAccountType, balance: updatedFrom[0].balance },
-      to: { accountType: toAccountType, balance: updatedTo[0].balance },
+      to: isP2P
+        ? { balance: undefined } // don't leak recipient's balance back to sender
+        : { accountType: toAccountType, balance: updatedTo[0].balance },
     });
   } catch (err) {
     console.error('Transfer error:', err);
