@@ -992,6 +992,7 @@
                             Secure routing terminal mapping directly to national clearing interfaces.
                         </div>
                         <form class="p-4 space-y-3" onsubmit="handleWireTransfer(event)">
+                            <div id="wireErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Target Bank Node</label>
                                 <select id="wireTargetBankSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
@@ -1963,57 +1964,109 @@
             document.getElementById('receiptModal').classList.add('hidden');
         }
 
-        function handleWireTransfer(event) {
+        async function handleWireTransfer(event) {
             event.preventDefault();
-            const amtInput = document.getElementById('wireAmountInput');
+
+            const errBanner = document.getElementById('wireErrorBanner');
+            errBanner.classList.add('hidden');
+
             const targetBank = document.getElementById('wireTargetBankSelect').value;
-            const transferAmount = parseFloat(amtInput.value) || 0;
-            
+            const routingNumber = document.getElementById('wireRoutingInput').value.trim();
+            const beneficiaryNumber = document.getElementById('wireBeneficiaryInput').value.trim();
+            const transferAmount = parseFloat(document.getElementById('wireAmountInput').value) || 0;
+
+            if (!/^\d{9}$/.test(routingNumber)) {
+                errBanner.textContent = 'Routing number must be exactly 9 digits.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+            if (!beneficiaryNumber) {
+                errBanner.textContent = 'Beneficiary account number is required.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+            if (transferAmount <= 0) {
+                errBanner.textContent = 'Enter a valid amount greater than zero.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+            if (!checkingAccountId) {
+                errBanner.textContent = 'Account data not loaded yet. Please try again in a moment.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+
             const loader = document.getElementById('loadingOverlay');
             loader.classList.remove('hidden');
-            
-            setTimeout(() => {
+
+            try {
+                const res = await fetch('/api/transfer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        fromAccountType: 'checking',
+                        routingNumber,
+                        beneficiaryNumber,
+                        targetBank,
+                        amount: transferAmount,
+                        description: `Outbound Wire | ${targetBank}`
+                    })
+                });
+                const data = await res.json();
                 loader.classList.add('hidden');
-                if(transferAmount > 0) {
-                    rawBalanceValue -= transferAmount;
-                    refreshUIBalances();
 
-                    const traceRandomId = Math.floor(1000 + Math.random() * 9000);
-                    const systemTraceString = `#TXN-${traceRandomId}`;
-                    const formattedAmountString = `-$${transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    const ledgerDescription = `Outbound Wire | ${targetBank}`;
+                if (!res.ok) {
+                    errBanner.textContent = data.error || 'Wire transfer failed. Please try again.';
+                    errBanner.classList.remove('hidden');
+                    return;
+                }
 
-                    const liveWireLogContainer = document.getElementById('liveWireLogContainer');
-                    const ledgerLogNode = document.createElement('div');
-                    ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
-                    
-                    ledgerLogNode.onclick = function() {
-                        openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
-                    };
+                await loadRealAccountData();
 
-                    ledgerLogNode.innerHTML = `
-                        <div class="min-w-0 pr-2">
-                            <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
-                            <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
-                            <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
-                        </div>
-                        <span class="font-mono text-xs font-bold text-red-600 shrink-0">${formattedAmountString}</span>
-                    `;
-                    
+                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
+                const systemTraceString = `#WIRE-${traceRandomId}`;
+                const formattedAmountString = `-$${transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const ledgerDescription = `Outbound Wire | ${targetBank}`;
+
+                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
+                const ledgerLogNode = document.createElement('div');
+                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+
+                ledgerLogNode.onclick = function() {
+                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                };
+
+                ledgerLogNode.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-red-600 shrink-0">${formattedAmountString}</span>
+                `;
+
+                if (liveWireLogContainer) {
                     liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
                 }
-                
+
                 const banner = document.getElementById('successBanner');
                 banner.classList.remove('-translate-y-full');
                 banner.classList.add('translate-y-4');
-                
+
                 event.target.reset();
-                
+
                 bannerTimeoutId = setTimeout(() => {
                     banner.classList.remove('translate-y-4');
                     banner.classList.add('-translate-y-full');
                 }, 5000);
-            }, 2000);
+
+                openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+            } catch (err) {
+                loader.classList.add('hidden');
+                errBanner.textContent = 'Network error during wire transfer. Please try again.';
+                errBanner.classList.remove('hidden');
+            }
         }
 
         function runLiveLoanCalculator() {
