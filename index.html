@@ -608,6 +608,10 @@
                     <div class="bg-white p-4 rounded-xl border border-gray-200">
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">Service Actions</h3>
                         <div class="grid grid-cols-2 gap-3">
+                            <button onclick="triggerViewSwitch('p2p')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-paper-plane text-lg text-emerald-500 mb-1"></i>
+                                <span class="text-xs font-semibold">Send Money</span>
+                            </button>
                             <button onclick="triggerViewSwitch('wire')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
                                 <i class="fa-solid fa-money-bill-transfer text-lg text-emerald-500 mb-1"></i>
                                 <span class="text-xs font-semibold">Send Wire</span>
@@ -624,7 +628,7 @@
                                 <i class="fa-solid fa-piggy-bank text-lg text-emerald-500 mb-1"></i>
                                 <span class="text-xs font-semibold">Manage APY</span>
                             </button>
-                            <button onclick="triggerViewSwitch('settings')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition col-span-2">
+                            <button onclick="triggerViewSwitch('settings')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
                                 <i class="fa-solid fa-user-gear text-lg text-slate-600 mb-1"></i>
                                 <span class="text-xs font-semibold">Settings</span>
                             </button>
@@ -910,6 +914,70 @@
                                 <p class="text-[9px] text-gray-400 font-mono">June 01, 2026</p>
                             </div>
                             <span class="text-xs font-bold font-mono text-gray-900">$45.00</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-p2p" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Send Money</h1>
+                    </div>
+
+                    <div id="p2pStep1" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-900 p-3 text-white text-[10px]">
+                            Send instantly to any Apex Horizon Bank customer using their email.
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div id="p2pErrorBanner1" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Email</label>
+                                <input type="email" id="p2pRecipientEmailInput" placeholder="friend@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Amount (USD)</label>
+                                <input type="number" id="p2pAmountInput" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">From</label>
+                                <select id="p2pFromAccountSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option value="checking" selected>Primary Checking</option>
+                                    <option value="savings">High-Yield Savings</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">What's it for? (optional)</label>
+                                <input type="text" id="p2pDescriptionInput" placeholder="Rent, dinner, etc." class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                            </div>
+                            <div class="p-2.5 bg-slate-50 border border-gray-200 rounded-lg flex items-start space-x-2">
+                                <i class="fa-solid fa-circle-info text-slate-500 text-xs mt-0.5"></i>
+                                <span class="text-[10px] text-slate-600 font-medium leading-normal">Daily sending limit: $2,500. Funds land instantly — same-bank transfers don't hold.</span>
+                            </div>
+                            <button onclick="lookupP2PRecipient()" id="p2pLookupBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-lg transition">
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="p2pStep2" class="hidden bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="p-5 text-center space-y-4">
+                            <div class="mx-auto w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center border border-emerald-200">
+                                <i class="fa-solid fa-user text-emerald-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase font-bold">You're sending</p>
+                                <h2 id="p2pConfirmAmount" class="text-2xl font-bold font-mono text-gray-900 mt-1">$0.00</h2>
+                                <p class="text-sm text-gray-600 mt-1">to <span id="p2pConfirmRecipient" class="font-bold text-gray-900"></span></p>
+                            </div>
+                            <div id="p2pErrorBanner2" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2 text-left"></div>
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <button onclick="cancelP2PConfirm()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs py-2.5 rounded-lg transition">
+                                    Cancel
+                                </button>
+                                <button onclick="confirmP2PSend()" id="p2pConfirmBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition">
+                                    Confirm & Send
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1571,6 +1639,9 @@
                 if (targetViewId === 'loans') {
                     runLiveLoanCalculator();
                 }
+                if (targetViewId === 'p2p' && typeof resetP2PForm === 'function') {
+                    resetP2PForm();
+                }
             }, 1500); 
         }
 
@@ -1590,7 +1661,7 @@
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights'];
+            const views = ['summary', 'checking', 'wire', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'p2p'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -2168,6 +2239,160 @@
             } catch (err) {
                 loader.classList.add('hidden');
                 alert('Network error during transfer. Please try again.');
+            }
+        }
+
+        // ===== P2P (Send Money) =====
+        let p2pPendingRecipientEmail = null;
+        let p2pPendingDisplayName = null;
+
+        function resetP2PForm() {
+            document.getElementById('p2pStep2').classList.add('hidden');
+            document.getElementById('p2pStep1').classList.remove('hidden');
+            document.getElementById('p2pErrorBanner1').classList.add('hidden');
+            document.getElementById('p2pErrorBanner2').classList.add('hidden');
+            document.getElementById('p2pRecipientEmailInput').value = '';
+            document.getElementById('p2pAmountInput').value = '';
+            document.getElementById('p2pDescriptionInput').value = '';
+            p2pPendingRecipientEmail = null;
+            p2pPendingDisplayName = null;
+        }
+
+        async function lookupP2PRecipient() {
+            const errBanner = document.getElementById('p2pErrorBanner1');
+            errBanner.classList.add('hidden');
+
+            const email = document.getElementById('p2pRecipientEmailInput').value.trim();
+            const amount = parseFloat(document.getElementById('p2pAmountInput').value) || 0;
+
+            if (!email || !email.includes('@')) {
+                errBanner.textContent = 'Enter a valid recipient email.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+            if (amount <= 0) {
+                errBanner.textContent = 'Enter a valid amount to send.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.getElementById('p2pLookupBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Looking up recipient...';
+
+            try {
+                const res = await fetch('/api/transfer?lookupEmail=' + encodeURIComponent(email), {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerText = originalText;
+
+                if (!res.ok) {
+                    errBanner.textContent = data.error || 'Could not find that recipient.';
+                    errBanner.classList.remove('hidden');
+                    return;
+                }
+
+                p2pPendingRecipientEmail = email;
+                p2pPendingDisplayName = data.displayName;
+
+                document.getElementById('p2pConfirmAmount').innerText = '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('p2pConfirmRecipient').innerText = data.displayName;
+                document.getElementById('p2pErrorBanner2').classList.add('hidden');
+
+                document.getElementById('p2pStep1').classList.add('hidden');
+                document.getElementById('p2pStep2').classList.remove('hidden');
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerText = originalText;
+                errBanner.textContent = 'Network error. Please try again.';
+                errBanner.classList.remove('hidden');
+            }
+        }
+
+        function cancelP2PConfirm() {
+            document.getElementById('p2pStep2').classList.add('hidden');
+            document.getElementById('p2pStep1').classList.remove('hidden');
+        }
+
+        async function confirmP2PSend() {
+            const errBanner = document.getElementById('p2pErrorBanner2');
+            errBanner.classList.add('hidden');
+
+            const amount = parseFloat(document.getElementById('p2pAmountInput').value) || 0;
+            const fromAccountType = document.getElementById('p2pFromAccountSelect').value;
+            const description = document.getElementById('p2pDescriptionInput').value.trim();
+
+            if (!p2pPendingRecipientEmail) {
+                errBanner.textContent = 'Something went wrong — please start over.';
+                errBanner.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.getElementById('p2pConfirmBtn');
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+
+            try {
+                const res = await fetch('/api/transfer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        recipientEmail: p2pPendingRecipientEmail,
+                        fromAccountType,
+                        amount,
+                        description: description || undefined
+                    })
+                });
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerText = 'Confirm & Send';
+
+                if (!res.ok) {
+                    errBanner.textContent = data.error || 'Transfer failed. Please try again.';
+                    errBanner.classList.remove('hidden');
+                    return;
+                }
+
+                await loadRealAccountData();
+
+                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
+                const systemTraceString = `#P2P-${traceRandomId}`;
+                const formattedAmountString = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const ledgerDescription = `Sent to ${p2pPendingDisplayName}`;
+
+                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
+                const ledgerLogNode = document.createElement('div');
+                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+                ledgerLogNode.onclick = function () {
+                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                };
+                ledgerLogNode.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-red-600 shrink-0">${formattedAmountString}</span>
+                `;
+                if (liveWireLogContainer) {
+                    liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
+                }
+
+                resetP2PForm();
+                triggerViewSwitch('summary');
+                openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerText = 'Confirm & Send';
+                errBanner.textContent = 'Network error. Please try again.';
+                errBanner.classList.remove('hidden');
             }
         }
 
