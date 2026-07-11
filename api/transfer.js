@@ -6,6 +6,10 @@ const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 // Real-bank-style daily P2P sending limit. Adjust as needed.
 const DAILY_P2P_LIMIT = 2500;
 
+// Real-bank-style per-transaction wire limit for standard online banking
+// (larger wires typically require phone/branch verification in real banks).
+const MAX_WIRE_AMOUNT = 25000;
+
 module.exports = async function handler(req, res) {
   // ===== Recipient lookup (for the "Send $50 to Sarah J.?" confirm step) =====
   // GET /api/transfer?lookupEmail=someone@example.com
@@ -64,7 +68,7 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { fromAccountType, toAccountType, recipientEmail, amount, description } = req.body || {};
+    const { fromAccountType, toAccountType, recipientEmail, routingNumber, beneficiaryNumber, targetBank, amount, description } = req.body || {};
 
     if (!fromAccountType || !amount) {
       return res.status(400).json({ error: 'From account and amount are required.' });
@@ -76,12 +80,32 @@ module.exports = async function handler(req, res) {
     }
 
     const isP2P = !!recipientEmail;
+    const isWire = !!routingNumber;
 
-    if (!isP2P && !toAccountType) {
+    if (isP2P && isWire) {
+      return res.status(400).json({ error: 'Choose either a wire or a P2P transfer, not both.' });
+    }
+
+    if (isWire) {
+      const cleanRouting = String(routingNumber).trim();
+      if (!/^\d{9}$/.test(cleanRouting)) {
+        return res.status(400).json({ error: 'Routing number must be exactly 9 digits.' });
+      }
+      if (!beneficiaryNumber || !String(beneficiaryNumber).trim()) {
+        return res.status(400).json({ error: 'Beneficiary account number is required.' });
+      }
+      if (transferAmount > MAX_WIRE_AMOUNT) {
+        return res.status(400).json({
+          error: `Online wires are limited to $${MAX_WIRE_AMOUNT.toLocaleString()} per transaction. For larger amounts, contact support.`,
+        });
+      }
+    }
+
+    if (!isP2P && !isWire && !toAccountType) {
       return res.status(400).json({ error: 'To account is required for internal transfers.' });
     }
 
-    if (!isP2P && fromAccountType === toAccountType) {
+    if (!isP2P && !isWire && fromAccountType === toAccountType) {
       return res.status(400).json({ error: 'Choose two different accounts to transfer between.' });
     }
 
@@ -158,6 +182,11 @@ module.exports = async function handler(req, res) {
       const firstName = nameParts[0] || 'Apex user';
       note = description || `P2P transfer to ${firstName}`;
       noteIncoming = description || `P2P transfer received`;
+    } else if (isWire) {
+      // External wire — money leaves Apex Horizon entirely, so there is no
+      // internal destination account to credit, only a single outbound entry.
+      const bankLabel = (targetBank && String(targetBank).trim()) || 'External Bank';
+      note = description || `Outbound Wire | ${bankLabel}`;
     } else {
       const toRows = await sql`
         SELECT id, balance FROM accounts
@@ -191,32 +220,40 @@ module.exports = async function handler(req, res) {
       return res.status(409).json({ error: 'Balance changed before the transfer completed. Please try again.' });
     }
 
-    // Credit the destination account
-    const updatedTo = await sql`
-      UPDATE accounts
-      SET balance = balance + ${transferAmount}
-      WHERE id = ${toAccount.id}
-      RETURNING id, balance
-    `;
-
-    const outType = isP2P ? 'p2p_out' : 'transfer_out';
-    const inType = isP2P ? 'p2p_in' : 'transfer_in';
+    const outType = isWire ? 'wire_out' : (isP2P ? 'p2p_out' : 'transfer_out');
 
     await sql`
       INSERT INTO transactions (account_id, type, amount, description, created_at)
       VALUES (${fromAccount.id}, ${outType}, ${transferAmount}, ${note}, NOW())
     `;
-    await sql`
-      INSERT INTO transactions (account_id, type, amount, description, created_at)
-      VALUES (${toAccount.id}, ${inType}, ${transferAmount}, ${noteIncoming}, NOW())
-    `;
+
+    let updatedTo = null;
+
+    // Wires are external — money leaves the bank, so there's no internal
+    // destination account to credit or log an incoming transaction for.
+    if (!isWire) {
+      updatedTo = await sql`
+        UPDATE accounts
+        SET balance = balance + ${transferAmount}
+        WHERE id = ${toAccount.id}
+        RETURNING id, balance
+      `;
+
+      const inType = isP2P ? 'p2p_in' : 'transfer_in';
+
+      await sql`
+        INSERT INTO transactions (account_id, type, amount, description, created_at)
+        VALUES (${toAccount.id}, ${inType}, ${transferAmount}, ${noteIncoming}, NOW())
+      `;
+    }
 
     return res.status(200).json({
       success: true,
       isP2P,
+      isWire,
       from: { accountType: fromAccountType, balance: updatedFrom[0].balance },
-      to: isP2P
-        ? { balance: undefined } // don't leak recipient's balance back to sender
+      to: (isP2P || isWire)
+        ? { balance: undefined } // don't leak recipient's balance back to sender; wires have no internal recipient
         : { accountType: toAccountType, balance: updatedTo[0].balance },
     });
   } catch (err) {
