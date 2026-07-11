@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getUserFromRequest } = require('./auth');
+const { getUserFromRequest } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
