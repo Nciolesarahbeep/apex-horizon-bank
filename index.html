@@ -154,9 +154,9 @@
         </div>
 
         <div id="fpStep2" class="hidden p-5 space-y-4">
-            <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
-                <p class="text-[10px] font-bold text-amber-800 uppercase mb-1">Demo Mode</p>
-                <p class="text-[11px] text-amber-800 leading-relaxed">No email service is connected yet, so your reset link is shown directly below instead of being emailed.</p>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5">
+                <p class="text-[10px] font-bold text-emerald-800 uppercase mb-1">Reset Link Verified</p>
+                <p class="text-[11px] text-emerald-800 leading-relaxed">Choose a new password below to finish resetting your account.</p>
             </div>
             <div id="fpErrorBanner2" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
             <div>
@@ -3178,7 +3178,7 @@ async function submitForgotPasswordEmail() {
     }
 
     try {
-        const res = await fetch('/api/forgot-password', {
+        const res = await fetch('/api/password-reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
@@ -3235,7 +3235,7 @@ async function submitNewPassword() {
     }
 
     try {
-        const res = await fetch('/api/reset-password', {
+        const res = await fetch('/api/password-reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: fpCurrentToken, newPassword })
