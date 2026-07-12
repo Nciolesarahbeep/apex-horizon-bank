@@ -87,7 +87,6 @@ module.exports = async function handler(req, res) {
       success: true,
       message: `Direct deposit of $${depositAmount.toFixed(2)} received successfully!`,
       traceNumber,
-      newBalance: await sql`SELECT balance FROM accounts WHERE id = ${account[0].id}`,
     });
   } catch (err) {
     console.error('Direct deposit simulation error:', err);
