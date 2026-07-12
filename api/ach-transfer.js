@@ -88,7 +88,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // GET /api/ach-transfer/daily-limit - Check remaining daily limit
+  // GET /api/ach-transfer?action=daily-limit - Check remaining daily limit
   if (req.method === 'GET' && req.query?.action === 'daily-limit') {
     try {
       const dailyLimit = await sql`
