@@ -94,17 +94,26 @@
                         <h2 class="text-xl font-bold text-gray-900">Payment Sent</h2>
                         <p class="text-gray-400 text-xs mt-1">The recipient will be notified.</p>
                         <p class="text-xs font-bold text-gray-900 mt-3">Confirmation # <span id="modalConfNum" class="font-mono"></span></p>
+                        <p class="text-[10px] text-gray-400 font-mono mt-1" id="modalDateTime">—</p>
                     </div>
 
                     <div class="border-t border-gray-100">
                         <div class="px-5 py-3 border-b border-gray-100">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Sender</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalSenderName">—</p>
-                            <p class="text-xs text-gray-500">s.jenkins@domain.com</p>
+                            <p class="text-xs text-gray-500" id="modalSenderEmail">—</p>
+                        </div>
+                        <div id="modalRecipientRow" class="hidden px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Recipient</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalRecipient">—</p>
                         </div>
                         <div class="px-5 py-3 border-b border-gray-100">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Amount</p>
                             <p id="modalAmount" class="text-lg font-bold text-gray-900 mt-0.5"></p>
+                        </div>
+                        <div class="px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Transaction Type</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalType">Internal Transfer</p>
                         </div>
                         <div class="px-5 py-3 border-b border-gray-100">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">From Account</p>
@@ -402,9 +411,12 @@
                 </div>
 
                 <section id="view-summary" class="space-y-4">
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
-                        <p class="text-[10px] text-gray-500">Signature check: Today at 2:40 AM</p>
+                    <div class="flex items-center space-x-3">
+                        <div id="welcomeAvatar" class="w-11 h-11 shrink-0 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm">—</div>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
+                            <p class="text-[10px] text-gray-500">Signature check: Today at 2:40 AM</p>
+                        </div>
                     </div>
 
                     <div class="flex flex-col space-y-2">
@@ -613,9 +625,9 @@
                     <div class="bg-white p-4 rounded-xl border border-gray-200">
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">Service Actions</h3>
                         <div class="grid grid-cols-2 gap-3">
-                            <button onclick="triggerViewSwitch('wire')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-money-bill-transfer text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">Send Wire</span>
+                            <button onclick="triggerViewSwitch('send-menu')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-paper-plane text-lg text-emerald-500 mb-1"></i>
+                                <span class="text-xs font-semibold">Send</span>
                             </button>
                             <button onclick="triggerViewSwitch('fx')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
                                 <i class="fa-solid fa-globe text-lg text-emerald-500 mb-1"></i>
@@ -984,6 +996,95 @@
                                 Dispatch Funds Securely
                             </button>
                         </form>
+                    </div>
+                </section>
+
+                <section id="view-send-menu" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Send Money</h1>
+                    </div>
+                    <div class="space-y-3">
+                        <button onclick="triggerViewSwitch('send-p2p')" class="w-full bg-white p-4 rounded-xl border border-gray-200 flex items-center space-x-3 text-left active:scale-[0.99] transition">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-user text-emerald-600"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-bold text-gray-900">To an Apex User</h3>
+                                <p class="text-[10px] text-gray-400">Instant transfer using their account email</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-gray-300 text-xs ml-auto"></i>
+                        </button>
+                        <button onclick="triggerViewSwitch('wire')" class="w-full bg-white p-4 rounded-xl border border-gray-200 flex items-center space-x-3 text-left active:scale-[0.99] transition">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-building-columns text-slate-600"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-bold text-gray-900">International / Bank Wire</h3>
+                                <p class="text-[10px] text-gray-400">Send to an external US bank account</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-gray-300 text-xs ml-auto"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="view-send-p2p" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Send to Apex User</h1>
+                    </div>
+
+                    <div id="p2pFormPane" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-900 p-3 text-white text-[10px]">
+                            Funds move instantly between Apex Horizon accounts using the recipient's account email.
+                        </div>
+                        <form class="p-4 space-y-3" onsubmit="handleP2PLookup(event)">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Apex Account Email</label>
+                                <input type="email" id="p2pRecipientEmailInput" placeholder="name@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Amount (USD)</label>
+                                <input type="number" step="0.01" id="p2pAmountInput" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono font-bold focus:outline-none" required>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">What's it for? (optional)</label>
+                                <input type="text" id="p2pNoteInput" placeholder="e.g. Rent, dinner, gift" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                            </div>
+                            <p id="p2pLookupError" class="hidden text-[10px] text-red-500 font-semibold"></p>
+                            <button type="submit" id="p2pLookupBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg mt-1 transition cursor-pointer">
+                                Continue
+                            </button>
+                        </form>
+                    </div>
+
+                    <div id="p2pConfirmPane" class="hidden bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="p-5 text-center border-b border-gray-100">
+                            <div class="mx-auto w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
+                                <i class="fa-solid fa-user text-emerald-600"></i>
+                            </div>
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Sending To</p>
+                            <h2 id="p2pConfirmRecipientName" class="text-lg font-bold text-gray-900 mt-0.5">—</h2>
+                            <p id="p2pConfirmRecipientEmail" class="text-xs text-gray-400 font-mono">—</p>
+                        </div>
+                        <div class="p-5 text-center border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Amount</p>
+                            <h2 id="p2pConfirmAmount" class="text-2xl font-bold text-gray-900 mt-0.5">$0.00</h2>
+                            <p id="p2pConfirmNote" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <button onclick="handleP2PSend()" id="p2pConfirmSendBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm transition">
+                                Confirm &amp; Send
+                            </button>
+                            <button onclick="cancelP2PConfirm()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg text-xs transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="p2pSendingPane" class="hidden bg-white rounded-xl border border-gray-200 p-8 flex flex-col items-center justify-center space-y-3">
+                        <div class="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                        <p class="text-xs font-mono text-gray-500 uppercase tracking-wider">Processing Transfer...</p>
                     </div>
                 </section>
 
@@ -1595,7 +1696,7 @@
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -1877,7 +1978,9 @@
             }, 1000);
         }
 
-        function openReceiptModal(desc, trace, amount) {
+        function openReceiptModal(desc, trace, amount, opts) {
+            opts = opts || {};
+
             document.getElementById('modalDesc').innerText = desc;
             document.getElementById('modalTrace').innerText = trace;
             document.getElementById('modalAmount').innerText = amount;
@@ -1890,11 +1993,186 @@
             }
             document.getElementById('modalConfNum').innerText = `${prefix}***${suffix}`;
 
+            const ts = opts.timestamp ? new Date(opts.timestamp) : new Date();
+            const dateTimeEl = document.getElementById('modalDateTime');
+            if (dateTimeEl) {
+                dateTimeEl.innerText = ts.toLocaleString('en-US', {
+                    month: 'short', day: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+                });
+            }
+
+            const typeEl = document.getElementById('modalType');
+            if (typeEl) typeEl.innerText = opts.type || 'Internal Transfer';
+
+            const recipientRow = document.getElementById('modalRecipientRow');
+            const recipientEl = document.getElementById('modalRecipient');
+            if (recipientRow && recipientEl) {
+                if (opts.recipient) {
+                    recipientEl.innerText = opts.recipient;
+                    recipientRow.classList.remove('hidden');
+                } else {
+                    recipientRow.classList.add('hidden');
+                }
+            }
+
             document.getElementById('receiptModal').classList.remove('hidden');
         }
 
         function closeReceiptModal() {
             document.getElementById('receiptModal').classList.add('hidden');
+        }
+
+        let p2pPendingRecipient = null;
+
+        async function handleP2PLookup(event) {
+            event.preventDefault();
+            const emailInput = document.getElementById('p2pRecipientEmailInput');
+            const amountInput = document.getElementById('p2pAmountInput');
+            const errorEl = document.getElementById('p2pLookupError');
+            const btn = document.getElementById('p2pLookupBtn');
+
+            errorEl.classList.add('hidden');
+
+            const email = emailInput.value.trim().toLowerCase();
+            const amount = parseFloat(amountInput.value) || 0;
+
+            if (amount <= 0) {
+                errorEl.innerText = 'Enter a valid amount greater than zero.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const originalBtnText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Looking up recipient...';
+
+            try {
+                const res = await fetch(`/api/transfer?lookupEmail=${encodeURIComponent(email)}`, {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+
+                if (!res.ok || !data.found) {
+                    errorEl.innerText = data.error || 'No Apex Horizon account found for that email.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                p2pPendingRecipient = { email, displayName: data.displayName };
+
+                document.getElementById('p2pConfirmRecipientName').innerText = data.displayName;
+                document.getElementById('p2pConfirmRecipientEmail').innerText = email;
+                document.getElementById('p2pConfirmAmount').innerText =
+                    `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const note = document.getElementById('p2pNoteInput').value.trim();
+                document.getElementById('p2pConfirmNote').innerText = note ? `"${note}"` : '';
+
+                document.getElementById('p2pFormPane').classList.add('hidden');
+                document.getElementById('p2pConfirmPane').classList.remove('hidden');
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+                errorEl.innerText = 'Network error looking up recipient. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function cancelP2PConfirm() {
+            p2pPendingRecipient = null;
+            document.getElementById('p2pConfirmPane').classList.add('hidden');
+            document.getElementById('p2pFormPane').classList.remove('hidden');
+        }
+
+        async function handleP2PSend() {
+            if (!p2pPendingRecipient) return;
+
+            const amount = parseFloat(document.getElementById('p2pAmountInput').value) || 0;
+            const note = document.getElementById('p2pNoteInput').value.trim();
+
+            if (!checkingAccountId) {
+                alert('Account data not loaded yet. Please try again in a moment.');
+                return;
+            }
+
+            document.getElementById('p2pConfirmPane').classList.add('hidden');
+            document.getElementById('p2pSendingPane').classList.remove('hidden');
+
+            // Real-bank-style processing delay
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            try {
+                const res = await fetch('/api/transfer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        fromAccountType: 'checking',
+                        recipientEmail: p2pPendingRecipient.email,
+                        amount: amount,
+                        description: note || `P2P transfer to ${p2pPendingRecipient.displayName}`
+                    })
+                });
+                const data = await res.json();
+
+                document.getElementById('p2pSendingPane').classList.add('hidden');
+
+                if (!res.ok) {
+                    alert(data.error || 'Transfer failed. Please try again.');
+                    document.getElementById('p2pFormPane').classList.remove('hidden');
+                    return;
+                }
+
+                await loadRealAccountData();
+
+                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
+                const systemTraceString = `#P2P-${traceRandomId}`;
+                const formattedAmountString = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const ledgerDescription = note || `P2P Transfer to ${p2pPendingRecipient.displayName}`;
+                const recipientLabel = `${p2pPendingRecipient.displayName} (${p2pPendingRecipient.email})`;
+                const sentAt = new Date();
+
+                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
+                const ledgerLogNode = document.createElement('div');
+                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+
+                ledgerLogNode.onclick = function () {
+                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
+                        timestamp: sentAt,
+                        recipient: recipientLabel,
+                        type: 'P2P Transfer'
+                    });
+                };
+
+                ledgerLogNode.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
+                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-gray-950 shrink-0">${formattedAmountString}</span>
+                `;
+                liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
+
+                document.getElementById('p2pRecipientEmailInput').value = '';
+                document.getElementById('p2pAmountInput').value = '';
+                document.getElementById('p2pNoteInput').value = '';
+                document.getElementById('p2pFormPane').classList.remove('hidden');
+                p2pPendingRecipient = null;
+
+                openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
+                    timestamp: sentAt,
+                    recipient: recipientLabel,
+                    type: 'P2P Transfer'
+                });
+            } catch (err) {
+                document.getElementById('p2pSendingPane').classList.add('hidden');
+                document.getElementById('p2pFormPane').classList.remove('hidden');
+                alert('Network error during transfer. Please try again.');
+            }
         }
 
         function handleWireTransfer(event) {
@@ -1922,7 +2200,10 @@
                     ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
                     
                     ledgerLogNode.onclick = function() {
-                        openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                        openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
+                            timestamp: new Date(),
+                            type: 'Outbound Wire'
+                        });
                     };
 
                     ledgerLogNode.innerHTML = `
@@ -2179,6 +2460,7 @@
         let checkingAccountId = null;
         let savingsAccountId = null;
         let currentUserFullName = null;
+        let currentUserEmail = null;
 function updateHeaderClock() {
     const el = document.getElementById('headerClock');
     if (!el) return;
@@ -2200,11 +2482,20 @@ function updateHeaderUserName(fullName) {
     const welcomeEl = document.getElementById('welcomeUserName');
     if (welcomeEl) welcomeEl.innerText = lastName;
 
+    const avatarEl = document.getElementById('welcomeAvatar');
+    if (avatarEl) avatarEl.innerText = (lastName[0] || '?').toUpperCase();
+
     const cardHolderEl = document.getElementById('cardHolderName');
     if (cardHolderEl) cardHolderEl.innerText = fullName;
 
     const senderEl = document.getElementById('modalSenderName');
     if (senderEl) senderEl.innerText = fullName;
+}
+
+function updateHeaderUserEmail(email) {
+    if (!email) return;
+    const senderEmailEl = document.getElementById('modalSenderEmail');
+    if (senderEmailEl) senderEmailEl.innerText = email;
 }
 
 
@@ -2216,7 +2507,9 @@ function updateHeaderUserName(fullName) {
             const data = await res.json();
 
             currentUserFullName = data.user.full_name;
+            currentUserEmail = data.user.email || null;
 updateHeaderUserName(currentUserFullName);
+updateHeaderUserEmail(currentUserEmail);
 
 
             const checkingAcct = data.accounts.find(a => a.account_type === 'checking');
@@ -2532,6 +2825,20 @@ updateHeaderUserName(currentUserFullName);
             { name: 'Transfers', color: '#666666', keywords: ['wire', 'transfer', 'interbank'] },
         ];
 
+        function formatTxnType(rawType) {
+            if (!rawType) return 'Transaction';
+            const map = {
+                p2p_out: 'P2P Transfer (Sent)',
+                p2p_in: 'P2P Transfer (Received)',
+                wire_out: 'Outbound Wire',
+                transfer_out: 'Internal Transfer (Sent)',
+                transfer_in: 'Internal Transfer (Received)',
+                debit: 'Debit',
+                credit: 'Credit'
+            };
+            return map[rawType] || rawType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
         function categorizeTransaction(description) {
             const desc = (description || '').toLowerCase();
             for (const cat of CATEGORY_RULES) {
@@ -2567,7 +2874,10 @@ updateHeaderUserName(currentUserFullName);
                 const element = document.createElement('div');
                 element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
                 element.onclick = function () {
-                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted);
+                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
+                        timestamp: txn.created_at,
+                        type: formatTxnType(txn.type)
+                    });
                 };
                 element.innerHTML = `
                     <div class="min-w-0 pr-2">
@@ -2593,7 +2903,10 @@ updateHeaderUserName(currentUserFullName);
                 const element = document.createElement('div');
                 element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
                 element.onclick = function () {
-                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted);
+                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
+                        timestamp: txn.created_at,
+                        type: formatTxnType(txn.type)
+                    });
                 };
                 element.innerHTML = `
                     <div class="min-w-0 pr-2">
@@ -2855,7 +3168,7 @@ updateHeaderUserName(currentUserFullName);
             alert(`Transaction confirmation ${txnConfirmEnabled ? `enabled for transfers above $${threshold.toLocaleString()}` : 'disabled'}.`);
         }
 
-        function savePasscode() {
+        async function savePasscode() {
             const newCode = document.getElementById('newPasscodeInput').value;
             const confirmCode = document.getElementById('confirmPasscodeInput').value;
 
@@ -2868,9 +3181,30 @@ updateHeaderUserName(currentUserFullName);
                 return;
             }
 
-            document.getElementById('newPasscodeInput').value = '';
-            document.getElementById('confirmPasscodeInput').value = '';
-            alert("Passcode updated successfully.");
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        resource: 'passcode',
+                        newPasscode: newCode,
+                        confirmPasscode: confirmCode
+                    })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Could not update passcode. Please try again.');
+                    return;
+                }
+
+                document.getElementById('newPasscodeInput').value = '';
+                document.getElementById('confirmPasscodeInput').value = '';
+                alert("Passcode updated successfully.");
+            } catch (err) {
+                alert('Network error updating passcode. Please try again.');
+            }
         }
 
         function setAppearanceMode(mode) {
