@@ -1,6 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest } = require('../lib/auth');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -243,5 +245,6 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", or "direct-deposit".' });
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", or "passcode".' });
+
 };
