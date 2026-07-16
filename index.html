@@ -157,7 +157,7 @@
                 <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
                 <input type="email" id="fpEmailInput" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
             </div>
-            <button onclick="submitForgotPasswordEmail()" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
+            <button onclick="submitForgotPasswordEmail()" id="fpSubmitEmailBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
                 Send Reset Link
             </button>
         </div>
@@ -172,7 +172,7 @@
                 <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">New Password</label>
                 <input type="password" id="fpNewPasswordInput" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" minlength="8">
             </div>
-            <button onclick="submitNewPassword()" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
+            <button onclick="submitNewPassword()" id="fpSubmitNewPasswordBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
                 Update Password
             </button>
         </div>
@@ -1167,7 +1167,7 @@
                                     <option value="RON">RON - Romanian Leu</option>
                                 </select>
                             </div>
-                            <button onclick="executeCurrencyConversion()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
+                            <button onclick="executeCurrencyConversion()" id="fxConvertBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
                                 Query Settlement Conversion
                             </button>
                             <div id="fxResultPanel" class="hidden p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex justify-between items-center">
@@ -1470,7 +1470,7 @@
                             <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Confirm Passcode</label>
                             <input type="password" id="confirmPasscodeInput" maxlength="6" inputmode="numeric" placeholder="••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-sm font-mono tracking-widest focus:outline-none">
                         </div>
-                        <button onclick="savePasscode()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2.5 rounded-lg transition">
+                        <button onclick="savePasscode()" id="savePasscodeBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2.5 rounded-lg transition">
                             Save New Passcode
                         </button>
                     </div>
@@ -1713,7 +1713,38 @@
             notifMenu.classList.toggle('hidden');
         }
 
+        // Ensures a minimum realistic processing time even when the network is fast —
+        // matches how real banking sites always show at least a brief "working on it" state.
+        function withMinDelay(promise, ms) {
+            return Promise.all([promise, new Promise(resolve => setTimeout(resolve, ms))]).then(([result]) => result);
+        }
+
         let latestKnownNotifId = 0;
+
+        let notifPollIntervalId = null;
+
+        function startNotificationPolling() {
+            fetchAndRenderNotifications(false);
+            if (notifPollIntervalId) clearInterval(notifPollIntervalId);
+            notifPollIntervalId = setInterval(() => fetchAndRenderNotifications(true), 30000);
+        }
+
+        async function restoreSessionOnLoad() {
+            try {
+                const res = await fetch('/api/me', { credentials: 'include' });
+                if (!res.ok) return; // no valid session — leave the login screen showing
+
+                await loadRealAccountData();
+
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('dashboardApp').classList.remove('hidden');
+                refreshUIBalances();
+                renderActiveAdState();
+                startNotificationPolling();
+            } catch (err) {
+                console.error('Session restore check failed:', err);
+            }
+        }
 
         async function fetchAndRenderNotifications(isPoll) {
             try {
@@ -2607,7 +2638,7 @@ function updateHeaderUserEmail(email) {
             }
             const data = await res.json();
 
-            currentUserFullName = data.user.full_name;
+            currentUserFullName = data.user.full_name || data.user.fullName;
             currentUserEmail = data.user.email || null;
 updateHeaderUserName(currentUserFullName);
 updateHeaderUserEmail(currentUserEmail);
@@ -2823,6 +2854,7 @@ updateHeaderUserEmail(currentUserEmail);
                         document.getElementById('dashboardApp').classList.remove('hidden');
                         refreshUIBalances();
                         renderActiveAdState();
+                        startNotificationPolling();
                     }, 300);
                     return;
                 }
@@ -2852,6 +2884,10 @@ updateHeaderUserEmail(currentUserEmail);
             } catch (err) {
                 console.error('Logout error:', err);
             }
+            if (notifPollIntervalId) {
+                clearInterval(notifPollIntervalId);
+                notifPollIntervalId = null;
+            }
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
             viewHistory = ['summary']; 
@@ -2876,31 +2912,41 @@ updateHeaderUserEmail(currentUserEmail);
             const amount = parseFloat(document.getElementById('fxAmountInput').value) || 0;
             const source = document.getElementById('fxSourceSelect').value;
             const target = document.getElementById('fxTargetSelect').value;
+            const btn = document.getElementById('fxConvertBtn');
 
-            const ratesInUSD = {
-                USD: 1.0, EUR: 0.92, GBP: 0.79, JPY: 156.5, CAD: 1.36,
-                AUD: 1.52, CHF: 0.90, CNY: 7.25, INR: 83.5, BRL: 5.45,
-                MXN: 18.2, ZAR: 18.7, SGD: 1.34, HKD: 7.81, KRW: 1385,
-                SEK: 10.5, NOK: 10.6, DKK: 6.86, NZD: 1.64, AED: 3.67,
-                SAR: 3.75, TRY: 32.1, RUB: 89.5, PLN: 3.98, THB: 36.4,
-                IDR: 15850, MYR: 4.72, PHP: 58.6, VND: 25400, EGP: 47.9,
-                ILS: 3.72, CZK: 23.4, HUF: 358, RON: 4.57
-            };
+            const originalBtnText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Fetching live rates...';
 
-            const currencySymbols = {
-                USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', CHF: 'CHF ',
-                INR: '₹', KRW: '₩', ILS: '₪', THB: '฿', VND: '₫', TRY: '₺'
-            };
+            setTimeout(() => {
+                const ratesInUSD = {
+                    USD: 1.0, EUR: 0.92, GBP: 0.79, JPY: 156.5, CAD: 1.36,
+                    AUD: 1.52, CHF: 0.90, CNY: 7.25, INR: 83.5, BRL: 5.45,
+                    MXN: 18.2, ZAR: 18.7, SGD: 1.34, HKD: 7.81, KRW: 1385,
+                    SEK: 10.5, NOK: 10.6, DKK: 6.86, NZD: 1.64, AED: 3.67,
+                    SAR: 3.75, TRY: 32.1, RUB: 89.5, PLN: 3.98, THB: 36.4,
+                    IDR: 15850, MYR: 4.72, PHP: 58.6, VND: 25400, EGP: 47.9,
+                    ILS: 3.72, CZK: 23.4, HUF: 358, RON: 4.57
+                };
 
-            const amountInUSD = amount / ratesInUSD[source];
-            const dynamicConvertedResult = amountInUSD * ratesInUSD[target];
+                const currencySymbols = {
+                    USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', CHF: 'CHF ',
+                    INR: '₹', KRW: '₩', ILS: '₪', THB: '฿', VND: '₫', TRY: '₺'
+                };
 
-            const currencySymbol = currencySymbols[target] || (target + ' ');
+                const amountInUSD = amount / ratesInUSD[source];
+                const dynamicConvertedResult = amountInUSD * ratesInUSD[target];
 
-            const outputValueFormatted = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(dynamicConvertedResult);
+                const currencySymbol = currencySymbols[target] || (target + ' ');
 
-            document.getElementById('fxResultText').innerText = `${currencySymbol}${outputValueFormatted} ${target}`;
-            document.getElementById('fxResultPanel').classList.remove('hidden');
+                const outputValueFormatted = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(dynamicConvertedResult);
+
+                document.getElementById('fxResultText').innerText = `${currencySymbol}${outputValueFormatted} ${target}`;
+                document.getElementById('fxResultPanel').classList.remove('hidden');
+
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+            }, 900);
         }
 
         function scrollLedgerLogs(direction) {
@@ -3272,6 +3318,7 @@ updateHeaderUserEmail(currentUserEmail);
         async function savePasscode() {
             const newCode = document.getElementById('newPasscodeInput').value;
             const confirmCode = document.getElementById('confirmPasscodeInput').value;
+            const btn = document.getElementById('savePasscodeBtn');
 
             if (newCode.length < 4 || newCode.length > 6) {
                 alert("Passcode must be between 4 and 6 digits.");
@@ -3282,8 +3329,12 @@ updateHeaderUserEmail(currentUserEmail);
                 return;
             }
 
+            const originalBtnText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
             try {
-                const res = await fetch('/api/account-services', {
+                const res = await withMinDelay(fetch('/api/account-services', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -3292,8 +3343,11 @@ updateHeaderUserEmail(currentUserEmail);
                         newPasscode: newCode,
                         confirmPasscode: confirmCode
                     })
-                });
+                }), 1000);
                 const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
 
                 if (!res.ok) {
                     alert(data.error || 'Could not update passcode. Please try again.');
@@ -3304,6 +3358,8 @@ updateHeaderUserEmail(currentUserEmail);
                 document.getElementById('confirmPasscodeInput').value = '';
                 alert("Passcode updated successfully.");
             } catch (err) {
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
                 alert('Network error updating passcode. Please try again.');
             }
         }
@@ -3417,6 +3473,7 @@ function closeForgotPasswordModal() {
 async function submitForgotPasswordEmail() {
     const email = document.getElementById('fpEmailInput').value;
     const errBanner = document.getElementById('fpErrorBanner1');
+    const btn = document.getElementById('fpSubmitEmailBtn');
     errBanner.classList.add('hidden');
 
     if (!email || !email.includes('@')) {
@@ -3425,13 +3482,20 @@ async function submitForgotPasswordEmail() {
         return;
     }
 
+    const originalBtnText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = 'Sending...';
+
     try {
-        const res = await fetch('/api/password-reset', {
+        const res = await withMinDelay(fetch('/api/password-reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
-        });
+        }), 1200);
         const data = await res.json();
+
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
 
         if (!res.ok) {
             errBanner.textContent = data.error || 'Something went wrong.';
@@ -3451,6 +3515,8 @@ async function submitForgotPasswordEmail() {
             </div>
         `;
     } catch (err) {
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
         errBanner.textContent = 'Network error. Please try again.';
         errBanner.classList.remove('hidden');
     }
@@ -3474,6 +3540,7 @@ function checkForResetTokenInUrl() {
 async function submitNewPassword() {
     const newPassword = document.getElementById('fpNewPasswordInput').value;
     const errBanner = document.getElementById('fpErrorBanner2');
+    const btn = document.getElementById('fpSubmitNewPasswordBtn');
     errBanner.classList.add('hidden');
 
     if (!newPassword || newPassword.length < 8) {
@@ -3482,13 +3549,20 @@ async function submitNewPassword() {
         return;
     }
 
+    const originalBtnText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = 'Updating...';
+
     try {
-        const res = await fetch('/api/password-reset', {
+        const res = await withMinDelay(fetch('/api/password-reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: fpCurrentToken, newPassword })
-        });
+        }), 1200);
         const data = await res.json();
+
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
 
         if (!res.ok) {
             errBanner.textContent = data.error || 'Something went wrong.';
@@ -3499,6 +3573,8 @@ async function submitNewPassword() {
         document.getElementById('fpStep2').classList.add('hidden');
         document.getElementById('fpStep3').classList.remove('hidden');
     } catch (err) {
+        btn.disabled = false;
+        btn.innerText = originalBtnText;
         errBanner.textContent = 'Network error. Please try again.';
         errBanner.classList.remove('hidden');
     }
@@ -3667,8 +3743,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('faceIdStatusLabel')) {
         refreshFaceIdStatus();
     }
-    fetchAndRenderNotifications(false);
-    setInterval(() => fetchAndRenderNotifications(true), 30000);
+    restoreSessionOnLoad();
 });
 
 
