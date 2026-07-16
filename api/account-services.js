@@ -300,7 +300,83 @@ module.exports = async function handler(req, res) {
   }
 
 
-return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", or "notifications".' });
+  // ---------- Email Change ----------
+  if (resource === 'email-change') {
+    if (req.method === 'POST') {
+      try {
+        const { emailAction, newEmail, token } = req.body || {};
+
+        if (emailAction === 'request') {
+          const normalizedNewEmail = String(newEmail || '').trim().toLowerCase();
+          if (!normalizedNewEmail || !normalizedNewEmail.includes('@') || !normalizedNewEmail.includes('.')) {
+            return res.status(400).json({ error: 'Enter a valid email address.' });
+          }
+
+          const existing = await sql`SELECT id FROM users WHERE LOWER(email) = ${normalizedNewEmail} AND id != ${session.userId} LIMIT 1`;
+          if (existing.length > 0) {
+            return res.status(409).json({ error: 'That email is already in use by another account.' });
+          }
+
+          const changeToken = crypto.randomBytes(24).toString('hex');
+          const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+          await sql`
+            UPDATE users
+            SET pending_email = ${normalizedNewEmail}, pending_email_token = ${changeToken}, pending_email_expires_at = ${expiresAt.toISOString()}
+            WHERE id = ${session.userId}
+          `;
+
+          const confirmUrl = `https://apex-horizon-bank-eight.vercel.app/?emailChangeToken=${changeToken}`;
+
+          await sendEmail({
+            to: normalizedNewEmail,
+            subject: 'Confirm your new email - Apex Horizon Bank',
+            html: emailChangeConfirmationHtml(confirmUrl),
+          });
+
+          return res.status(200).json({ success: true, message: 'A confirmation link has been sent to your new email address.' });
+        }
+
+        if (emailAction === 'confirm') {
+          const cleanToken = String(token || '').trim();
+          if (!cleanToken) {
+            return res.status(400).json({ error: 'Missing confirmation token.' });
+          }
+
+          const rows = await sql`
+            SELECT id, pending_email, pending_email_expires_at FROM users
+            WHERE id = ${session.userId} AND pending_email_token = ${cleanToken}
+            LIMIT 1
+          `;
+
+          if (rows.length === 0) {
+            return res.status(400).json({ error: 'This confirmation link is invalid or was already used.' });
+          }
+
+          const row = rows[0];
+          if (!row.pending_email_expires_at || new Date(row.pending_email_expires_at) < new Date()) {
+            return res.status(400).json({ error: 'This confirmation link has expired. Please request a new email change.' });
+          }
+
+          await sql`
+            UPDATE users
+            SET email = ${row.pending_email}, pending_email = NULL, pending_email_token = NULL, pending_email_expires_at = NULL
+            WHERE id = ${session.userId}
+          `;
+
+          return res.status(200).json({ success: true, newEmail: row.pending_email, message: 'Your email address has been updated.' });
+        }
+
+        return res.status(400).json({ error: 'Invalid emailAction. Use "request" or "confirm".' });
+      } catch (err) {
+        console.error('Email change error:', err);
+        return res.status(500).json({ error: 'Failed to process email change.' });
+      }
+    }
+  }
+
+return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", or "email-change".' });
+
 
 
 };
