@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
 const { normalizeEmail, signToken, setSessionCookie } = require('../lib/auth');
+const { sendEmail, welcomeEmailHtml } = require('../lib/email');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -45,6 +46,23 @@ module.exports = async function handler(req, res) {
         (${user.id}, 'checking', 5000.00),
         (${user.id}, 'savings', 12500.00)
     `;
+
+    // Welcome notification (in-app bell) — best-effort, never blocks signup
+    try {
+      await sql`
+        INSERT INTO notifications (user_id, title, message)
+        VALUES (${user.id}, 'Welcome to Apex Horizon Bank', ${'Your account has been created successfully, ' + user.full_name + '. Explore your dashboard to get started.'})
+      `;
+    } catch (notifyErr) {
+      console.error('Welcome notification insert error (non-fatal):', notifyErr);
+    }
+
+    // Welcome email — best-effort, never blocks signup
+    await sendEmail({
+      to: user.email,
+      subject: 'Welcome to Apex Horizon Bank',
+      html: welcomeEmailHtml(user.full_name),
+    });
 
     const token = signToken({ userId: user.id, email: user.email });
     setSessionCookie(res, token);
