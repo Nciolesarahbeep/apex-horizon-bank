@@ -5,6 +5,17 @@ const { sendEmail, welcomeEmailHtml } = require('../lib/email');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+// Generates a realistic 10-digit US-style account number and guarantees
+// it's not already in use before handing it back.
+async function generateUniqueAccountNumber() {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const candidate = String(Math.floor(1000000000 + Math.random() * 9000000000));
+    const existing = await sql`SELECT id FROM accounts WHERE account_number = ${candidate} LIMIT 1`;
+    if (existing.length === 0) return candidate;
+  }
+  throw new Error('Could not generate a unique account number after several attempts.');
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -39,19 +50,22 @@ module.exports = async function handler(req, res) {
     `;
     const user = userResult[0];
 
-    // Seed a checking and savings account for the new user
+    // Real, unique account numbers — the checking one is the P2P gateway.
+    const checkingAccountNumber = await generateUniqueAccountNumber();
+    const savingsAccountNumber = await generateUniqueAccountNumber();
+
     await sql`
-      INSERT INTO accounts (user_id, account_type, balance)
+      INSERT INTO accounts (user_id, account_type, balance, account_number)
       VALUES
-        (${user.id}, 'checking', 5000.00),
-        (${user.id}, 'savings', 12500.00)
+        (${user.id}, 'checking', 5000.00, ${checkingAccountNumber}),
+        (${user.id}, 'savings', 12500.00, ${savingsAccountNumber})
     `;
 
     // Welcome notification (in-app bell) — best-effort, never blocks signup
     try {
       await sql`
         INSERT INTO notifications (user_id, title, message)
-        VALUES (${user.id}, 'Welcome to Apex Horizon Bank', ${'Your account has been created successfully, ' + user.full_name + '. Explore your dashboard to get started.'})
+        VALUES (${user.id}, 'Welcome to Apex Horizon Bank', ${'Your account has been created successfully, ' + user.full_name + '. Your account number is ' + checkingAccountNumber + '.'})
       `;
     } catch (notifyErr) {
       console.error('Welcome notification insert error (non-fatal):', notifyErr);
@@ -61,7 +75,7 @@ module.exports = async function handler(req, res) {
     await sendEmail({
       to: user.email,
       subject: 'Welcome to Apex Horizon Bank',
-      html: welcomeEmailHtml(user.full_name),
+      html: welcomeEmailHtml(user.full_name, checkingAccountNumber),
     });
 
     const token = signToken({ userId: user.id, email: user.email });
@@ -69,6 +83,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(201).json({
       user: { id: user.id, email: user.email, fullName: user.full_name },
+      accountNumber: checkingAccountNumber,
     });
   } catch (err) {
     console.error('Signup error:', err);
