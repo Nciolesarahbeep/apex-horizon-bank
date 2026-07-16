@@ -244,7 +244,63 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to process direct deposit.' });
     }
   }
+  // ---------- Notifications ----------
+  if (resource === 'notifications') {
+    if (req.method === 'GET') {
+      try {
+        const notifications = await sql`
+          SELECT id, title, message, is_read, created_at
+          FROM notifications
+          WHERE user_id = ${session.userId}
+          ORDER BY created_at DESC
+          LIMIT 20
+        `;
+        return res.status(200).json({ notifications });
+      } catch (err) {
+        console.error('Get notifications error:', err);
+        return res.status(500).json({ error: 'Failed to fetch notifications.' });
+      }
+    }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", or "passcode".' });
+    if (req.method === 'POST') {
+      try {
+        const { notifAction, notificationId } = req.body || {};
+
+        if (notifAction === 'markRead' && notificationId) {
+          await sql`
+            UPDATE notifications SET is_read = TRUE
+            WHERE id = ${notificationId} AND user_id = ${session.userId}
+          `;
+          return res.status(200).json({ success: true });
+        }
+
+        if (notifAction === 'markAllRead') {
+          await sql`
+            UPDATE notifications SET is_read = TRUE WHERE user_id = ${session.userId}
+          `;
+          return res.status(200).json({ success: true });
+        }
+
+        if (notifAction === 'clearAll') {
+          await sql`DELETE FROM notifications WHERE user_id = ${session.userId}`;
+          return res.status(200).json({ success: true });
+        }
+
+        if (notifAction === 'dismiss' && notificationId) {
+          await sql`DELETE FROM notifications WHERE id = ${notificationId} AND user_id = ${session.userId}`;
+          return res.status(200).json({ success: true });
+        }
+
+        return res.status(400).json({ error: 'Invalid notifAction.' });
+      } catch (err) {
+        console.error('Update notifications error:', err);
+        return res.status(500).json({ error: 'Failed to update notifications.' });
+      }
+    }
+  }
+
+
+return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", or "notifications".' });
+
 
 };
