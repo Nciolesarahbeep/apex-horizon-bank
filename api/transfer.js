@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest } = require('../lib/auth');
+const { sendEmail, moneySentEmailHtml, moneyReceivedEmailHtml } = require('../lib/email');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -124,6 +125,7 @@ module.exports = async function handler(req, res) {
 
     let toAccount;
     let recipientUserId = null;
+    let recipientInfo = null;
     let note;
     let noteIncoming;
 
@@ -147,6 +149,7 @@ module.exports = async function handler(req, res) {
       }
 
       recipientUserId = recipient.id;
+      recipientInfo = recipient;
 
       // P2P always lands in the recipient's checking account — same as how
       // Zelle/interbank P2P works in practice.
@@ -245,6 +248,43 @@ module.exports = async function handler(req, res) {
         INSERT INTO transactions (account_id, type, amount, description, created_at)
         VALUES (${toAccount.id}, ${inType}, ${transferAmount}, ${noteIncoming}, NOW())
       `;
+    }
+
+    // ---------- Notifications + Email (best-effort, never fails the transfer) ----------
+    if (isP2P && recipientInfo) {
+      try {
+        const senderRows = await sql`SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1`;
+        const senderName = senderRows[0]?.full_name || 'Apex User';
+        const senderEmail = senderRows[0]?.email;
+        const amountFormatted = transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+        await sql`
+          INSERT INTO notifications (user_id, title, message)
+          VALUES (${session.userId}, 'Payment Sent', ${'You sent $' + amountFormatted + ' to ' + recipientInfo.full_name + '.'})
+        `;
+        await sql`
+          INSERT INTO notifications (user_id, title, message)
+          VALUES (${recipientInfo.id}, 'Payment Received', ${'You received $' + amountFormatted + ' from ' + senderName + '.'})
+        `;
+
+        if (senderEmail) {
+          await sendEmail({
+            to: senderEmail,
+            subject: `You sent $${amountFormatted} - Apex Horizon Bank`,
+            html: moneySentEmailHtml({ senderName, recipientName: recipientInfo.full_name, amount: amountFormatted, note: description, date: nowStr }),
+          });
+        }
+        if (recipientInfo.email) {
+          await sendEmail({
+            to: recipientInfo.email,
+            subject: `You received $${amountFormatted} - Apex Horizon Bank`,
+            html: moneyReceivedEmailHtml({ recipientName: recipientInfo.full_name, senderName, amount: amountFormatted, note: description, date: nowStr }),
+          });
+        }
+      } catch (notifyErr) {
+        console.error('Notification/email dispatch error (non-fatal):', notifyErr);
+      }
     }
 
     return res.status(200).json({
