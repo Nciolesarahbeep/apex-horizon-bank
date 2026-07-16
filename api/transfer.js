@@ -13,7 +13,7 @@ const MAX_WIRE_AMOUNT = 25000;
 
 module.exports = async function handler(req, res) {
   // ===== Recipient lookup (for the "Send $50 to Sarah J.?" confirm step) =====
-  // GET /api/transfer?lookupEmail=someone@example.com
+  // GET /api/transfer?lookupAccountNumber=1234567890
   if (req.method === 'GET') {
     try {
       const session = getUserFromRequest(req);
@@ -21,19 +21,24 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      const lookupEmail = (req.query && req.query.lookupEmail || '').trim().toLowerCase();
-      if (!lookupEmail) {
-        return res.status(400).json({ error: 'lookupEmail is required.' });
+      const lookupAccountNumber = (req.query && req.query.lookupAccountNumber || '').trim();
+      if (!lookupAccountNumber) {
+        return res.status(400).json({ error: 'lookupAccountNumber is required.' });
+      }
+      if (!/^\d{10}$/.test(lookupAccountNumber)) {
+        return res.status(400).json({ error: 'Account number must be exactly 10 digits.' });
       }
 
       const rows = await sql`
-        SELECT id, full_name, email FROM users
-        WHERE LOWER(email) = ${lookupEmail}
+        SELECT u.id, u.full_name, u.email, a.account_number
+        FROM accounts a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.account_number = ${lookupAccountNumber} AND a.account_type = 'checking'
         LIMIT 1
       `;
 
       if (rows.length === 0) {
-        return res.status(404).json({ error: 'No Apex Horizon account found for that email.' });
+        return res.status(404).json({ error: 'No Apex Horizon account found for that account number.' });
       }
 
       const recipient = rows[0];
@@ -69,7 +74,7 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { fromAccountType, toAccountType, recipientEmail, routingNumber, beneficiaryNumber, targetBank, amount, description } = req.body || {};
+    const { fromAccountType, toAccountType, recipientAccountNumber, routingNumber, beneficiaryNumber, targetBank, amount, description } = req.body || {};
 
     if (!fromAccountType || !amount) {
       return res.status(400).json({ error: 'From account and amount are required.' });
@@ -80,7 +85,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Enter a valid transfer amount greater than zero.' });
     }
 
-    const isP2P = !!recipientEmail;
+    const isP2P = !!recipientAccountNumber;
     const isWire = !!routingNumber;
 
     if (isP2P && isWire) {
@@ -130,16 +135,21 @@ module.exports = async function handler(req, res) {
     let noteIncoming;
 
     if (isP2P) {
-      const email = String(recipientEmail).trim().toLowerCase();
+      const cleanAccountNumber = String(recipientAccountNumber).trim();
+      if (!/^\d{10}$/.test(cleanAccountNumber)) {
+        return res.status(400).json({ error: 'Recipient account number must be exactly 10 digits.' });
+      }
 
       const recipientRows = await sql`
-        SELECT id, full_name, email FROM users
-        WHERE LOWER(email) = ${email}
+        SELECT u.id, u.full_name, u.email, a.id AS account_id, a.account_number, a.balance
+        FROM accounts a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.account_number = ${cleanAccountNumber} AND a.account_type = 'checking'
         LIMIT 1
       `;
 
       if (recipientRows.length === 0) {
-        return res.status(404).json({ error: 'No Apex Horizon account found for that email.' });
+        return res.status(404).json({ error: 'No Apex Horizon account found for that account number.' });
       }
 
       const recipient = recipientRows[0];
@@ -151,19 +161,8 @@ module.exports = async function handler(req, res) {
       recipientUserId = recipient.id;
       recipientInfo = recipient;
 
-      // P2P always lands in the recipient's checking account — same as how
-      // Zelle/interbank P2P works in practice.
-      const toRows = await sql`
-        SELECT id, balance FROM accounts
-        WHERE user_id = ${recipientUserId} AND account_type = 'checking'
-        LIMIT 1
-      `;
-
-      if (toRows.length === 0) {
-        return res.status(404).json({ error: 'That recipient does not have an eligible account.' });
-      }
-
-      toAccount = toRows[0];
+      // P2P always lands in the recipient's checking account — already resolved above.
+      toAccount = { id: recipient.account_id, balance: recipient.balance };
 
       // Daily P2P sending limit — sum today's outbound P2P transactions from this account
       const sentTodayRows = await sql`
