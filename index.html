@@ -370,20 +370,7 @@
                                 <span class="text-[10px] font-bold font-mono tracking-wider uppercase">Notifications</span>
                                 <button onclick="clearAllNotifications()" class="text-[9px] text-emerald-400 font-semibold hover:underline">Clear</button>
                             </div>
-                            <div id="notifContainer" class="divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                                <div id="notif-item-1" onclick="showNotificationDetail('Security Audit', 'Multi-factor login authorized from a recognized device. Contact support immediately if this was not you.')" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer">
-                                    <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">Security Audit</strong> Multi-factor login authorized.</p>
-                                    <button onclick="removeNotification(event, 'notif-item-1')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
-                                </div>
-                                <div id="notif-item-2" onclick="showNotificationDetail('Ledger Post', 'An inbound payroll settlement has been posted to your Primary Checking account and is available immediately.')" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer">
-                                    <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">Ledger Post</strong> Inbound payroll settlement added.</p>
-                                    <button onclick="removeNotification(event, 'notif-item-2')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
-                                </div>
-                                <div id="notif-item-3" onclick="showNotificationDetail('System Notice', 'Your High-Yield Savings compounding rate has been recalculated and locked at 4.85% APY for this quarter.')" class="p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer">
-                                    <p class="text-[10px] leading-relaxed"><strong class="text-gray-900 block text-xs">System Notice</strong> Yield targets calculated at 4.85% APY.</p>
-                                    <button onclick="removeNotification(event, 'notif-item-3')" class="text-gray-400 hover:text-red-500 text-xs"><i class="fa-solid fa-xmark"></i></button>
-                                </div>
-                            </div>
+                            <div id="notifContainer" class="divide-y divide-gray-100 max-h-48 overflow-y-auto"></div>
                             <div id="notifEmptyState" class="hidden p-4 text-center text-xs text-gray-400 font-medium">
                                 <i class="fa-regular fa-bell-slash text-lg block mb-1 text-gray-300"></i> Empty.
                             </div>
@@ -1726,33 +1713,147 @@
             notifMenu.classList.toggle('hidden');
         }
 
-        function removeNotification(event, id) {
-            event.stopPropagation();
-            const notificationItem = document.getElementById(id);
-            if (notificationItem) {
-                notificationItem.remove();
-                updateNotificationBadgeCount();
+        let latestKnownNotifId = 0;
+
+        async function fetchAndRenderNotifications(isPoll) {
+            try {
+                const res = await fetch('/api/account-services?resource=notifications', {
+                    credentials: 'include'
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const notifications = data.notifications || [];
+
+                if (isPoll && notifications.length > 0 && latestKnownNotifId) {
+                    const freshOnes = notifications.filter(n => n.id > latestKnownNotifId);
+                    freshOnes.forEach(n => showNotificationToast(n.title, n.message));
+                }
+                if (notifications.length > 0) {
+                    latestKnownNotifId = Math.max(...notifications.map(n => n.id));
+                }
+
+                renderNotifications(notifications);
+            } catch (err) {
+                console.error('Failed to fetch notifications:', err);
             }
         }
 
-        function clearAllNotifications() {
-            document.getElementById('notifContainer').innerHTML = '';
-            updateNotificationBadgeCount();
-        }
-
-        function updateNotificationBadgeCount() {
-            const count = document.getElementById('notifContainer').children.length;
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notifContainer');
             const badge = document.getElementById('notifBadge');
             const emptyState = document.getElementById('notifEmptyState');
-            
-            if (count > 0) {
-                badge.innerText = count;
-                badge.classList.remove('hidden');
+
+            container.innerHTML = '';
+
+            notifications.forEach(n => {
+                const el = document.createElement('div');
+                el.id = `notif-item-${n.id}`;
+                el.className = "p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer" + (n.is_read ? '' : ' bg-emerald-50');
+
+                const p = document.createElement('p');
+                p.className = "text-[10px] leading-relaxed";
+                const strong = document.createElement('strong');
+                strong.className = "text-gray-900 block text-xs";
+                strong.innerText = n.title;
+                p.appendChild(strong);
+                p.appendChild(document.createTextNode(n.message));
+
+                const btn = document.createElement('button');
+                btn.className = "text-gray-400 hover:text-red-500 text-xs";
+                btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                btn.onclick = function (event) {
+                    removeNotification(event, n.id);
+                };
+
+                el.onclick = function () {
+                    showNotificationDetail(n.title, n.message);
+                    markNotificationRead(n.id);
+                };
+
+                el.appendChild(p);
+                el.appendChild(btn);
+                container.appendChild(el);
+            });
+
+            const unreadCount = notifications.filter(n => !n.is_read).length;
+
+            if (notifications.length > 0) {
                 emptyState.classList.add('hidden');
             } else {
-                badge.classList.add('hidden');
                 emptyState.classList.remove('hidden');
             }
+
+            if (unreadCount > 0) {
+                badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        async function markNotificationRead(notificationId) {
+            try {
+                await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'notifications', notifAction: 'markRead', notificationId })
+                });
+                const badge = document.getElementById('notifBadge');
+                const current = parseInt(badge.innerText, 10);
+                if (!isNaN(current) && current > 1) {
+                    badge.innerText = current - 1;
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error('Failed to mark notification read:', err);
+            }
+        }
+
+        async function removeNotification(event, notificationId) {
+            event.stopPropagation();
+            try {
+                await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'notifications', notifAction: 'dismiss', notificationId })
+                });
+            } catch (err) {
+                console.error('Failed to dismiss notification:', err);
+            }
+            fetchAndRenderNotifications(false);
+        }
+
+        async function clearAllNotifications() {
+            try {
+                await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'notifications', notifAction: 'clearAll' })
+                });
+            } catch (err) {
+                console.error('Failed to clear notifications:', err);
+            }
+            fetchAndRenderNotifications(false);
+        }
+
+        function showNotificationToast(title, message) {
+            const toast = document.createElement('div');
+            toast.className = "fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white rounded-xl shadow-2xl px-4 py-3 w-[90%] max-w-sm animate-fade-in cursor-pointer";
+            toast.innerHTML = `
+                <p class="text-xs font-bold text-emerald-400">${title}</p>
+                <p class="text-[11px] text-gray-200 mt-0.5">${message}</p>
+            `;
+            toast.onclick = function () {
+                toast.remove();
+            };
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 6000);
         }
 
         window.addEventListener('click', () => {
@@ -3566,6 +3667,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('faceIdStatusLabel')) {
         refreshFaceIdStatus();
     }
+    fetchAndRenderNotifications(false);
+    setInterval(() => fetchAndRenderNotifications(true), 30000);
 });
 
 
