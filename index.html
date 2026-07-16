@@ -78,6 +78,30 @@
             <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Analyzing Risk Profile Matrix...</p>
         </div>
 
+        <div id="accountNumberModal" class="hidden absolute inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
+                <div class="bg-slate-950 p-6 text-center border-b border-gray-800">
+                    <div class="mx-auto w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mb-3 shadow-md">
+                        <i class="fa-solid fa-building-columns text-slate-950 text-xl"></i>
+                    </div>
+                    <h2 id="accountNumberModalGreeting" class="text-lg font-bold text-white">Hi there!</h2>
+                    <p class="text-[11px] text-emerald-400 font-mono uppercase tracking-widest mt-1">This is your account number</p>
+                </div>
+                <div class="p-6 text-center">
+                    <p id="accountNumberModalNumber" class="text-3xl font-bold font-mono tracking-widest text-gray-900">••••••••••</p>
+                    <p class="text-xs text-gray-500 mt-3 leading-relaxed">Share this number with other Apex Horizon users so they can send you money. It's the only thing they need — keep it handy.</p>
+                    <div class="mt-5 space-y-2">
+                        <button onclick="copyModalAccountNumber()" id="accountNumberModalCopyBtn" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold py-2.5 rounded-lg text-xs transition">
+                            <i class="fa-solid fa-copy mr-1"></i>Copy Account Number
+                        </button>
+                        <button onclick="document.getElementById('accountNumberModal').classList.add('hidden')" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg text-xs transition">
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="receiptModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
             <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
                 <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
@@ -727,6 +751,15 @@
                     
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-4">
                         <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                            <div class="min-w-0">
+                                <p class="text-[9px] text-gray-400 uppercase font-bold">Account Number</p>
+                                <p id="checkingAccountNumberDisplay" class="text-sm font-mono font-bold text-gray-900 tracking-wider">••••••••••</p>
+                            </div>
+                            <button onclick="copyCheckingAccountNumber()" id="checkingAccountNumberCopyBtn" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-md font-semibold transition shrink-0">
+                                <i class="fa-solid fa-copy mr-1"></i>Copy
+                            </button>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-3">
                             <div>
                                 <p class="text-[9px] text-gray-400 uppercase font-bold">Settled Balance</p>
                                 <h2 class="checkingBalanceLabel text-2xl font-bold font-mono text-gray-900">$14,240.65</h2>
@@ -1027,8 +1060,8 @@
                         </div>
                         <form class="p-4 space-y-3" onsubmit="handleP2PLookup(event)">
                             <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Apex Account Email</label>
-                                <input type="email" id="p2pRecipientEmailInput" placeholder="name@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Apex Account Number</label>
+                                <input type="text" id="p2pRecipientAccountNumberInput" inputmode="numeric" maxlength="10" placeholder="10-digit account number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Amount (USD)</label>
@@ -1052,7 +1085,7 @@
                             </div>
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Sending To</p>
                             <h2 id="p2pConfirmRecipientName" class="text-lg font-bold text-gray-900 mt-0.5">—</h2>
-                            <p id="p2pConfirmRecipientEmail" class="text-xs text-gray-400 font-mono">—</p>
+                            <p id="p2pConfirmRecipientAccountNumber" class="text-xs text-gray-400 font-mono">—</p>
                         </div>
                         <div class="p-5 text-center border-b border-gray-100">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Amount</p>
@@ -1281,10 +1314,10 @@
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Account</h3>
                         <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
                             <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Primary Email Node</label>
-                                <input type="email" id="settingsEmailInput" value="s.jenkins@domain.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Email Address</label>
+                                <input type="email" id="settingsEmailInput" value="" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
                             </div>
-                            <button onclick="saveAccountEmail()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
+                            <button onclick="saveAccountEmail()" id="saveEmailBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
                                 Save Changes
                             </button>
                         </div>
@@ -1719,6 +1752,49 @@
             return Promise.all([promise, new Promise(resolve => setTimeout(resolve, ms))]).then(([result]) => result);
         }
 
+        let pendingWelcomeAccountNumber = null;
+        let pendingWelcomeFullName = null;
+
+        function showAccountNumberPopup(fullName, accountNumber) {
+            const firstName = (fullName || '').trim().split(/\s+/)[0] || 'there';
+            document.getElementById('accountNumberModalGreeting').innerText = `Hi ${firstName}!`;
+            document.getElementById('accountNumberModalNumber').innerText = accountNumber;
+            document.getElementById('accountNumberModal').classList.remove('hidden');
+        }
+
+        function copyTextToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(() => fallbackCopyTextToClipboard(text));
+            } else {
+                fallbackCopyTextToClipboard(text);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Copy failed:', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function copyModalAccountNumber() {
+            const number = document.getElementById('accountNumberModalNumber').innerText;
+            copyTextToClipboard(number);
+            const btn = document.getElementById('accountNumberModalCopyBtn');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Copied!';
+            setTimeout(() => { btn.innerHTML = original; }, 1500);
+        }
+
         let latestKnownNotifId = 0;
 
         let notifPollIntervalId = null;
@@ -1741,6 +1817,7 @@
                 refreshUIBalances();
                 renderActiveAdState();
                 startNotificationPolling();
+                checkForEmailChangeTokenInUrl();
             } catch (err) {
                 console.error('Session restore check failed:', err);
             }
@@ -2159,15 +2236,21 @@
 
         async function handleP2PLookup(event) {
             event.preventDefault();
-            const emailInput = document.getElementById('p2pRecipientEmailInput');
+            const accountNumberInput = document.getElementById('p2pRecipientAccountNumberInput');
             const amountInput = document.getElementById('p2pAmountInput');
             const errorEl = document.getElementById('p2pLookupError');
             const btn = document.getElementById('p2pLookupBtn');
 
             errorEl.classList.add('hidden');
 
-            const email = emailInput.value.trim().toLowerCase();
+            const accountNumber = accountNumberInput.value.trim();
             const amount = parseFloat(amountInput.value) || 0;
+
+            if (!/^\d{10}$/.test(accountNumber)) {
+                errorEl.innerText = 'Enter a valid 10-digit account number.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
 
             if (amount <= 0) {
                 errorEl.innerText = 'Enter a valid amount greater than zero.';
@@ -2180,7 +2263,7 @@
             btn.innerText = 'Looking up recipient...';
 
             try {
-                const res = await fetch(`/api/transfer?lookupEmail=${encodeURIComponent(email)}`, {
+                const res = await fetch(`/api/transfer?lookupAccountNumber=${encodeURIComponent(accountNumber)}`, {
                     credentials: 'include'
                 });
                 const data = await res.json();
@@ -2189,15 +2272,15 @@
                 btn.innerText = originalBtnText;
 
                 if (!res.ok || !data.found) {
-                    errorEl.innerText = data.error || 'No Apex Horizon account found for that email.';
+                    errorEl.innerText = data.error || 'No Apex Horizon account found for that account number.';
                     errorEl.classList.remove('hidden');
                     return;
                 }
 
-                p2pPendingRecipient = { email, displayName: data.displayName };
+                p2pPendingRecipient = { accountNumber, displayName: data.displayName };
 
                 document.getElementById('p2pConfirmRecipientName').innerText = data.displayName;
-                document.getElementById('p2pConfirmRecipientEmail').innerText = email;
+                document.getElementById('p2pConfirmRecipientAccountNumber').innerText = `Account #${accountNumber}`;
                 document.getElementById('p2pConfirmAmount').innerText =
                     `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 const note = document.getElementById('p2pNoteInput').value.trim();
@@ -2243,7 +2326,7 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         fromAccountType: 'checking',
-                        recipientEmail: p2pPendingRecipient.email,
+                        recipientAccountNumber: p2pPendingRecipient.accountNumber,
                         amount: amount,
                         description: note || `P2P transfer to ${p2pPendingRecipient.displayName}`
                     })
@@ -2264,7 +2347,7 @@
                 const systemTraceString = `#P2P-${traceRandomId}`;
                 const formattedAmountString = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 const ledgerDescription = note || `P2P Transfer to ${p2pPendingRecipient.displayName}`;
-                const recipientLabel = `${p2pPendingRecipient.displayName} (${p2pPendingRecipient.email})`;
+                const recipientLabel = `${p2pPendingRecipient.displayName} (Account #${p2pPendingRecipient.accountNumber})`;
                 const sentAt = new Date();
 
                 const liveWireLogContainer = document.getElementById('liveWireLogContainer');
@@ -2289,7 +2372,7 @@
                 `;
                 liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
 
-                document.getElementById('p2pRecipientEmailInput').value = '';
+                document.getElementById('p2pRecipientAccountNumberInput').value = '';
                 document.getElementById('p2pAmountInput').value = '';
                 document.getElementById('p2pNoteInput').value = '';
                 document.getElementById('p2pFormPane').classList.remove('hidden');
@@ -2628,6 +2711,9 @@ function updateHeaderUserEmail(email) {
     if (!email) return;
     const senderEmailEl = document.getElementById('modalSenderEmail');
     if (senderEmailEl) senderEmailEl.innerText = email;
+
+    const settingsEmailEl = document.getElementById('settingsEmailInput');
+    if (settingsEmailEl) settingsEmailEl.value = email;
 }
 
 
@@ -2650,6 +2736,9 @@ updateHeaderUserEmail(currentUserEmail);
             if (checkingAcct) {
                 checkingAccountId = checkingAcct.id;
                 rawBalanceValue = parseFloat(checkingAcct.balance);
+                myCheckingAccountNumber = checkingAcct.account_number || checkingAcct.accountNumber || null;
+                const acctNumEl = document.getElementById('checkingAccountNumberDisplay');
+                if (acctNumEl) acctNumEl.innerText = myCheckingAccountNumber || 'Not available';
             }
             if (savingsAcct) {
                 savingsAccountId = savingsAcct.id;
@@ -2659,6 +2748,17 @@ updateHeaderUserEmail(currentUserEmail);
             refreshUIBalances();
             refreshLiveCalculations();
             await fetchTransactions();
+        }
+
+        let myCheckingAccountNumber = null;
+
+        function copyCheckingAccountNumber() {
+            if (!myCheckingAccountNumber) return;
+            copyTextToClipboard(myCheckingAccountNumber);
+            const btn = document.getElementById('checkingAccountNumberCopyBtn');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Copied!';
+            setTimeout(() => { btn.innerHTML = original; }, 1500);
         }
 
         function toggleAuthMode() {
@@ -2759,6 +2859,11 @@ updateHeaderUserEmail(currentUserEmail);
 
                 await loadRealAccountData();
 
+                if (data.accountNumber) {
+                    pendingWelcomeAccountNumber = data.accountNumber;
+                    pendingWelcomeFullName = data.user?.fullName || fullName;
+                }
+
                 setTimeout(() => {
                     submitBtn.disabled = false;
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
@@ -2855,6 +2960,12 @@ updateHeaderUserEmail(currentUserEmail);
                         refreshUIBalances();
                         renderActiveAdState();
                         startNotificationPolling();
+
+                        if (pendingWelcomeAccountNumber) {
+                            showAccountNumberPopup(pendingWelcomeFullName, pendingWelcomeAccountNumber);
+                            pendingWelcomeAccountNumber = null;
+                            pendingWelcomeFullName = null;
+                        }
                     }, 300);
                     return;
                 }
@@ -2968,7 +3079,7 @@ updateHeaderUserEmail(currentUserEmail);
             { name: 'Shopping', color: '#a479e2', keywords: ['amazon', 'target', 'walmart', 'ebay', 'store', 'marketplace', 'retail'] },
             { name: 'Subscriptions', color: '#f2c960', keywords: ['netflix', 'apple', 'subscription', 'streaming', 'gym', 'membership', 'steam'] },
             { name: 'Bills & Utilities', color: '#e07798', keywords: ['fedex', 'utility', 'electric', 'water', 'internet', 'phone'] },
-            { name: 'Income', color: '#16a766', keywords: ['payroll', 'deposit', 'freelance', 'p2p', 'dividend', 'refund'] },
+            { name: 'Income', color: '#16a766', keywords: ['payroll', 'deposit', 'freelance', 'dividend', 'refund'] },
             { name: 'Transfers', color: '#666666', keywords: ['wire', 'transfer', 'interbank'] },
         ];
 
@@ -2986,7 +3097,16 @@ updateHeaderUserEmail(currentUserEmail);
             return map[rawType] || rawType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         }
 
-        function categorizeTransaction(description) {
+        const OUTGOING_TYPES = ['p2p_out', 'wire_out', 'transfer_out', 'debit'];
+
+        function categorizeTransaction(description, type) {
+            if (type === 'p2p_in' || type === 'transfer_in' || type === 'ach_in' || type === 'credit') {
+                return { name: 'Income', color: '#16a766' };
+            }
+            if (type === 'p2p_out' || type === 'wire_out' || type === 'transfer_out') {
+                return { name: 'Transfers', color: '#666666' };
+            }
+
             const desc = (description || '').toLowerCase();
             for (const cat of CATEGORY_RULES) {
                 if (cat.keywords.some(k => desc.includes(k))) return cat;
@@ -3085,12 +3205,12 @@ updateHeaderUserEmail(currentUserEmail);
             const now = new Date();
             const thisMonthTxns = allTransactions.filter(t => {
                 const d = new Date(t.created_at);
-                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && (t.type === 'debit' || parseFloat(t.amount) < 0);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && OUTGOING_TYPES.includes(t.type);
             });
 
             const totals = {};
             thisMonthTxns.forEach(t => {
-                const cat = categorizeTransaction(t.description);
+                const cat = categorizeTransaction(t.description, t.type);
                 totals[cat.name] = (totals[cat.name] || 0) + Math.abs(parseFloat(t.amount));
             });
 
@@ -3130,7 +3250,7 @@ updateHeaderUserEmail(currentUserEmail);
                 monthBuckets[key] = 0;
             }
             allTransactions.forEach(t => {
-                if (t.type !== 'debit' && parseFloat(t.amount) >= 0) return;
+                if (!OUTGOING_TYPES.includes(t.type)) return;
                 const d = new Date(t.created_at);
                 const key = d.toLocaleDateString('en-US', { month: 'short' });
                 if (key in monthBuckets) monthBuckets[key] += Math.abs(parseFloat(t.amount));
@@ -3256,13 +3376,80 @@ updateHeaderUserEmail(currentUserEmail);
             { code: 'hi', label: 'हिन्दी' }
         ];
 
-        function saveAccountEmail() {
-            const value = document.getElementById('settingsEmailInput').value;
-            if (!value || !value.includes('@')) {
+        async function saveAccountEmail() {
+            const value = document.getElementById('settingsEmailInput').value.trim();
+            const btn = document.getElementById('saveEmailBtn');
+
+            if (!value || !value.includes('@') || !value.includes('.')) {
                 alert("Enter a valid email address.");
                 return;
             }
-            alert(`Primary email updated to ${value}.`);
+
+            if (value.toLowerCase() === (currentUserEmail || '').toLowerCase()) {
+                alert("That's already your current email address.");
+                return;
+            }
+
+            const originalBtnText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Sending confirmation...';
+
+            try {
+                const res = await withMinDelay(fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'email-change', emailAction: 'request', newEmail: value })
+                }), 1000);
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+
+                if (!res.ok) {
+                    alert(data.error || 'Could not start the email change. Please try again.');
+                    return;
+                }
+
+                alert(`A confirmation link was sent to ${value}. Click it to finish changing your email — your current email stays active until you confirm.`);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+                alert('Network error. Please try again.');
+            }
+        }
+
+        async function checkForEmailChangeTokenInUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('emailChangeToken');
+            if (!token) return;
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'email-change', emailAction: 'confirm', token })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    currentUserEmail = data.newEmail;
+                    updateHeaderUserEmail(currentUserEmail);
+                    const emailInput = document.getElementById('settingsEmailInput');
+                    if (emailInput) emailInput.value = currentUserEmail;
+                    alert('Your email address has been updated successfully.');
+                } else {
+                    alert(data.error || 'This confirmation link is invalid or has expired.');
+                }
+            } catch (err) {
+                console.error('Email change confirmation error:', err);
+            }
+
+            // Strip the token from the URL so refreshing doesn't re-trigger it
+            params.delete('emailChangeToken');
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', newUrl);
         }
 
         function toggleGenericSwitch(toggleId, isOn) {
