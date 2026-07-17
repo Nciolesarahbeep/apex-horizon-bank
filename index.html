@@ -1848,6 +1848,11 @@
         }
 
         async function restoreSessionOnLoad() {
+            // Only auto-restore if this tab was already part of an active session.
+            // sessionStorage clears when the tab/browser closes, so a genuinely fresh
+            // open always lands on the login screen, even if the 7-day cookie is still valid.
+            if (sessionStorage.getItem('apex_tab_session_active') !== '1') return;
+
             try {
                 const res = await fetch('/api/me', { credentials: 'include' });
                 if (!res.ok) return; // no valid session — leave the login screen showing
@@ -3129,6 +3134,7 @@ updateHeaderUserEmail(currentUserEmail);
                         refreshUIBalances();
                         renderActiveAdState();
                         startNotificationPolling();
+                        sessionStorage.setItem('apex_tab_session_active', '1');
 
                         if (pendingWelcomeAccountNumber) {
                             showAccountNumberPopup(pendingWelcomeFullName, pendingWelcomeAccountNumber);
@@ -3168,6 +3174,7 @@ updateHeaderUserEmail(currentUserEmail);
                 clearInterval(notifPollIntervalId);
                 notifPollIntervalId = null;
             }
+            sessionStorage.removeItem('apex_tab_session_active');
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
             viewHistory = ['summary']; 
