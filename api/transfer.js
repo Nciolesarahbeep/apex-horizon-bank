@@ -13,7 +13,7 @@ const MAX_WIRE_AMOUNT = 25000;
 
 module.exports = async function handler(req, res) {
   // ===== Recipient lookup (for the "Send $50 to Sarah J.?" confirm step) =====
-  // GET /api/transfer?lookupAccountNumber=1234567890
+  // GET /api/transfer?lookupIdentifier=someone@example.com  OR  ?lookupIdentifier=1234567890
   if (req.method === 'GET') {
     try {
       const session = getUserFromRequest(req);
@@ -21,24 +21,40 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      const lookupAccountNumber = (req.query && req.query.lookupAccountNumber || '').trim();
-      if (!lookupAccountNumber) {
-        return res.status(400).json({ error: 'lookupAccountNumber is required.' });
-      }
-      if (!/^\d{10}$/.test(lookupAccountNumber)) {
-        return res.status(400).json({ error: 'Account number must be exactly 10 digits.' });
+      const lookupIdentifier = (req.query && req.query.lookupIdentifier || '').trim();
+      if (!lookupIdentifier) {
+        return res.status(400).json({ error: 'lookupIdentifier is required.' });
       }
 
-      const rows = await sql`
-        SELECT u.id, u.full_name, u.email, a.account_number
-        FROM accounts a
-        JOIN users u ON u.id = a.user_id
-        WHERE a.account_number = ${lookupAccountNumber} AND a.account_type = 'checking'
-        LIMIT 1
-      `;
+      const isEmail = lookupIdentifier.includes('@');
+      const isAccountNumber = /^\d{10}$/.test(lookupIdentifier);
+
+      if (!isEmail && !isAccountNumber) {
+        return res.status(400).json({ error: 'Enter a valid email address or 10-digit account number.' });
+      }
+
+      let rows;
+      if (isEmail) {
+        const lookupEmail = lookupIdentifier.toLowerCase();
+        rows = await sql`
+          SELECT u.id, u.full_name, u.email, a.account_number
+          FROM accounts a
+          JOIN users u ON u.id = a.user_id
+          WHERE LOWER(u.email) = ${lookupEmail} AND a.account_type = 'checking'
+          LIMIT 1
+        `;
+      } else {
+        rows = await sql`
+          SELECT u.id, u.full_name, u.email, a.account_number
+          FROM accounts a
+          JOIN users u ON u.id = a.user_id
+          WHERE a.account_number = ${lookupIdentifier} AND a.account_type = 'checking'
+          LIMIT 1
+        `;
+      }
 
       if (rows.length === 0) {
-        return res.status(404).json({ error: 'No Apex Horizon account found for that account number.' });
+        return res.status(404).json({ error: 'No Apex Horizon account found for that email or account number.' });
       }
 
       const recipient = rows[0];
@@ -74,7 +90,7 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { fromAccountType, toAccountType, recipientAccountNumber, routingNumber, beneficiaryNumber, targetBank, amount, description } = req.body || {};
+    const { fromAccountType, toAccountType, recipientIdentifier, routingNumber, beneficiaryNumber, targetBank, amount, description } = req.body || {};
 
     if (!fromAccountType || !amount) {
       return res.status(400).json({ error: 'From account and amount are required.' });
@@ -85,7 +101,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Enter a valid transfer amount greater than zero.' });
     }
 
-    const isP2P = !!recipientAccountNumber;
+    const isP2P = !!recipientIdentifier;
     const isWire = !!routingNumber;
 
     if (isP2P && isWire) {
@@ -135,21 +151,36 @@ module.exports = async function handler(req, res) {
     let noteIncoming;
 
     if (isP2P) {
-      const cleanAccountNumber = String(recipientAccountNumber).trim();
-      if (!/^\d{10}$/.test(cleanAccountNumber)) {
-        return res.status(400).json({ error: 'Recipient account number must be exactly 10 digits.' });
+      const cleanIdentifier = String(recipientIdentifier).trim();
+      const isEmail = cleanIdentifier.includes('@');
+      const isAccountNumber = /^\d{10}$/.test(cleanIdentifier);
+
+      if (!isEmail && !isAccountNumber) {
+        return res.status(400).json({ error: 'Enter a valid recipient email or 10-digit account number.' });
       }
 
-      const recipientRows = await sql`
-        SELECT u.id, u.full_name, u.email, a.id AS account_id, a.account_number, a.balance
-        FROM accounts a
-        JOIN users u ON u.id = a.user_id
-        WHERE a.account_number = ${cleanAccountNumber} AND a.account_type = 'checking'
-        LIMIT 1
-      `;
+      let recipientRows;
+      if (isEmail) {
+        const cleanEmail = cleanIdentifier.toLowerCase();
+        recipientRows = await sql`
+          SELECT u.id, u.full_name, u.email, a.id AS account_id, a.account_number, a.balance
+          FROM accounts a
+          JOIN users u ON u.id = a.user_id
+          WHERE LOWER(u.email) = ${cleanEmail} AND a.account_type = 'checking'
+          LIMIT 1
+        `;
+      } else {
+        recipientRows = await sql`
+          SELECT u.id, u.full_name, u.email, a.id AS account_id, a.account_number, a.balance
+          FROM accounts a
+          JOIN users u ON u.id = a.user_id
+          WHERE a.account_number = ${cleanIdentifier} AND a.account_type = 'checking'
+          LIMIT 1
+        `;
+      }
 
       if (recipientRows.length === 0) {
-        return res.status(404).json({ error: 'No Apex Horizon account found for that account number.' });
+        return res.status(404).json({ error: 'No Apex Horizon account found for that email or account number.' });
       }
 
       const recipient = recipientRows[0];
