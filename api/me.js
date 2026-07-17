@@ -23,11 +23,12 @@ module.exports = async function handler(req, res) {
     }
     const user = userResult[0];
 
-    const accountsResult = await sql`
-      SELECT id, account_type, balance
-      FROM accounts
-      WHERE user_id = ${user.id}
-    `;
+const accountsResult = await sql`
+  SELECT id, account_type, balance, account_number
+  FROM accounts
+  WHERE user_id = ${user.id}
+`;
+
 
     return res.status(200).json({
       user: { id: user.id, email: user.email, fullName: user.full_name },
