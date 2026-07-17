@@ -1056,12 +1056,12 @@
 
                     <div id="p2pFormPane" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                         <div class="bg-slate-900 p-3 text-white text-[10px]">
-                            Funds move instantly between Apex Horizon accounts using the recipient's account email.
+                            Funds move instantly between Apex Horizon accounts using the recipient's email or account number.
                         </div>
                         <form class="p-4 space-y-3" onsubmit="handleP2PLookup(event)">
                             <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Apex Account Number</label>
-                                <input type="text" id="p2pRecipientAccountNumberInput" inputmode="numeric" maxlength="10" placeholder="10-digit account number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Email or Account Number</label>
+                                <input type="text" id="p2pRecipientIdentifierInput" placeholder="name@example.com or 10-digit account number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Amount (USD)</label>
@@ -2236,18 +2236,21 @@
 
         async function handleP2PLookup(event) {
             event.preventDefault();
-            const accountNumberInput = document.getElementById('p2pRecipientAccountNumberInput');
+            const identifierInput = document.getElementById('p2pRecipientIdentifierInput');
             const amountInput = document.getElementById('p2pAmountInput');
             const errorEl = document.getElementById('p2pLookupError');
             const btn = document.getElementById('p2pLookupBtn');
 
             errorEl.classList.add('hidden');
 
-            const accountNumber = accountNumberInput.value.trim();
+            const identifier = identifierInput.value.trim();
             const amount = parseFloat(amountInput.value) || 0;
 
-            if (!/^\d{10}$/.test(accountNumber)) {
-                errorEl.innerText = 'Enter a valid 10-digit account number.';
+            const isEmailFormat = identifier.includes('@');
+            const isAccountNumberFormat = /^\d{10}$/.test(identifier);
+
+            if (!isEmailFormat && !isAccountNumberFormat) {
+                errorEl.innerText = 'Enter a valid email address or 10-digit account number.';
                 errorEl.classList.remove('hidden');
                 return;
             }
@@ -2263,7 +2266,7 @@
             btn.innerText = 'Looking up recipient...';
 
             try {
-                const res = await fetch(`/api/transfer?lookupAccountNumber=${encodeURIComponent(accountNumber)}`, {
+                const res = await fetch(`/api/transfer?lookupIdentifier=${encodeURIComponent(identifier)}`, {
                     credentials: 'include'
                 });
                 const data = await res.json();
@@ -2272,15 +2275,15 @@
                 btn.innerText = originalBtnText;
 
                 if (!res.ok || !data.found) {
-                    errorEl.innerText = data.error || 'No Apex Horizon account found for that account number.';
+                    errorEl.innerText = data.error || 'No Apex Horizon account found for that email or account number.';
                     errorEl.classList.remove('hidden');
                     return;
                 }
 
-                p2pPendingRecipient = { accountNumber, displayName: data.displayName };
+                p2pPendingRecipient = { identifier, displayName: data.displayName };
 
                 document.getElementById('p2pConfirmRecipientName').innerText = data.displayName;
-                document.getElementById('p2pConfirmRecipientAccountNumber').innerText = `Account #${accountNumber}`;
+                document.getElementById('p2pConfirmRecipientAccountNumber').innerText = isEmailFormat ? identifier : `Account #${identifier}`;
                 document.getElementById('p2pConfirmAmount').innerText =
                     `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 const note = document.getElementById('p2pNoteInput').value.trim();
@@ -2326,7 +2329,7 @@
                     credentials: 'include',
                     body: JSON.stringify({
                         fromAccountType: 'checking',
-                        recipientAccountNumber: p2pPendingRecipient.accountNumber,
+                        recipientIdentifier: p2pPendingRecipient.identifier,
                         amount: amount,
                         description: note || `P2P transfer to ${p2pPendingRecipient.displayName}`
                     })
@@ -2347,7 +2350,7 @@
                 const systemTraceString = `#P2P-${traceRandomId}`;
                 const formattedAmountString = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 const ledgerDescription = note || `P2P Transfer to ${p2pPendingRecipient.displayName}`;
-                const recipientLabel = `${p2pPendingRecipient.displayName} (Account #${p2pPendingRecipient.accountNumber})`;
+                const recipientLabel = `${p2pPendingRecipient.displayName} (${p2pPendingRecipient.identifier})`;
                 const sentAt = new Date();
 
                 const liveWireLogContainer = document.getElementById('liveWireLogContainer');
@@ -2372,7 +2375,7 @@
                 `;
                 liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
 
-                document.getElementById('p2pRecipientAccountNumberInput').value = '';
+                document.getElementById('p2pRecipientIdentifierInput').value = '';
                 document.getElementById('p2pAmountInput').value = '';
                 document.getElementById('p2pNoteInput').value = '';
                 document.getElementById('p2pFormPane').classList.remove('hidden');
