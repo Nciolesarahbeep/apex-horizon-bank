@@ -332,29 +332,71 @@
                 </div>
 
                 <div id="signupFormWrapper" class="hidden">
-                    <form onsubmit="handleSignUp(event)" class="p-5 space-y-4">
+                    <div class="px-5 pt-4 flex items-center space-x-1.5">
+                        <div id="signupStepDot1" class="h-1 flex-1 rounded-full bg-emerald-500"></div>
+                        <div id="signupStepDot2" class="h-1 flex-1 rounded-full bg-gray-200"></div>
+                        <div id="signupStepDot3" class="h-1 flex-1 rounded-full bg-gray-200"></div>
+                    </div>
+
+                    <form id="signupStep1Form" onsubmit="handleSignupStep1(event)" class="p-5 space-y-4">
+                        <div class="text-center mb-1">
+                            <h3 class="text-sm font-bold text-gray-900">Let's verify your email first</h3>
+                            <p class="text-[11px] text-gray-500 mt-1">We'll send a 6-digit code to confirm it's really you.</p>
+                        </div>
+                        <div id="signupStep1ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
+                            <input type="email" id="signupEmailInput" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                        </div>
+                        <button type="submit" id="signupStep1Btn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
+                            <span>Send Verification Code</span>
+                        </button>
+                        <p class="text-center text-[11px] text-gray-500 pt-1">
+                            Already have an account? <button type="button" onclick="toggleAuthMode()" class="text-emerald-600 font-bold hover:underline">Sign in</button>
+                        </p>
+                    </form>
+
+                    <form id="signupStep2Form" onsubmit="handleSignupStep2(event)" class="hidden p-5 space-y-4">
+                        <div class="text-center mb-1">
+                            <h3 class="text-sm font-bold text-gray-900">Enter your code</h3>
+                            <p id="signupStep2SubText" class="text-[11px] text-gray-500 mt-1">We sent a 6-digit code to your email.</p>
+                        </div>
+                        <div id="signupStep2ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Verification Code</label>
+                            <input type="text" id="signupCodeInput" inputmode="numeric" maxlength="6" placeholder="123456" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center tracking-[0.5em] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        </div>
+                        <button type="submit" id="signupStep2Btn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
+                            <span>Verify Email</span>
+                        </button>
+                        <p class="text-center text-[11px] text-gray-500 pt-1">
+                            Didn't get it? <button type="button" id="signupResendBtn" onclick="resendSignupCode()" class="text-emerald-600 font-bold hover:underline">Resend code</button>
+                        </p>
+                        <button type="button" onclick="goToSignupStep(1)" class="w-full text-[11px] text-gray-400 hover:text-gray-600">&larr; Use a different email</button>
+                    </form>
+
+                    <form id="signupStep3Form" onsubmit="handleSignupStep3(event)" class="hidden p-5 space-y-4">
+                        <div class="text-center mb-1">
+                            <h3 class="text-sm font-bold text-gray-900">Almost there</h3>
+                            <p class="text-[11px] text-gray-500 mt-1">Set up your name and password to finish.</p>
+                        </div>
                         <div id="signupErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Full Name</label>
                             <input type="text" id="signupNameInput" placeholder="Jane Doe" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                            <input type="email" id="signupEmailInput" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
-                        </div>
-                        <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
-                            <input type="password" id="signupPasswordInput" placeholder="At least 6 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required minlength="6">
+                            <input type="password" id="signupPasswordInput" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required minlength="8">
                         </div>
-
+                        <label class="flex items-start space-x-2 pt-1">
+                            <input type="checkbox" id="signupTermsCheckbox" class="mt-0.5" required>
+                            <span class="text-[10px] text-gray-500 leading-relaxed">I agree to the Apex Horizon Bank Terms of Service, Privacy Policy, and E-Sign Consent Disclosure.</span>
+                        </label>
                         <button type="submit" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
                             <i class="fa-solid fa-user-plus text-emerald-400"></i>
                             <span>Create Account</span>
                         </button>
-
-                        <p class="text-center text-[11px] text-gray-500 pt-1">
-                            Already have an account? <button type="button" onclick="toggleAuthMode()" class="text-emerald-600 font-bold hover:underline">Sign in</button>
-                        </p>
                     </form>
                 </div>
 
@@ -2767,6 +2809,17 @@ updateHeaderUserEmail(currentUserEmail);
         function toggleAuthMode() {
             document.getElementById('loginFormWrapper').classList.toggle('hidden');
             document.getElementById('signupFormWrapper').classList.toggle('hidden');
+            goToSignupStep(1);
+            signupVerifiedEmail = null;
+        }
+
+        function goToSignupStep(step) {
+            [1, 2, 3].forEach(n => {
+                const formEl = document.getElementById(`signupStep${n}Form`);
+                if (formEl) formEl.classList.toggle('hidden', n !== step);
+                const dot = document.getElementById(`signupStepDot${n}`);
+                if (dot) dot.className = `h-1 flex-1 rounded-full ${n <= step ? 'bg-emerald-500' : 'bg-gray-200'}`;
+            });
         }
 
         function showAuthError(bannerId, message) {
@@ -2828,16 +2881,129 @@ updateHeaderUserEmail(currentUserEmail);
             }
         }
 
-        async function handleSignUp(event) {
+        let signupVerifiedEmail = null;
+
+        async function handleSignupStep1(event) {
+            event.preventDefault();
+            hideAuthError('signupStep1ErrorBanner');
+            const email = document.getElementById('signupEmailInput').value.trim();
+            const btn = document.getElementById('signupStep1Btn');
+            const originalContent = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Sending code...</span>';
+
+            try {
+                const res = await withMinDelay(fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'send-code', email })
+                }), 900);
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+
+                if (!res.ok) {
+                    showAuthError('signupStep1ErrorBanner', data.error || 'Could not send verification code.');
+                    return;
+                }
+
+                document.getElementById('signupStep2SubText').innerText = `We sent a 6-digit code to ${email}.`;
+                goToSignupStep(2);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                showAuthError('signupStep1ErrorBanner', 'Network error. Please try again.');
+            }
+        }
+
+        async function handleSignupStep2(event) {
+            event.preventDefault();
+            hideAuthError('signupStep2ErrorBanner');
+            const email = document.getElementById('signupEmailInput').value.trim();
+            const code = document.getElementById('signupCodeInput').value.trim();
+            const btn = document.getElementById('signupStep2Btn');
+            const originalContent = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Verifying...</span>';
+
+            try {
+                const res = await withMinDelay(fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'verify-code', email, code })
+                }), 800);
+                const data = await res.json();
+
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+
+                if (!res.ok) {
+                    showAuthError('signupStep2ErrorBanner', data.error || 'Invalid or expired code.');
+                    return;
+                }
+
+                signupVerifiedEmail = email;
+                goToSignupStep(3);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                showAuthError('signupStep2ErrorBanner', 'Network error. Please try again.');
+            }
+        }
+
+        async function resendSignupCode() {
+            const email = document.getElementById('signupEmailInput').value.trim();
+            const btn = document.getElementById('signupResendBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+
+            try {
+                await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'send-code', email })
+                });
+            } catch (err) {
+                console.error('Resend code error:', err);
+            }
+
+            let cooldown = 30;
+            const interval = setInterval(() => {
+                btn.innerText = `Resend in ${cooldown}s`;
+                cooldown--;
+                if (cooldown < 0) {
+                    clearInterval(interval);
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            }, 1000);
+        }
+
+        async function handleSignupStep3(event) {
             event.preventDefault();
             hideAuthError('signupErrorBanner');
+
+            if (!signupVerifiedEmail) {
+                showAuthError('signupErrorBanner', 'Please verify your email first.');
+                goToSignupStep(1);
+                return;
+            }
 
             const form = event.target;
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalContent = submitBtn.innerHTML;
             const fullName = document.getElementById('signupNameInput').value;
-            const email = document.getElementById('signupEmailInput').value;
             const password = document.getElementById('signupPasswordInput').value;
+            const termsAccepted = document.getElementById('signupTermsCheckbox').checked;
+
+            if (!termsAccepted) {
+                showAuthError('signupErrorBanner', 'You must agree to the Terms of Service to continue.');
+                return;
+            }
 
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
@@ -2848,7 +3014,7 @@ updateHeaderUserEmail(currentUserEmail);
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ email, password, fullName })
+                    body: JSON.stringify({ action: 'create-account', email: signupVerifiedEmail, password, fullName })
                 });
                 const data = await res.json();
 
