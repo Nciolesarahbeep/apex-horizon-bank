@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
       const normalizedEmail = normalizeEmail(email);
 
       const result = await sql`
-        SELECT id, email, password_hash, full_name
+        SELECT id, email, password_hash, full_name, is_active
         FROM users
         WHERE email = ${normalizedEmail}
         LIMIT 1
@@ -43,6 +43,10 @@ module.exports = async function handler(req, res) {
 
       if (!passwordMatches) {
         return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      if (!user.is_active) {
+        return res.status(403).json({ error: 'This account has been disabled. Please contact support.' });
       }
 
       const updatedRows = await sql`
