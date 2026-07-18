@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
 
   if (action === 'login') {
     try {
-      const { email, password } = req.body || {};
+      const { email, password, rememberDevice } = req.body || {};
 
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required.' });
@@ -45,11 +45,18 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
+      const updatedRows = await sql`
+        UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}
+        RETURNING last_login_at
+      `;
+
       const token = signToken({ userId: user.id, email: user.email });
-      setSessionCookie(res, token);
+      // Default to true if the field is missing entirely, so older clients
+      // that don't send it yet keep the previous "always remembered" behavior.
+      setSessionCookie(res, token, rememberDevice !== false);
 
       return res.status(200).json({
-        user: { id: user.id, email: user.email, fullName: user.full_name },
+        user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
       });
     } catch (err) {
       console.error('Login error:', err);
