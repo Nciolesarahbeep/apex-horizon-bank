@@ -150,9 +150,9 @@ module.exports = async function handler(req, res) {
       const passwordHash = await bcrypt.hash(password, 10);
 
       const userResult = await sql`
-        INSERT INTO users (email, password_hash, full_name, created_at)
-        VALUES (${normalizedEmail}, ${passwordHash}, ${fullName}, NOW())
-        RETURNING id, email, full_name
+        INSERT INTO users (email, password_hash, full_name, created_at, last_login_at)
+        VALUES (${normalizedEmail}, ${passwordHash}, ${fullName}, NOW(), NOW())
+        RETURNING id, email, full_name, last_login_at
       `;
       const user = userResult[0];
 
@@ -185,10 +185,10 @@ module.exports = async function handler(req, res) {
       await sql`DELETE FROM signup_verifications WHERE email = ${normalizedEmail}`;
 
       const token = signToken({ userId: user.id, email: user.email });
-      setSessionCookie(res, token);
+      setSessionCookie(res, token, true);
 
       return res.status(201).json({
-        user: { id: user.id, email: user.email, fullName: user.full_name },
+        user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: user.last_login_at },
         accountNumber: checkingAccountNumber,
       });
     } catch (err) {
