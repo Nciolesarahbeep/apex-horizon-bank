@@ -65,11 +65,15 @@ module.exports = async function handler(req, res) {
         VALUES (${normalizedEmail}, ${code}, ${expiresAt.toISOString()}, FALSE)
       `;
 
-      await sendEmail({
+      const emailSent = await sendEmail({
         to: normalizedEmail,
         subject: 'Your Apex Horizon Bank verification code',
         html: verificationEmailHtml(code),
       });
+
+      if (!emailSent) {
+        return res.status(502).json({ error: 'Could not deliver the verification email. Please try again in a moment.' });
+      }
 
       return res.status(200).json({ success: true, message: 'Verification code sent.' });
     } catch (err) {
