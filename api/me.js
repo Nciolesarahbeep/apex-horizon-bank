@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getUserFromRequest } = require('../lib/auth');
+const { getUserFromRequest, clearSessionCookie } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -16,12 +16,17 @@ module.exports = async function handler(req, res) {
     }
 
     const userResult = await sql`
-      SELECT id, email, full_name, last_login_at FROM users WHERE id = ${session.userId} LIMIT 1
+      SELECT id, email, full_name, last_login_at, is_active FROM users WHERE id = ${session.userId} LIMIT 1
     `;
     if (userResult.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     const user = userResult[0];
+
+    if (!user.is_active) {
+      clearSessionCookie(res);
+      return res.status(403).json({ error: 'disabled', message: "Sorry, we can't continue this session." });
+    }
 
     const accountsResult = await sql`
       SELECT id, account_type, balance, account_number
