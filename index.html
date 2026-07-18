@@ -309,7 +309,7 @@
 
                         <div class="flex items-center justify-between text-[11px] pt-1">
                             <label class="flex items-center space-x-1.5 text-gray-500 cursor-pointer">
-                                <input type="checkbox" checked class="accent-emerald-600 rounded">
+                                <input type="checkbox" id="rememberDeviceCheckbox" checked class="accent-emerald-600 rounded">
                                 <span>Remember device</span>
                             </label>
 <button type="button" onclick="openForgotPasswordModal()" class="text-emerald-600 font-semibold hover:underline">Forgot?</button>
@@ -468,7 +468,8 @@
                         <div id="welcomeAvatar" class="w-11 h-11 shrink-0 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm">—</div>
                         <div>
                             <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
-                            <p class="text-[10px] text-gray-500">Signature check: Today at 2:40 AM</p>
+                            <p class="text-[10px] text-gray-500">Session started: <span id="sessionStartTimeLabel">—</span></p>
+                            <p class="text-[9px] text-gray-400">Updated <span id="dataFreshnessLabel">just now</span></p>
                         </div>
                     </div>
 
@@ -1848,11 +1849,10 @@
         }
 
         async function restoreSessionOnLoad() {
-            // Only auto-restore if this tab was already part of an active session.
-            // sessionStorage clears when the tab/browser closes, so a genuinely fresh
-            // open always lands on the login screen, even if the 7-day cookie is still valid.
-            if (sessionStorage.getItem('apex_tab_session_active') !== '1') return;
-
+            // No JS workaround needed anymore — the cookie itself now follows real
+            // browser protocol. If "Remember device" was checked, the cookie persists
+            // and this restores the session. If not, the browser clears the cookie
+            // the moment it's fully closed, so this check will simply come back 401.
             try {
                 const res = await fetch('/api/me', { credentials: 'include' });
                 if (!res.ok) return; // no valid session — leave the login screen showing
@@ -2779,6 +2779,9 @@ function updateHeaderUserEmail(email) {
 updateHeaderUserName(currentUserFullName);
 updateHeaderUserEmail(currentUserEmail);
 
+            const lastLoginAt = data.user.last_login_at || data.user.lastLoginAt || null;
+            const sessionLabelEl = document.getElementById('sessionStartTimeLabel');
+            if (sessionLabelEl) sessionLabelEl.innerText = formatSessionStartTime(lastLoginAt);
 
             const checkingAcct = data.accounts.find(a => a.account_type === 'checking');
             const savingsAcct = data.accounts.find(a => a.account_type === 'savings');
@@ -2798,7 +2801,37 @@ updateHeaderUserEmail(currentUserEmail);
             refreshUIBalances();
             refreshLiveCalculations();
             await fetchTransactions();
+
+            lastDataRefreshTime = Date.now();
+            updateDataFreshnessLabel();
         }
+
+        function formatSessionStartTime(isoString) {
+            if (!isoString) return 'Just now';
+            const d = new Date(isoString);
+            const now = new Date();
+            const isToday = d.toDateString() === now.toDateString();
+            const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            return isToday ? `Today at ${timeStr}` : `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${timeStr}`;
+        }
+
+        let lastDataRefreshTime = null;
+
+        function updateDataFreshnessLabel() {
+            const el = document.getElementById('dataFreshnessLabel');
+            if (!el || !lastDataRefreshTime) return;
+            const seconds = Math.floor((Date.now() - lastDataRefreshTime) / 1000);
+            if (seconds < 5) {
+                el.innerText = 'just now';
+            } else if (seconds < 60) {
+                el.innerText = `${seconds}s ago`;
+            } else {
+                const minutes = Math.floor(seconds / 60);
+                el.innerText = `${minutes}m ago`;
+            }
+        }
+
+        setInterval(updateDataFreshnessLabel, 1000);
 
         let myCheckingAccountNumber = null;
 
@@ -2846,6 +2879,7 @@ updateHeaderUserEmail(currentUserEmail);
             const originalContent = submitBtn.innerHTML;
             const email = document.getElementById('loginEmailInput').value;
             const password = document.getElementById('loginPasswordInput').value;
+            const rememberDevice = document.getElementById('rememberDeviceCheckbox').checked;
 
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
@@ -2856,7 +2890,7 @@ updateHeaderUserEmail(currentUserEmail);
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ action: 'login', email, password })
+    body: JSON.stringify({ action: 'login', email, password, rememberDevice })
 });
 
 
@@ -3134,7 +3168,6 @@ updateHeaderUserEmail(currentUserEmail);
                         refreshUIBalances();
                         renderActiveAdState();
                         startNotificationPolling();
-                        sessionStorage.setItem('apex_tab_session_active', '1');
 
                         if (pendingWelcomeAccountNumber) {
                             showAccountNumberPopup(pendingWelcomeFullName, pendingWelcomeAccountNumber);
@@ -3174,7 +3207,6 @@ updateHeaderUserEmail(currentUserEmail);
                 clearInterval(notifPollIntervalId);
                 notifPollIntervalId = null;
             }
-            sessionStorage.removeItem('apex_tab_session_active');
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
             viewHistory = ['summary']; 
