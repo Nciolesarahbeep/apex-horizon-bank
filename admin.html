@@ -130,7 +130,7 @@ async function api(action, opts = {}) {
       'Content-Type': 'application/json',
       'x-admin-secret': adminSecret,
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: method === 'POST' ? JSON.stringify({ ...(body || {}), action }) : undefined,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
