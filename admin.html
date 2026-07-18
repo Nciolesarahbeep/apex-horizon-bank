@@ -23,7 +23,9 @@
       <p class="text-sm text-slate-500">Apex Horizon Bank</p>
     </div>
     <input id="secretInput" type="password" placeholder="Admin secret"
-      class="w-full border border-slate-300 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+      class="w-full border border-slate-300 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      onkeydown="if(event.key==='Enter') unlock()">
     <button onclick="unlock()" class="w-full bg-indigo-600 text-white rounded-lg py-2 font-medium hover:bg-indigo-700">
       Unlock
     </button>
@@ -137,7 +139,7 @@ async function api(action, opts = {}) {
 
 async function unlock() {
   const input = document.getElementById('secretInput');
-  adminSecret = input.value.trim();
+  adminSecret = input.value.trim().replace(/[\r\n]/g, '');
   const errEl = document.getElementById('lockError');
   errEl.classList.add('hidden');
   if (!adminSecret) return;
