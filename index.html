@@ -285,7 +285,15 @@
             </div>
         </div>
 
-        <div id="authScreen" class="w-full flex-1 flex items-center justify-center bg-slate-900 px-4 py-8">
+        <div id="sessionCheckSplash" class="fixed inset-0 z-[10000] bg-slate-900 flex flex-col items-center justify-center">
+            <div class="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                <i class="fa-solid fa-building-columns text-slate-900 text-2xl"></i>
+            </div>
+            <p class="text-white font-bold text-sm tracking-wide">Apex Horizon Bank</p>
+            <div class="mt-5 w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
+        </div>
+
+        <div id="authScreen" class="hidden w-full flex-1 flex items-center justify-center bg-slate-900 px-4 py-8">
             <div class="w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                 <div class="bg-slate-950 p-6 text-center border-b border-gray-800">
                     <div class="inline-block bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2">
@@ -1853,9 +1861,17 @@
             // browser protocol. If "Remember device" was checked, the cookie persists
             // and this restores the session. If not, the browser clears the cookie
             // the moment it's fully closed, so this check will simply come back 401.
+            const splash = document.getElementById('sessionCheckSplash');
+
             try {
-                const res = await fetch('/api/me', { credentials: 'include' });
-                if (!res.ok) return; // no valid session — leave the login screen showing
+                const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 500);
+
+                if (!res.ok) {
+                    // No valid session — reveal the login screen, never the dashboard.
+                    splash.classList.add('hidden');
+                    document.getElementById('authScreen').classList.remove('hidden');
+                    return;
+                }
 
                 await loadRealAccountData();
 
@@ -1865,8 +1881,11 @@
                 renderActiveAdState();
                 startNotificationPolling();
                 checkForEmailChangeTokenInUrl();
+                splash.classList.add('hidden');
             } catch (err) {
                 console.error('Session restore check failed:', err);
+                splash.classList.add('hidden');
+                document.getElementById('authScreen').classList.remove('hidden');
             }
         }
 
