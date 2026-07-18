@@ -2419,7 +2419,7 @@
                 const recipientLabel = `${p2pPendingRecipient.displayName} (${p2pPendingRecipient.identifier})`;
                 const sentAt = new Date();
 
-                const liveWireLogContainer =                 document.getElementById('p2pRecipientIdentifierInput').value = '';
+                document.getElementById('p2pRecipientIdentifierInput').value = '';
                 document.getElementById('p2pAmountInput').value = '';
                 document.getElementById('p2pNoteInput').value = '';
                 document.getElementById('p2pFormPane').classList.remove('hidden');
@@ -2436,30 +2436,6 @@
                             type: 'P2P Transfer'
                         });
                     }
-                });
-            } catch (err) {
-
-
-                ledgerLogNode.innerHTML = `
-                    <div class="min-w-0 pr-2">
-                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
-                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
-                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
-                    </div>
-                    <span class="font-mono text-xs font-bold text-gray-950 shrink-0">${formattedAmountString}</span>
-                `;
-                liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
-
-                document.getElementById('p2pRecipientIdentifierInput').value = '';
-                document.getElementById('p2pAmountInput').value = '';
-                document.getElementById('p2pNoteInput').value = '';
-                document.getElementById('p2pFormPane').classList.remove('hidden');
-                p2pPendingRecipient = null;
-
-                openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
-                    timestamp: sentAt,
-                    recipient: recipientLabel,
-                    type: 'P2P Transfer'
                 });
             } catch (err) {
                 document.getElementById('p2pSendingPane').classList.add('hidden');
