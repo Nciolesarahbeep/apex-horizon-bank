@@ -2419,17 +2419,26 @@
                 const recipientLabel = `${p2pPendingRecipient.displayName} (${p2pPendingRecipient.identifier})`;
                 const sentAt = new Date();
 
-                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
-                const ledgerLogNode = document.createElement('div');
-                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
+                const liveWireLogContainer =                 document.getElementById('p2pRecipientIdentifierInput').value = '';
+                document.getElementById('p2pAmountInput').value = '';
+                document.getElementById('p2pNoteInput').value = '';
+                document.getElementById('p2pFormPane').classList.remove('hidden');
+                p2pPendingRecipient = null;
 
-                ledgerLogNode.onclick = function () {
-                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
-                        timestamp: sentAt,
-                        recipient: recipientLabel,
-                        type: 'P2P Transfer'
-                    });
-                };
+                showMoneyPopSuccess({
+                    direction: 'sent',
+                    amountLabel: formattedAmountString,
+                    counterpart: recipientLabel,
+                    onViewReceipt: function () {
+                        openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
+                            timestamp: sentAt,
+                            recipient: recipientLabel,
+                            type: 'P2P Transfer'
+                        });
+                    }
+                });
+            } catch (err) {
+
 
                 ledgerLogNode.innerHTML = `
                     <div class="min-w-0 pr-2">
