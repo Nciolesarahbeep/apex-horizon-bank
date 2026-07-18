@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
 const { normalizeEmail } = require('../lib/auth');
+const { sendEmail, passwordResetEmailHtml } = require('../lib/email');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -40,39 +41,16 @@ async function handleRequestReset(req, res) {
 
   const resetLink = `https://apex-horizon-bank-eight.vercel.app/?resetToken=${rawToken}`;
 
-  try {
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'onboarding@resend.dev',
-        to: normalizedEmail,
-        subject: 'Reset Your Apex Horizon Bank Password',
-        html: `
-          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-            <h2 style="color: #0f172a; margin-bottom: 5px;">Apex Horizon Bank</h2>
-            <p style="color: #334155; font-size: 15px;">We received a request to reset your online banking password.</p>
-            <p style="color: #334155; font-size: 15px;">Click the secure link below to configure your new credentials. This link expires in 30 minutes.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetLink}" style="background-color: #0f172a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">Reset Password</a>
-            </div>
-            <p style="color: #94a3b8; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
-          </div>
-        `,
-      }),
-    });
+  const emailSent = await sendEmail({
+    to: normalizedEmail,
+    subject: 'Reset Your Apex Horizon Bank Password',
+    html: passwordResetEmailHtml(resetLink),
+  });
 
-    if (!emailRes.ok) {
-      const errText = await emailRes.text();
-      console.error('Resend responded with an error:', emailRes.status, errText);
-    }
-  } catch (emailError) {
-    console.error('Failed to send email via Resend:', emailError);
-    // Don't fail the whole request just because email delivery failed —
-    // the token still exists in the DB and the response stays generic either way.
+  if (!emailSent) {
+    console.error('Password reset email failed to send for user id:', user.id);
+    // Still return the generic response — don't leak delivery status to the client,
+    // same reasoning as the "does this email exist" protection above.
   }
 
   return res.status(200).json(genericResponse);
