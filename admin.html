@@ -95,7 +95,28 @@
     </table>
     <p id="activityEmpty" class="text-slate-400 text-sm py-4 hidden">No sign-in activity yet.</p>
   </div>
-<!-- Audit log panel -->
+<!-- Audit log panel -->  <!-- Pending loan applications -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-hand-holding-dollar text-amber-600 mr-1"></i>Pending Loan Applications</h2>
+      <button onclick="loadPendingLoans()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">Applicant</th>
+          <th class="py-2 pr-2">Amount</th>
+          <th class="py-2 pr-2">Purpose</th>
+          <th class="py-2 pr-2">Income</th>
+          <th class="py-2 pr-2">Term</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="pendingLoansBody"></tbody>
+    </table>
+    <p id="pendingLoansEmpty" class="text-slate-400 text-sm py-4 hidden">No pending loan applications.</p>
+  </div>
+
   <div id="auditPanel" class="bg-white rounded-xl shadow-sm p-4 mb-6 hidden">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-800">Audit Logs — <span id="auditEmailLabel"></span></h2>
@@ -172,9 +193,11 @@ async function unlock() {
     document.getElementById('dashboard').classList.remove('hidden');
     loadUsers();
     loadTransactions();
-    loadLoginActivity();
+        loadLoginActivity();
+    loadPendingLoans();
     if (activityPollTimer) clearInterval(activityPollTimer);
     activityPollTimer = setInterval(loadLoginActivity, 7000);
+
 
   } catch (e) {
     adminSecret = '';
@@ -295,6 +318,42 @@ async function loadAudit(email) {
 
 function closeAudit() {
   document.getElementById('auditPanel').classList.add('hidden');
+}
+
+async function loadPendingLoans() {
+  try {
+    const { loans } = await api('listPendingLoans');
+    const body = document.getElementById('pendingLoansBody');
+    const empty = document.getElementById('pendingLoansEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', loans.length > 0);
+    loans.forEach(l => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${l.applicant_name || l.user_email}<br><span class="text-slate-400 text-xs">${l.user_email}</span></td>
+        <td class="py-2 pr-2">${money(l.principal)}</td>
+        <td class="py-2 pr-2">${l.purpose}</td>
+        <td class="py-2 pr-2">${money(l.monthly_income)}/mo</td>
+        <td class="py-2 pr-2">${l.term_months} mo</td>
+        <td class="py-2"><button onclick="grantLoan(${l.id})" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Grant</button></td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function grantLoan(loanId) {
+  if (!confirm(`Approve and disburse this loan?`)) return;
+  try {
+    const data = await api('grantLoan', { method: 'POST', body: { loanId } });
+    showToast(data.message, false);
+    loadPendingLoans();
+  } catch (e) {
+    showToast(e.message, true);
+  }
 }
 
 async function loadLoginActivity() {
