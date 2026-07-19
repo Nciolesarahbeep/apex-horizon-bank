@@ -2,6 +2,8 @@ const { neon } = require('@neondatabase/serverless');
 const { generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server');
 const { normalizeEmail, signToken, setSessionCookie } = require('../lib/auth');
 const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('../lib/webauthn');
+const { logSignInActivity } = require('../lib/loginActivity');
+
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -106,7 +108,10 @@ module.exports = async function handler(req, res) {
       setSessionCookie(res, token);
       clearChallengeCookie(res);
 
+      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'webauthn' });
+
       return res.status(200).json({
+
         user: { id: user.id, email: user.email, fullName: user.full_name },
       });
     } catch (err) {
