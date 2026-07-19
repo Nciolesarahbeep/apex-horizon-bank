@@ -75,7 +75,21 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ logs });
     }
 
-    // ---------- getLoginActivity (live sign-in feed) ----------
+       // ---------- listPendingLoans ----------
+    if (action === 'listPendingLoans') {
+      const loans = await sql`
+        SELECT l.id, l.user_id, l.principal, l.interest_rate, l.term_months, l.monthly_payment,
+               l.purpose, l.monthly_income, l.employment_status, l.applicant_name, l.created_at,
+               u.email AS user_email
+        FROM loans l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.status = 'pending'
+        ORDER BY l.created_at ASC
+      `;
+      return res.status(200).json({ loans });
+    }
+
+ // ---------- getLoginActivity (live sign-in feed) ----------
     if (action === 'getLoginActivity') {
       const activity = await sql`
         SELECT id, email, method, ip_address, city, region, country, user_agent, created_at
@@ -144,7 +158,44 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // ---------- toggleAccountStatus(email) ----------
+        // ---------- grantLoan(loanId) ----------
+    if (action === 'grantLoan') {
+      const loanId = Number(req.body.loanId);
+      if (!loanId) return res.status(400).json({ error: 'loanId is required' });
+
+      const loanRows = await sql`
+        SELECT id, account_id, principal, purpose, term_months, interest_rate, status
+        FROM loans WHERE id = ${loanId} LIMIT 1
+      `;
+      if (loanRows.length === 0) return res.status(404).json({ error: 'Loan not found' });
+      const loan = loanRows[0];
+
+      if (loan.status !== 'pending') {
+        return res.status(400).json({ error: `This loan is already ${loan.status}, not pending.` });
+      }
+
+      const description = `Loan Disbursement — ${loan.purpose} (${loan.term_months} mo @ ${(Number(loan.interest_rate) * 100).toFixed(2)}% APR)`;
+
+      await sql`UPDATE accounts SET balance = balance + ${loan.principal} WHERE id = ${loan.account_id}`;
+
+      await sql`
+        INSERT INTO transactions (account_id, type, amount, description, created_at)
+        VALUES (${loan.account_id}, 'loan_disbursement', ${loan.principal}, ${description}, NOW())
+      `;
+
+      await sql`
+        UPDATE loans SET status = 'active', disbursed_at = NOW() WHERE id = ${loan.id}
+      `;
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('grantLoan', NULL, ${loan.principal}, ${description}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Loan #${loan.id} approved and $${Number(loan.principal).toFixed(2)} disbursed.` });
+    }
+
+// ---------- toggleAccountStatus(email) ----------
     if (action === 'toggleAccountStatus') {
       const email = normalizeEmail(req.body.email);
       if (!email) return res.status(400).json({ error: 'email is required' });
