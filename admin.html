@@ -138,6 +138,8 @@
 
 <script>
 let adminSecret = '';
+let activityPollTimer = null;
+
 
 async function api(action, opts = {}) {
   const { method = 'GET', params = {}, body = null } = opts;
@@ -320,7 +322,7 @@ async function loadLoginActivity() {
   }
 }
 
-async function loadTransactions() {
+
 async function loadTransactions() {
   try {
     const { transactions } = await api('recentTransactions');
