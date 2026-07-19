@@ -5,7 +5,7 @@ const { sendEmail, moneySentEmailHtml, moneyReceivedEmailHtml } = require('../li
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 // Real-bank-style daily P2P sending limit. Adjust as needed.
-const DAILY_P2P_LIMIT = 2500;
+const DAILY_P2P_LIMIT = Infinity;
 
 // Real-bank-style per-transaction wire limit for standard online banking
 // (larger wires typically require phone/branch verification in real banks).
@@ -281,6 +281,20 @@ module.exports = async function handler(req, res) {
     }
 
     // ---------- Notifications + Email (best-effort, never fails the transfer) ----------
+    if (isWire) {
+      try {
+        const amountFormatted = transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const bankLabel = (targetBank && String(targetBank).trim()) || 'External Bank';
+
+        await sql`
+          INSERT INTO notifications (user_id, title, message)
+          VALUES (${session.userId}, 'Wire Sent', ${'You sent a $' + amountFormatted + ' wire to ' + bankLabel + '.'})
+        `;
+      } catch (notifyErr) {
+        console.error('Wire notification dispatch error (non-fatal):', notifyErr);
+      }
+    }
+
     if (isP2P && recipientInfo) {
       try {
         const senderRows = await sql`SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1`;
