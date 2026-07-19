@@ -299,6 +299,207 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ---------- Credit Card ----------
+  if (resource === 'credit-card') {
+    // Every user gets exactly one credit account, auto-provisioned on first touch.
+    async function getOrCreateCardAccount(userId) {
+      let accountRows = await sql`
+        SELECT id, balance FROM accounts
+        WHERE user_id = ${userId} AND account_type = 'credit'
+        LIMIT 1
+      `;
+
+      let account;
+      if (accountRows.length === 0) {
+        const inserted = await sql`
+          INSERT INTO accounts (user_id, account_type, balance, account_number)
+          VALUES (${userId}, 'credit', 0, LPAD(FLOOR(RANDOM() * 10000000000)::TEXT, 10, '0'))
+          RETURNING id, balance
+        `;
+        account = inserted[0];
+      } else {
+        account = accountRows[0];
+      }
+
+      let detailsRows = await sql`
+        SELECT * FROM credit_card_details WHERE account_id = ${account.id} LIMIT 1
+      `;
+
+      let details;
+      if (detailsRows.length === 0) {
+        const lastFour = String(Math.floor(1000 + Math.random() * 9000));
+        const inserted = await sql`
+          INSERT INTO credit_card_details (account_id, last_four)
+          VALUES (${account.id}, ${lastFour})
+          RETURNING *
+        `;
+        details = inserted[0];
+      } else {
+        details = detailsRows[0];
+      }
+
+      return { account, details };
+    }
+
+    if (req.method === 'GET') {
+      try {
+        const { account, details } = await getOrCreateCardAccount(session.userId);
+
+        const balanceOwed = Number(account.balance);
+        const creditLimit = Number(details.credit_limit);
+
+        const transactions = await sql`
+          SELECT id, type, amount, description, created_at
+          FROM transactions
+          WHERE account_id = ${account.id}
+          ORDER BY created_at DESC
+          LIMIT 30
+        `;
+
+        return res.status(200).json({
+          balance: balanceOwed,
+          creditLimit,
+          availableCredit: creditLimit - balanceOwed,
+          isFrozen: details.is_frozen,
+          velocityLimit: Number(details.velocity_limit),
+          lastFour: details.last_four,
+          cardTier: details.card_tier,
+          hasPin: !!details.pin_hash,
+          transactions,
+        });
+      } catch (err) {
+        console.error('Get credit card error:', err);
+        return res.status(500).json({ error: 'Failed to fetch card details.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { cardAction } = req.body || {};
+        const { account, details } = await getOrCreateCardAccount(session.userId);
+
+        if (cardAction === 'toggleFreeze') {
+          const updated = await sql`
+            UPDATE credit_card_details SET is_frozen = NOT is_frozen
+            WHERE account_id = ${account.id}
+            RETURNING is_frozen
+          `;
+          return res.status(200).json({ success: true, isFrozen: updated[0].is_frozen });
+        }
+
+        if (cardAction === 'setVelocityLimit') {
+          const { velocityLimit } = req.body || {};
+          const val = Number(velocityLimit);
+          if (!Number.isFinite(val) || val < 500 || val > 15000) {
+            return res.status(400).json({ error: 'Velocity limit must be between $500 and $15,000.' });
+          }
+          await sql`
+            UPDATE credit_card_details SET velocity_limit = ${val}
+            WHERE account_id = ${account.id}
+          `;
+          return res.status(200).json({ success: true, velocityLimit: val });
+        }
+
+        if (cardAction === 'setPin') {
+          const { pin } = req.body || {};
+          if (!pin || !/^\d{4,6}$/.test(String(pin))) {
+            return res.status(400).json({ error: 'PIN must be 4-6 digits.' });
+          }
+          const pinHash = await bcrypt.hash(String(pin), 10);
+          await sql`
+            UPDATE credit_card_details SET pin_hash = ${pinHash}
+            WHERE account_id = ${account.id}
+          `;
+          return res.status(200).json({ success: true });
+        }
+
+        if (cardAction === 'charge') {
+          const { amount, merchant } = req.body || {};
+          const chargeAmount = Number(amount);
+
+          if (!Number.isFinite(chargeAmount) || chargeAmount <= 0) {
+            return res.status(400).json({ error: 'Enter a valid charge amount.' });
+          }
+          if (details.is_frozen) {
+            return res.status(400).json({ error: 'This card is frozen. Unfreeze it to make purchases.' });
+          }
+          if (chargeAmount > Number(details.velocity_limit)) {
+            return res.status(400).json({ error: `This exceeds your single transaction limit of $${Number(details.velocity_limit).toLocaleString()}.` });
+          }
+          const currentBalance = Number(account.balance);
+          const creditLimit = Number(details.credit_limit);
+          if (currentBalance + chargeAmount > creditLimit) {
+            return res.status(400).json({ error: 'This charge would exceed your available credit.' });
+          }
+
+          const updated = await sql`
+            UPDATE accounts SET balance = balance + ${chargeAmount}
+            WHERE id = ${account.id}
+            RETURNING balance
+          `;
+
+          await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${account.id}, 'credit_purchase', ${chargeAmount}, ${merchant || 'Card Purchase'}, NOW())
+          `;
+
+          return res.status(200).json({ success: true, balance: Number(updated[0].balance) });
+        }
+
+        if (cardAction === 'makePayment') {
+          const { amount } = req.body || {};
+          const paymentAmount = Number(amount);
+
+          if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+            return res.status(400).json({ error: 'Enter a valid payment amount.' });
+          }
+
+          const checkingRows = await sql`
+            SELECT id, balance FROM accounts
+            WHERE user_id = ${session.userId} AND account_type = 'checking'
+            LIMIT 1
+          `;
+          if (checkingRows.length === 0) {
+            return res.status(404).json({ error: 'Checking account not found.' });
+          }
+          const checking = checkingRows[0];
+
+          if (Number(checking.balance) < paymentAmount) {
+            return res.status(400).json({ error: 'Insufficient funds in checking to make this payment.' });
+          }
+          if (paymentAmount > Number(account.balance)) {
+            return res.status(400).json({ error: 'Payment exceeds your current card balance.' });
+          }
+
+          await sql`
+            UPDATE accounts SET balance = balance - ${paymentAmount} WHERE id = ${checking.id}
+          `;
+          const updatedCard = await sql`
+            UPDATE accounts SET balance = balance - ${paymentAmount}
+            WHERE id = ${account.id}
+            RETURNING balance
+          `;
+
+          await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${checking.id}, 'debit', ${paymentAmount}, 'Credit Card Payment', NOW())
+          `;
+          await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${account.id}, 'credit_payment', ${-paymentAmount}, 'Payment Received - Thank You', NOW())
+          `;
+
+          return res.status(200).json({ success: true, cardBalance: Number(updatedCard[0].balance) });
+        }
+
+        return res.status(400).json({ error: 'Invalid cardAction.' });
+      } catch (err) {
+        console.error('Credit card action error:', err);
+        return res.status(500).json({ error: 'Failed to process card action.' });
+      }
+    }
+  }
+
 
   // ---------- Email Change ----------
   if (resource === 'email-change') {
@@ -375,7 +576,8 @@ module.exports = async function handler(req, res) {
     }
   }
 
-return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", or "email-change".' });
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", or "email-change".' });
+
 
 
 
