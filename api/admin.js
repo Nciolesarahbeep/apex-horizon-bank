@@ -75,7 +75,19 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ logs });
     }
 
+    // ---------- getLoginActivity (live sign-in feed) ----------
+    if (action === 'getLoginActivity') {
+      const activity = await sql`
+        SELECT id, email, method, ip_address, city, region, country, user_agent, created_at
+        FROM login_activity
+        ORDER BY created_at DESC
+        LIMIT 50
+      `;
+      return res.status(200).json({ activity });
+    }
+
     // ---------- Everything below requires POST ----------
+
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
       return res.status(405).json({ error: 'Method not allowed' });
