@@ -680,7 +680,7 @@
                         </div>
                         <div onclick="triggerViewSwitch('credit')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
                             <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">Credit Portfolio</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
-                            <h3 class="text-xl font-bold font-mono text-gray-900 mt-1">$1,102.40</h3>
+                            <h3 id="creditPortfolioBalanceLabel" class="text-xl font-bold font-mono text-gray-900 mt-1">$1,102.40</h3>
                         </div>
                     </div>
 
@@ -886,7 +886,7 @@
 
                         <div class="z-10 my-auto">
                             <p class="text-lg font-mono tracking-widest text-gray-100 font-bold flex items-center space-x-2">
-                                <span>••••</span> <span>••••</span> <span>••••</span> <span class="text-emerald-400">8821</span>
+                                <span>••••</span> <span>••••</span> <span>••••</span> <span id="cardLastFourLabel" class="text-emerald-400">8821</span>
                             </p>
                             <div class="flex space-x-4 mt-1 font-mono text-[9px] text-gray-400">
                                 <div>Expiry: <span class="text-gray-200 font-bold">08/31</span></div>
@@ -907,13 +907,17 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
                             <span class="text-[9px] text-gray-400 font-bold uppercase block">Current Balance</span>
-                            <span class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$1,102.40</span>
+                            <span id="cardCurrentBalanceLabel" class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$1,102.40</span>
                         </div>
                         <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
                             <span class="text-[9px] text-gray-400 font-bold uppercase block">Available Credit</span>
-                            <span class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$23,897.60</span>
+                            <span id="cardAvailableCreditLabel" class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$23,897.60</span>
                         </div>
                     </div>
+
+                    <button onclick="makeCardPayment()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer">
+                        <i class="fa-solid fa-money-check-dollar mr-1"></i> Make a Payment
+                    </button>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Card Configuration Controls</h3>
@@ -955,7 +959,7 @@
                                 <span class="text-gray-500 uppercase">Single Transaction Limit</span>
                                 <span id="cardVelocityLimitText" class="text-emerald-600 font-mono font-bold bg-emerald-50 px-2 py-0.5 rounded">$5,000</span>
                             </div>
-                            <input type="range" min="500" max="15000" step="250" value="5000" oninput="updateCardVelocitySliderLabel(this.value)" class="w-full accent-emerald-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
+                            <input type="range" id="cardVelocitySlider" min="500" max="15000" step="250" value="5000" oninput="updateCardVelocitySliderLabel(this.value)" onchange="saveCardVelocityLimit(this.value)" class="w-full accent-emerald-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
                             <div class="flex justify-between text-[8px] font-mono text-gray-400">
                                 <span>Min: $500</span>
                                 <span>Max: $15,000</span>
@@ -972,24 +976,7 @@
                         </button>
                     </div>
 
-                    <div id="creditTab-cleared" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 scroll-smooth">
-                        <div onclick="openReceiptModal('Auto-Pay Entry', '#CRD-8821', '-$350.00')" class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center group active:bg-gray-50 cursor-pointer">
-                            <div class="min-w-0 pr-2">
-                                <h4 class="text-xs font-bold text-gray-900 truncate">Auto-Pay Allocation Entry</h4>
-                                <p class="text-[9px] text-gray-400 font-mono truncate">Trace #CRD-8821</p>
-                                <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt</span>
-                            </div>
-                            <span class="text-xs font-bold font-mono text-emerald-600 shrink-0">-$350.00</span>
-                        </div>
-                        <div onclick="openReceiptModal('Manual Liquidation', '#CRD-7210', '-$1,200.00')" class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center group active:bg-gray-50 cursor-pointer">
-                            <div class="min-w-0 pr-2">
-                                <h4 class="text-xs font-bold text-gray-900 truncate">Manual Portfolio Payment</h4>
-                                <p class="text-[9px] text-gray-400 font-mono truncate">Trace #CRD-7210</p>
-                                <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt</span>
-                            </div>
-                            <span class="text-xs font-bold font-mono text-emerald-600 shrink-0">-$1,200.00</span>
-                        </div>
-                    </div>
+                    <div id="creditTab-cleared" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 scroll-smooth"></div>
 
                     <div id="creditTab-pending" class="hidden space-y-2">
                         <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center">
@@ -1748,6 +1735,9 @@
                 if (targetViewId === 'loans') {
                     runLiveLoanCalculator();
                 }
+                if (targetViewId === 'credit') {
+                    loadCreditCardData();
+                }
             }, 1500); 
         }
 
@@ -2077,25 +2067,6 @@
                 pendingBtn.classList.remove('border-transparent', 'text-gray-400');
                 clearedBtn.classList.remove('border-slate-900', 'text-slate-900');
                 clearedBtn.classList.add('border-transparent', 'text-gray-400');
-            }
-        }
-
-        function toggleCardFreezeState() {
-            cardIsFrozen = !cardIsFrozen;
-            const cardElement = document.getElementById('visualCreditCard');
-            const toggleContainer = document.getElementById('freezeToggleNode');
-            const toggleBall = toggleContainer.querySelector('div');
-
-            if (cardIsFrozen) {
-                cardElement.classList.add('opacity-40', 'grayscale-[40%]');
-                toggleContainer.classList.remove('bg-gray-200');
-                toggleContainer.classList.add('bg-indigo-600');
-                toggleBall.classList.add('translate-x-3');
-            } else {
-                cardElement.classList.remove('opacity-40', 'grayscale-[40%]');
-                toggleContainer.classList.remove('bg-indigo-600');
-                toggleContainer.classList.add('bg-gray-200');
-                toggleBall.classList.remove('translate-x-3');
             }
         }
 
@@ -2805,6 +2776,7 @@ updateHeaderUserEmail(currentUserEmail);
             refreshUIBalances();
             refreshLiveCalculations();
             await fetchTransactions();
+            await loadCreditCardData();
 
             lastDataRefreshTime = Date.now();
             updateDataFreshnessLabel();
@@ -3544,25 +3516,6 @@ updateHeaderUserEmail(currentUserEmail);
             }
         }
 
-        generateRandomCreditTransactions(12);
-
-        creditClearedHistoryContainer.addEventListener('scroll', () => {
-            if (isGeneratingTransactions) return;
-
-            const currentScrollTop = creditClearedHistoryContainer.scrollTop;
-            const absoluteScrollHeight = creditClearedHistoryContainer.scrollHeight;
-            const containerClientHeight = creditClearedHistoryContainer.clientHeight;
-
-            if ((currentScrollTop + containerClientHeight) >= (absoluteScrollHeight - 45)) {
-                isGeneratingTransactions = true;
-                
-                setTimeout(() => {
-                    generateRandomCreditTransactions(6);
-                    isGeneratingTransactions = false;
-                }, 400);
-            }
-        });
-
         // SETTINGS HUB STATE
         let notifPrefs = { push: true, email: true, txn: true, marketing: false };
         let appearanceMode = 'light';
@@ -4145,6 +4098,195 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreSessionOnLoad();
 });
 
+
+        let cardData = null;
+
+        async function loadCreditCardData() {
+            try {
+                const res = await fetch('/api/account-services?resource=credit-card', { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                cardData = data;
+
+                const currencyFormatter = new Intl.NumberFormat('en-US', {
+                    style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2
+                });
+
+                const balanceLabel = document.getElementById('cardCurrentBalanceLabel');
+                const availableLabel = document.getElementById('cardAvailableCreditLabel');
+                const portfolioLabel = document.getElementById('creditPortfolioBalanceLabel');
+                const lastFourLabel = document.getElementById('cardLastFourLabel');
+                const velocityText = document.getElementById('cardVelocityLimitText');
+                const velocitySlider = document.getElementById('cardVelocitySlider');
+
+                if (balanceLabel) balanceLabel.innerText = currencyFormatter.format(data.balance);
+                if (availableLabel) availableLabel.innerText = currencyFormatter.format(data.availableCredit);
+                if (portfolioLabel) portfolioLabel.innerText = currencyFormatter.format(data.balance);
+                if (lastFourLabel) lastFourLabel.innerText = data.lastFour;
+                if (velocityText) velocityText.innerText = currencyFormatter.format(data.velocityLimit);
+                if (velocitySlider) velocitySlider.value = data.velocityLimit;
+
+                applyFreezeVisualState(data.isFrozen);
+                renderCardTransactions(data.transactions || []);
+            } catch (err) {
+                console.error('Failed to load credit card data:', err);
+            }
+        }
+
+        function applyFreezeVisualState(isFrozen) {
+            cardIsFrozen = isFrozen;
+            const cardElement = document.getElementById('visualCreditCard');
+            const toggleContainer = document.getElementById('freezeToggleNode');
+            const toggleBall = toggleContainer ? toggleContainer.querySelector('div') : null;
+            if (!cardElement || !toggleContainer || !toggleBall) return;
+
+            if (isFrozen) {
+                cardElement.classList.add('opacity-40', 'grayscale-[40%]');
+                toggleContainer.classList.remove('bg-gray-200');
+                toggleContainer.classList.add('bg-indigo-600');
+                toggleBall.classList.add('translate-x-3');
+            } else {
+                cardElement.classList.remove('opacity-40', 'grayscale-[40%]');
+                toggleContainer.classList.remove('bg-indigo-600');
+                toggleContainer.classList.add('bg-gray-200');
+                toggleBall.classList.remove('translate-x-3');
+            }
+        }
+
+        async function toggleCardFreezeState() {
+            const btn = document.getElementById('cardFreezeBtn');
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'credit-card', cardAction: 'toggleFreeze' })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Could not update freeze status.');
+                    return;
+                }
+                applyFreezeVisualState(data.isFrozen);
+            } catch (err) {
+                console.error('Freeze toggle error:', err);
+                alert('Network error updating freeze status.');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function saveCardVelocityLimit(value) {
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'credit-card', cardAction: 'setVelocityLimit', velocityLimit: parseFloat(value) })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Could not update transaction limit.');
+                }
+            } catch (err) {
+                console.error('Velocity limit save error:', err);
+            }
+        }
+
+        function renderCardTransactions(transactions) {
+            const container = document.getElementById('creditTab-cleared');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 font-medium">No card activity yet.</div>';
+                return;
+            }
+
+            transactions.forEach(txn => {
+                const isPayment = txn.type === 'credit_payment';
+                const amountAbs = Math.abs(parseFloat(txn.amount));
+                const displayAmount = `${isPayment ? '-' : ''}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+
+                const row = document.createElement('div');
+                row.className = "p-3 bg-white rounded-xl border border-gray-200 flex justify-between items-center group active:bg-gray-50 cursor-pointer";
+                row.onclick = function () {
+                    openReceiptModal(txn.description, `#CRD-${txn.id}`, displayAmount, {
+                        timestamp: txn.created_at,
+                        type: isPayment ? 'Card Payment' : 'Card Purchase'
+                    });
+                };
+                row.innerHTML = `
+                    <div class="min-w-0 pr-2">
+                        <h4 class="text-xs font-bold text-gray-900 truncate">${txn.description}</h4>
+                        <p class="text-[9px] text-gray-400 font-mono truncate">${dateStr} | Trace #CRD-${txn.id}</p>
+                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt</span>
+                    </div>
+                    <span class="text-xs font-bold font-mono ${isPayment ? 'text-emerald-600' : 'text-gray-950'} shrink-0">${displayAmount}</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        async function makeCardPayment() {
+            if (!cardData) {
+                alert('Card data not loaded yet. Please try again in a moment.');
+                return;
+            }
+            if (cardData.balance <= 0) {
+                alert('Your card balance is already $0.00 — nothing to pay.');
+                return;
+            }
+
+            const input = prompt(`Current card balance: $${cardData.balance.toFixed(2)}\n\nHow much would you like to pay from checking?`, cardData.balance.toFixed(2));
+            if (input === null) return;
+
+            const amount = parseFloat(input);
+            if (!Number.isFinite(amount) || amount <= 0) {
+                alert('Enter a valid payment amount.');
+                return;
+            }
+
+            const loader = document.getElementById('loadingOverlay');
+            if (loader) loader.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'credit-card', cardAction: 'makePayment', amount })
+                });
+                const data = await res.json();
+
+                if (loader) loader.classList.add('hidden');
+
+                if (!res.ok) {
+                    alert(data.error || 'Payment failed. Please try again.');
+                    return;
+                }
+
+                await loadRealAccountData(); // refreshes checking balance + transactions
+                await loadCreditCardData();  // refreshes card balance + card transactions
+
+                const banner = document.getElementById('successBanner');
+                if (banner) {
+                    banner.classList.remove('-translate-y-full');
+                    banner.classList.add('translate-y-4');
+                    bannerTimeoutId = setTimeout(() => {
+                        banner.classList.remove('translate-y-4');
+                        banner.classList.add('-translate-y-full');
+                    }, 5000);
+                }
+            } catch (err) {
+                if (loader) loader.classList.add('hidden');
+                console.error('Card payment error:', err);
+                alert('Network error making payment. Please try again.');
+            }
+        }
 
         initLiveInvestmentEngine();
     </script>
