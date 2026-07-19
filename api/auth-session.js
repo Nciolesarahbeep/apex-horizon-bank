@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
 const { normalizeEmail, signToken, setSessionCookie, clearSessionCookie } = require('../lib/auth');
+const { logSignInActivity } = require('../lib/loginActivity');
+
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -57,9 +59,12 @@ module.exports = async function handler(req, res) {
       const token = signToken({ userId: user.id, email: user.email });
       // Default to true if the field is missing entirely, so older clients
       // that don't send it yet keep the previous "always remembered" behavior.
-      setSessionCookie(res, token, rememberDevice !== false);
+           setSessionCookie(res, token, rememberDevice !== false);
+
+      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password' });
 
       return res.status(200).json({
+
         user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
       });
     } catch (err) {
