@@ -293,6 +293,15 @@
             <div class="mt-5 w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
         </div>
 
+        <div id="logoutSequenceLoader" class="hidden fixed inset-0 z-[10000] bg-slate-950 flex flex-col items-center justify-center px-8 text-center">
+            <div class="relative w-14 h-14 flex items-center justify-center mb-4">
+                <div class="absolute inset-0 bg-red-500/15 rounded-full animate-ping"></div>
+                <div class="relative rounded-full h-12 w-12 border-4 border-red-400 border-t-transparent animate-spin"></div>
+            </div>
+            <p id="logoutStatusTitle" class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Closing Secure Session...</p>
+            <p id="logoutDescriptionText" class="text-[10px] text-slate-400 mt-2 max-w-xs leading-relaxed">Encrypting session data and clearing local credentials.</p>
+        </div>
+
         <div id="authScreen" class="hidden w-full flex-1 flex items-center justify-center bg-slate-900 px-4 py-8">
             <div class="w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                 <div class="bg-slate-950 p-6 text-center border-b border-gray-800">
@@ -1855,6 +1864,7 @@
         function showLoginScreen() {
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
+            sessionStorage.removeItem('ahb_dashboard_active');
             if (notifPollIntervalId) {
                 clearInterval(notifPollIntervalId);
                 notifPollIntervalId = null;
@@ -1864,17 +1874,37 @@
         function showDashboardScreen() {
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('dashboardApp').classList.remove('hidden');
+            sessionStorage.setItem('ahb_dashboard_active', '1');
             refreshUIBalances();
             renderActiveAdState();
             startNotificationPolling();
         }
 
         async function restoreSessionOnLoad() {
-            // Always require an explicit sign-in — never auto-restore a session,
-            // even if a browser cookie from a previous "remember device" session
-            // is still lingering. We also proactively clear that old cookie here
-            // so it can't silently authenticate a later request.
+            // If the dashboard was open before this page refresh (tracked via
+            // sessionStorage, which clears when the tab/browser actually closes),
+            // verify the session is still valid server-side and restore it —
+            // a refresh shouldn't kick an actively-signed-in user back to login.
+            // Otherwise, always require an explicit sign-in and clear any
+            // lingering cookie from a previous session.
             const splash = document.getElementById('sessionCheckSplash');
+            const wasActive = sessionStorage.getItem('ahb_dashboard_active') === '1';
+
+            if (wasActive) {
+                try {
+                    const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 700);
+                    if (res.ok) {
+                        await loadRealAccountData();
+                        splash.classList.add('hidden');
+                        showDashboardScreen();
+                        checkForEmailChangeTokenInUrl();
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Session restore check failed:', err);
+                }
+                sessionStorage.removeItem('ahb_dashboard_active');
+            }
 
             try {
                 await withMinDelay(
@@ -3222,12 +3252,29 @@ updateHeaderUserEmail(currentUserEmail);
         }
 
         async function handleSignOut() {
+            const loader = document.getElementById('logoutSequenceLoader');
+            const titleEl = document.getElementById('logoutStatusTitle');
+            const descEl = document.getElementById('logoutDescriptionText');
+
+            loader.classList.remove('hidden');
+            titleEl.innerText = 'Closing Secure Session...';
+            descEl.innerText = 'Encrypting session data and clearing local credentials.';
+
+            await new Promise(resolve => setTimeout(resolve, 900));
+
             try {
               await fetch('/api/auth-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ action: 'logout' }) });
 
             } catch (err) {
                 console.error('Logout error:', err);
             }
+
+            titleEl.innerText = 'Session Closed';
+            descEl.innerText = 'You have been securely signed out of Apex Horizon Bank.';
+
+            await new Promise(resolve => setTimeout(resolve, 700));
+
+            loader.classList.add('hidden');
             showLoginScreen();
             viewHistory = ['summary']; 
             currentAdIndex = 1;
