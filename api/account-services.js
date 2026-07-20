@@ -576,7 +576,161 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", or "email-change".' });
+  // ---------- Loans ----------
+  if (resource === 'loans') {
+    function calculateAmortization(principal, annualRate, termMonths) {
+      const monthlyRate = annualRate / 12;
+      const monthlyPayment = monthlyRate === 0
+        ? principal / termMonths
+        : (principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
+      const totalPaid = monthlyPayment * termMonths;
+      const totalInterest = totalPaid - principal;
+      return { monthlyPayment, totalInterest, totalPaid };
+    }
+
+    if (req.method === 'GET') {
+      try {
+        const loans = await sql`
+          SELECT id, principal, remaining_balance, interest_rate, term_months, monthly_payment, status, purpose, created_at, disbursed_at, paid_off_at
+          FROM loans WHERE user_id = ${session.userId} ORDER BY created_at DESC
+        `;
+        return res.status(200).json({ loans });
+      } catch (err) {
+        console.error('Get loans error:', err);
+        return res.status(500).json({ error: 'Failed to fetch loans.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { loanAction } = req.body || {};
+
+        if (loanAction === 'apply') {
+          const principal = Number(req.body.principal);
+          const annualRate = Number(req.body.annualRate);
+          const termMonths = Number(req.body.termMonths);
+          const purpose = String(req.body.purpose || '').trim();
+          const monthlyIncome = Number(req.body.monthlyIncome);
+          const employmentStatus = String(req.body.employmentStatus || '').trim();
+
+          if (!Number.isFinite(principal) || principal < 1000 || principal > 250000) {
+            return res.status(400).json({ error: 'Loan amount must be between $1,000 and $250,000.' });
+          }
+          if (!Number.isFinite(termMonths) || termMonths < 6 || termMonths > 84) {
+            return res.status(400).json({ error: 'Term must be between 6 and 84 months.' });
+          }
+          if (!Number.isFinite(annualRate) || annualRate <= 0 || annualRate > 0.30) {
+            return res.status(400).json({ error: 'Invalid interest rate.' });
+          }
+          if (!purpose) {
+            return res.status(400).json({ error: 'Please tell us the purpose of this loan.' });
+          }
+          if (!Number.isFinite(monthlyIncome) || monthlyIncome <= 0) {
+            return res.status(400).json({ error: 'Please enter a valid monthly income.' });
+          }
+          if (!employmentStatus) {
+            return res.status(400).json({ error: 'Please select your employment status.' });
+          }
+
+          const accountRows = await sql`
+            SELECT COALESCE(SUM(balance), 0) AS total_balance
+            FROM accounts WHERE user_id = ${session.userId}
+          `;
+          const totalBalance = Number(accountRows[0].total_balance);
+          if (totalBalance < principal * 0.10) {
+            return res.status(400).json({
+              error: `Based on your current balances, you're not eligible for a loan this large. Try a lower amount or check back after your balance grows.`
+            });
+          }
+
+          const { monthlyPayment, totalInterest, totalPaid } = calculateAmortization(principal, annualRate, termMonths);
+
+          const checkingRows = await sql`
+            SELECT id FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1
+          `;
+          if (checkingRows.length === 0) {
+            return res.status(400).json({ error: 'No checking account found to attach this loan to.' });
+          }
+
+          const userRows = await sql`SELECT full_name FROM users WHERE id = ${session.userId} LIMIT 1`;
+          const applicantName = userRows[0]?.full_name || null;
+
+          const loanRows = await sql`
+            INSERT INTO loans (user_id, account_id, principal, interest_rate, term_months, monthly_payment, status, purpose, monthly_income, employment_status, applicant_name)
+            VALUES (${session.userId}, ${checkingRows[0].id}, ${principal}, ${annualRate}, ${termMonths}, ${monthlyPayment}, 'pending', ${purpose}, ${monthlyIncome}, ${employmentStatus}, ${applicantName})
+            RETURNING id, principal, interest_rate, term_months, monthly_payment, status, purpose, created_at
+          `;
+
+          return res.status(200).json({
+            success: true,
+            message: 'Application submitted successfully. Your loan is pending review and you\'ll be notified once a decision is made.',
+            loan: loanRows[0],
+            summary: { monthlyPayment, totalInterest, totalPaid }
+          });
+        }
+
+        if (loanAction === 'makePayment') {
+          const amount = Number(req.body.amount);
+          if (!Number.isFinite(amount) || amount <= 0) {
+            return res.status(400).json({ error: 'Enter a valid payment amount.' });
+          }
+
+          const loanRows = await sql`
+            SELECT id, account_id, remaining_balance, status
+            FROM loans WHERE id = ${req.body.loanId} AND user_id = ${session.userId} LIMIT 1
+          `;
+          if (loanRows.length === 0) return res.status(404).json({ error: 'Loan not found.' });
+          const loan = loanRows[0];
+
+          if (loan.status !== 'active') {
+            return res.status(400).json({ error: 'This loan is not active.' });
+          }
+          if (amount > Number(loan.remaining_balance)) {
+            return res.status(400).json({ error: 'Payment exceeds remaining loan balance.' });
+          }
+
+          const checkingRows = await sql`
+            SELECT id, balance FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1
+          `;
+          if (checkingRows.length === 0) return res.status(404).json({ error: 'Checking account not found.' });
+          const checking = checkingRows[0];
+
+          if (Number(checking.balance) < amount) {
+            return res.status(400).json({ error: 'Insufficient funds in checking to make this payment.' });
+          }
+
+          const newRemaining = Number(loan.remaining_balance) - amount;
+          const newStatus = newRemaining <= 0 ? 'paid_off' : 'active';
+
+          await sql`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${checking.id}`;
+          await sql`
+            UPDATE loans SET remaining_balance = ${newRemaining}, status = ${newStatus}, paid_off_at = ${newRemaining <= 0 ? new Date().toISOString() : null}
+            WHERE id = ${loan.id}
+          `;
+
+          const paymentDescription = `Loan Payment — Loan #${loan.id}`;
+          await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${checking.id}, 'debit', ${amount}, ${paymentDescription}, NOW())
+          `;
+
+          return res.status(200).json({
+            success: true,
+            message: newStatus === 'paid_off' ? 'Payment successful — loan fully paid off!' : `Payment of $${amount.toFixed(2)} applied. Remaining balance: $${newRemaining.toFixed(2)}.`,
+            remainingBalance: newRemaining,
+            status: newStatus
+          });
+        }
+
+        return res.status(400).json({ error: 'Invalid loanAction. Use "apply" or "makePayment".' });
+      } catch (err) {
+        console.error('Loan action error:', err);
+        return res.status(500).json({ error: 'Failed to process loan action.' });
+      }
+    }
+  }
+
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", or "loans".' });
 
 
 
