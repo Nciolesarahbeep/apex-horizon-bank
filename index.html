@@ -315,13 +315,8 @@
                             <input type="password" id="loginPasswordInput" placeholder="••••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
                         </div>
 
-                        <div class="flex items-center justify-between text-[11px] pt-1">
-                            <label class="flex items-center space-x-1.5 text-gray-500 cursor-pointer">
-                                <input type="checkbox" id="rememberDeviceCheckbox" checked class="accent-emerald-600 rounded">
-                                <span>Remember device</span>
-                            </label>
+                        <div class="flex items-center justify-end text-[11px] pt-1">
 <button type="button" onclick="openForgotPasswordModal()" class="text-emerald-600 font-semibold hover:underline">Forgot?</button>
-
                         </div>
 
                         <button type="submit" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
@@ -1855,36 +1850,11 @@
         }
 
         async function restoreSessionOnLoad() {
-            // No JS workaround needed anymore — the cookie itself now follows real
-            // browser protocol. If "Remember device" was checked, the cookie persists
-            // and this restores the session. If not, the browser clears the cookie
-            // the moment it's fully closed, so this check will simply come back 401.
+            // Always require an explicit sign-in — no auto-restore from a saved
+            // session cookie, even if "Remember device" is checked server-side.
             const splash = document.getElementById('sessionCheckSplash');
-
-            try {
-                const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 500);
-
-                if (!res.ok) {
-                    // No valid session — reveal the login screen, never the dashboard.
-                    splash.classList.add('hidden');
-                    document.getElementById('authScreen').classList.remove('hidden');
-                    return;
-                }
-
-                await loadRealAccountData();
-
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('dashboardApp').classList.remove('hidden');
-                refreshUIBalances();
-                renderActiveAdState();
-                startNotificationPolling();
-                checkForEmailChangeTokenInUrl();
-                splash.classList.add('hidden');
-            } catch (err) {
-                console.error('Session restore check failed:', err);
-                splash.classList.add('hidden');
-                document.getElementById('authScreen').classList.remove('hidden');
-            }
+            splash.classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
         }
 
         async function fetchAndRenderNotifications(isPoll) {
@@ -2850,7 +2820,7 @@ updateHeaderUserEmail(currentUserEmail);
             const originalContent = submitBtn.innerHTML;
             const email = document.getElementById('loginEmailInput').value;
             const password = document.getElementById('loginPasswordInput').value;
-            const rememberDevice = document.getElementById('rememberDeviceCheckbox').checked;
+            const rememberDevice = false;
 
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
