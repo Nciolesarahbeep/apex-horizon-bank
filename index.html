@@ -1335,8 +1335,33 @@
                                 <div class="flex justify-between border-t border-slate-800 pt-1"><span class="text-slate-400">Cumulative Interest Hazards:</span><span id="calcTotalInterest" class="text-white font-bold">$1,568.72</span></div>
                             </div>
 
-                            <button onclick="triggerPreQualificationAssessment()" class="w-full bg-slate-100 hover:bg-gray-200 text-slate-900 border border-gray-300 font-semibold text-xs py-2 rounded-lg transition cursor-pointer">
-                                Query Live Underwriting Check
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Loan Purpose</label>
+                                <input type="text" id="loanPurposeInput" placeholder="e.g. Home renovation, debt consolidation" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-xs focus:outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Monthly Income ($)</label>
+                                <input type="number" id="loanIncomeInput" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-xs font-mono focus:outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Employment Status</label>
+                                <select id="loanEmploymentSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option value="">Select...</option>
+                                    <option value="full_time">Employed Full-Time</option>
+                                    <option value="part_time">Employed Part-Time</option>
+                                    <option value="self_employed">Self-Employed</option>
+                                    <option value="unemployed">Unemployed</option>
+                                    <option value="retired">Retired</option>
+                                    <option value="student">Student</option>
+                                </select>
+                            </div>
+
+                            <p id="loanApplyError" class="hidden text-[10px] text-red-500 font-semibold"></p>
+
+                            <button onclick="submitLoanApplication()" id="loanApplyBtn" class="w-full bg-slate-100 hover:bg-gray-200 text-slate-900 border border-gray-300 font-semibold text-xs py-2 rounded-lg transition cursor-pointer">
+                                Submit Loan Application
                             </button>
                         </div>
                     </div>
@@ -1734,6 +1759,7 @@
                 switchView(targetViewId);
                 if (targetViewId === 'loans') {
                     runLiveLoanCalculator();
+                    loadMyLoans();
                 }
                 if (targetViewId === 'credit') {
                     loadCreditCardData();
@@ -2025,14 +2051,82 @@
             if (dropdown) dropdown.classList.add('hidden');
         });
 
-        function triggerPreQualificationAssessment() {
+        async function submitLoanApplication() {
+            const apr = parseFloat(document.getElementById('utilityProductSelect').value);
+            const principal = parseFloat(document.getElementById('loanCalculatorAmountSlider').value);
+            const termMonths = parseInt(document.getElementById('loanCalculatorTermSlider').value);
+            const purpose = document.getElementById('loanPurposeInput').value.trim();
+            const monthlyIncome = parseFloat(document.getElementById('loanIncomeInput').value);
+            const employmentStatus = document.getElementById('loanEmploymentSelect').value;
+            const errorEl = document.getElementById('loanApplyError');
+            const btn = document.getElementById('loanApplyBtn');
+
+            errorEl.classList.add('hidden');
+
+            if (!purpose) {
+                errorEl.innerText = 'Please tell us the purpose of this loan.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (!monthlyIncome || monthlyIncome <= 0) {
+                errorEl.innerText = 'Please enter a valid monthly income.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (!employmentStatus) {
+                errorEl.innerText = 'Please select your employment status.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const originalBtnText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Submitting application...';
+
             const preQualLoader = document.getElementById('preQualLoader');
             preQualLoader.classList.remove('hidden');
-            
-            setTimeout(() => {
+
+            try {
+                const res = await withMinDelay(fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        resource: 'loans',
+                        loanAction: 'apply',
+                        principal,
+                        annualRate: apr,
+                        termMonths,
+                        purpose,
+                        monthlyIncome,
+                        employmentStatus
+                    })
+                }), 1300);
+                const data = await res.json();
+
                 preQualLoader.classList.add('hidden');
-                alert(`Automated Credit Underwriting Check Complete. Risk Matrix evaluation verified profile as highly eligible.`);
-            }, 1300); 
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+
+                if (!res.ok) {
+                    errorEl.innerText = data.error || 'Could not submit loan application.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                document.getElementById('loanPurposeInput').value = '';
+                document.getElementById('loanIncomeInput').value = '';
+                document.getElementById('loanEmploymentSelect').value = '';
+
+                alert(data.message || 'Application submitted successfully. Your loan is pending review.');
+                await loadMyLoans();
+            } catch (err) {
+                preQualLoader.classList.add('hidden');
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+                errorEl.innerText = 'Network error. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
         }
 
         function dismissAndRedirectToDashboard() {
@@ -2777,6 +2871,7 @@ updateHeaderUserEmail(currentUserEmail);
             refreshLiveCalculations();
             await fetchTransactions();
             await loadCreditCardData();
+            await loadMyLoans();
 
             lastDataRefreshTime = Date.now();
             updateDataFreshnessLabel();
@@ -3096,8 +3191,63 @@ updateHeaderUserEmail(currentUserEmail);
         }
 
         function showActiveLoanDetail() {
+            if (!currentActiveLoan) return;
             const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-            alert(`Active Debt Node\n\nRemaining balance: ${currencyFormatter.format(activeLoanBalanceValue)}\nOriginal term: 36 months\nNext installment: $585.12 due June 15\nRate: 5.95% APR`);
+            alert(`Loan #${currentActiveLoan.id}\n\nPrincipal: ${currencyFormatter.format(currentActiveLoan.principal)}\nStatus: ${currentActiveLoan.status}\nTerm: ${currentActiveLoan.term_months} months\nMonthly Payment: ${currencyFormatter.format(currentActiveLoan.monthly_payment)}\nRate: ${(Number(currentActiveLoan.interest_rate) * 100).toFixed(2)}% APR\nPurpose: ${currentActiveLoan.purpose || '—'}`);
+        }
+
+        let currentActiveLoan = null;
+
+        async function loadMyLoans() {
+            try {
+                const res = await fetch('/api/account-services?resource=loans', { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                const loans = data.loans || [];
+
+                const container = document.getElementById('activeLoanContainer');
+                if (!container) return;
+
+                const active = loans.find(l => l.status === 'active');
+                const pending = loans.find(l => l.status === 'pending');
+                const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+                if (active) {
+                    currentActiveLoan = active;
+                    container.innerHTML = `
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <span onclick="showActiveLoanDetail()" class="text-[9px] font-mono tracking-widest text-amber-400 uppercase font-bold cursor-pointer"><i class="fa-solid fa-circle-dot animate-pulse mr-1"></i> Active Debt Node</span>
+                            <span class="text-[9px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">Term: ${active.term_months} Mo</span>
+                        </div>
+                        <div class="flex justify-between items-end pt-2">
+                            <div>
+                                <p class="text-[9px] text-slate-400 uppercase font-bold">Principal</p>
+                                <h3 class="text-xl font-bold font-mono tracking-tight">${currencyFormatter.format(active.principal)}</h3>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[9px] text-slate-400 uppercase font-bold">Monthly Payment</p>
+                                <p class="text-xs font-bold font-mono text-emerald-400">${currencyFormatter.format(active.monthly_payment)}</p>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400 pt-1">${active.purpose || ''}</p>
+                    `;
+                } else if (pending) {
+                    currentActiveLoan = pending;
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-amber-400 font-medium text-xs">
+                            <i class="fa-solid fa-clock text-lg block mb-1"></i> Application Pending Review
+                            <p class="text-[10px] text-slate-400 mt-1 font-normal">${currencyFormatter.format(pending.principal)} requested for ${pending.purpose || 'loan purpose'}</p>
+                        </div>`;
+                } else {
+                    currentActiveLoan = null;
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-slate-400 font-medium text-xs">
+                            <i class="fa-solid fa-circle-info text-lg block mb-1"></i> No active loans. Apply below.
+                        </div>`;
+                }
+            } catch (err) {
+                console.error('Failed to load loans:', err);
+            }
         }
 
         function runLoginSequence() {
