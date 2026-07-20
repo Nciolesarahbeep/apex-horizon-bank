@@ -1273,29 +1273,11 @@
                                 <p class="text-xs font-bold font-mono text-emerald-400">$585.12 <span class="text-[9px] text-slate-400 font-normal">due June 15</span></p>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 pt-1">
-                            <button onclick="repayActiveLoan()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs py-2 rounded-lg transition cursor-pointer">
+                        <div class="pt-1">
+                            <button onclick="repayActiveLoan()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs py-2 rounded-lg transition cursor-pointer">
                                 Make Repayment
                             </button>
-                            <button onclick="topUpLoan()" class="bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs py-2 rounded-lg transition border border-slate-700 cursor-pointer">
-                                Request Top-Up
-                            </button>
                         </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
-                        <div class="flex items-center space-x-2 text-gray-900">
-                            <i onclick="showInstantLoanInfo()" class="fa-solid fa-bolt text-amber-500 cursor-pointer"></i>
-                            <h3 class="text-[10px] font-bold uppercase tracking-wider">Instant Salary Disbursal</h3>
-                        </div>
-                        <p class="text-[11px] text-gray-500 leading-normal">Pre-approved short-term capital limits calculated based on automated evaluation loops of account turnover.</p>
-                        <div class="bg-amber-50/70 border border-amber-200 p-2.5 rounded-lg flex justify-between items-center font-mono text-xs">
-                            <span class="text-[10px] text-amber-900 font-bold uppercase">Max Pre-Approved Cash:</span>
-                            <span class="text-sm font-bold text-slate-950">$3,500.00</span>
-                        </div>
-                        <button onclick="disburseInstantLoan()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-lg transition cursor-pointer">
-                            Disburse Instant Cash Node
-                        </button>
                     </div>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
@@ -2582,59 +2564,42 @@
             document.getElementById('calcTotalInterest').innerText = currencyFormatter.format(cumulativeInterest);
         }
 
-        function repayActiveLoan() {
-            const repaymentAmount = 585.12;
-            if (rawBalanceValue < repaymentAmount) {
-                alert("Insufficient core settlement funds in checking ledger to dispatch payment.");
+        async function repayActiveLoan() {
+            if (!currentActiveLoan || currentActiveLoan.status !== 'active') {
+                alert('No active loan to make a payment on.');
                 return;
             }
 
-            if (activeLoanBalanceValue <= 0) {
-                alert("Debt structure completely liquidated and post-closed.");
+            const suggested = Number(currentActiveLoan.monthly_payment).toFixed(2);
+            const input = prompt(`Remaining balance: $${Number(currentActiveLoan.remaining_balance ?? currentActiveLoan.principal).toFixed(2)}\n\nHow much would you like to pay?`, suggested);
+            if (input === null) return;
+
+            const amount = parseFloat(input);
+            if (!Number.isFinite(amount) || amount <= 0) {
+                alert('Enter a valid payment amount.');
                 return;
             }
-
-            const confirmPayment = confirm(`Authorize $${repaymentAmount} payment transfer from primary checking node?`);
-            if (!confirmPayment) return;
 
             const loader = document.getElementById('loadingOverlay');
             loader.classList.remove('hidden');
 
-            setTimeout(() => {
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'loans', loanAction: 'makePayment', loanId: currentActiveLoan.id, amount })
+                });
+                const data = await res.json();
                 loader.classList.add('hidden');
-                rawBalanceValue -= repaymentAmount;
-                activeLoanBalanceValue = Math.max(0, activeLoanBalanceValue - repaymentAmount);
-                refreshUIBalances();
 
-                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
-                const systemTraceString = `#TXN-${traceRandomId}`;
-                const formattedAmountString = `-$${repaymentAmount.toFixed(2)}`;
-                const ledgerDescription = "Loan Payment | Core Loan Amortization";
-
-                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
-                const ledgerLogNode = document.createElement('div');
-                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
-                
-                ledgerLogNode.onclick = function() {
-                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
-                };
-
-                ledgerLogNode.innerHTML = `
-                    <div class="min-w-0 pr-2">
-                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
-                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
-                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
-                    </div>
-                    <span class="font-mono text-xs font-bold text-red-600 shrink-0">${formattedAmountString}</span>
-                `;
-                liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
-
-                if (activeLoanBalanceValue === 0) {
-                    document.getElementById('activeLoanContainer').innerHTML = `
-                        <div class="text-center py-4 text-slate-400 font-medium text-xs">
-                            <i class="fa-solid fa-circle-check text-emerald-400 text-lg block mb-1"></i> Loan Fully Settled.
-                        </div>`;
+                if (!res.ok) {
+                    alert(data.error || 'Payment failed. Please try again.');
+                    return;
                 }
+
+                await loadRealAccountData();
+                alert(data.message);
 
                 const banner = document.getElementById('successBanner');
                 banner.classList.remove('-translate-y-full');
@@ -2643,75 +2608,10 @@
                     banner.classList.remove('translate-y-4');
                     banner.classList.add('-translate-y-full');
                 }, 5000);
-            }, 1500);
-        }
-
-        function topUpLoan() {
-            if (activeLoanBalanceValue <= 0) {
-                alert("No active matching loan infrastructure profile found to top up.");
-                return;
+            } catch (err) {
+                loader.classList.add('hidden');
+                alert('Network error making payment. Please try again.');
             }
-            const preQualLoader = document.getElementById('preQualLoader');
-            preQualLoader.classList.remove('hidden');
-
-            setTimeout(() => {
-                preQualLoader.classList.add('hidden');
-                activeLoanBalanceValue += 5000.00;
-                rawBalanceValue += 5000.00;
-                refreshUIBalances();
-                alert("Loan Top-Up Authorized! $5,000.00 capital addition added directly to active accounts.");
-            }, 1500);
-        }
-
-        function disburseInstantLoan() {
-            const disbursalAmount = 3500.00;
-            const confirmDisbursal = confirm(`Authorize instantaneous ledger assignment of $${disbursalAmount.toLocaleString()} to primary checking framework?`);
-            if (!confirmDisbursal) return;
-
-            const loader = document.getElementById('bubbleLoader');
-            loader.classList.remove('hidden');
-
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                rawBalanceValue += disbursalAmount;
-                
-                const activeCard = document.getElementById('activeLoanContainer');
-                if (activeCard && !activeCard.innerText.includes("Loan Fully Settled")) {
-                    activeLoanBalanceValue += disbursalAmount;
-                }
-                refreshUIBalances();
-
-                const traceRandomId = Math.floor(1000 + Math.random() * 9000);
-                const systemTraceString = `#TXN-${traceRandomId}`;
-                const formattedAmountString = `+$${disbursalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-                const ledgerDescription = "Instant Cash Advance Disbursal";
-
-                const liveWireLogContainer = document.getElementById('liveWireLogContainer');
-                const ledgerLogNode = document.createElement('div');
-                ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
-                
-                ledgerLogNode.onclick = function() {
-                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
-                };
-
-                ledgerLogNode.innerHTML = `
-                    <div class="min-w-0 pr-2">
-                        <p class="text-xs font-bold text-gray-900 truncate">${ledgerDescription}</p>
-                        <p class="text-[9px] text-gray-400 font-mono">Today | ID ${systemTraceString}</p>
-                        <span class="inline-block text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 rounded mt-0.5">Receipt Proof</span>
-                    </div>
-                    <span class="font-mono text-xs font-bold text-emerald-600 shrink-0">${formattedAmountString}</span>
-                `;
-                liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
-
-                const banner = document.getElementById('successBanner');
-                banner.classList.remove('-translate-y-full');
-                banner.classList.add('translate-y-4');
-                bannerTimeoutId = setTimeout(() => {
-                    banner.classList.remove('translate-y-4');
-                    banner.classList.add('-translate-y-full');
-                }, 5000);
-            }, 1800);
         }
 
         function setAPYWithdrawPercent(pct) {
@@ -3186,10 +3086,6 @@ updateHeaderUserEmail(currentUserEmail);
             runLiveLoanCalculator();
         }
 
-        function showInstantLoanInfo() {
-            alert("Instant Salary Disbursal is calculated from your average 90-day account turnover. No credit check required. Funds post immediately to checking.");
-        }
-
         function showActiveLoanDetail() {
             if (!currentActiveLoan) return;
             const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -3221,8 +3117,8 @@ updateHeaderUserEmail(currentUserEmail);
                         </div>
                         <div class="flex justify-between items-end pt-2">
                             <div>
-                                <p class="text-[9px] text-slate-400 uppercase font-bold">Principal</p>
-                                <h3 class="text-xl font-bold font-mono tracking-tight">${currencyFormatter.format(active.principal)}</h3>
+                                <p class="text-[9px] text-slate-400 uppercase font-bold">Remaining Balance</p>
+                                <h3 class="text-xl font-bold font-mono tracking-tight">${currencyFormatter.format(active.remaining_balance ?? active.principal)}</h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-[9px] text-slate-400 uppercase font-bold">Monthly Payment</p>
