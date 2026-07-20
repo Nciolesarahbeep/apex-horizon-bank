@@ -1849,12 +1849,49 @@
             notifPollIntervalId = setInterval(() => fetchAndRenderNotifications(true), 30000);
         }
 
-        async function restoreSessionOnLoad() {
-            // Always require an explicit sign-in — no auto-restore from a saved
-            // session cookie, even if "Remember device" is checked server-side.
-            const splash = document.getElementById('sessionCheckSplash');
-            splash.classList.add('hidden');
+        // Single source of truth for which screen is visible — every login/logout/
+        // reload path routes through these two functions so the two screens can
+        // never both end up visible (or both hidden) at the same time.
+        function showLoginScreen() {
+            document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
+            if (notifPollIntervalId) {
+                clearInterval(notifPollIntervalId);
+                notifPollIntervalId = null;
+            }
+        }
+
+        function showDashboardScreen() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('dashboardApp').classList.remove('hidden');
+            refreshUIBalances();
+            renderActiveAdState();
+            startNotificationPolling();
+        }
+
+        async function restoreSessionOnLoad() {
+            // Always require an explicit sign-in — never auto-restore a session,
+            // even if a browser cookie from a previous "remember device" session
+            // is still lingering. We also proactively clear that old cookie here
+            // so it can't silently authenticate a later request.
+            const splash = document.getElementById('sessionCheckSplash');
+
+            try {
+                await withMinDelay(
+                    fetch('/api/auth-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ action: 'logout' })
+                    }).catch(() => {}),
+                    900
+                );
+            } catch (err) {
+                // Cleanup only — never block showing the login screen on this.
+            }
+
+            splash.classList.add('hidden');
+            showLoginScreen();
         }
 
         async function fetchAndRenderNotifications(isPoll) {
@@ -3155,11 +3192,7 @@ updateHeaderUserEmail(currentUserEmail);
                 if (currentStep > totalSteps) {
                     setTimeout(() => {
                         sequenceLoader.classList.add('hidden');
-                        document.getElementById('authScreen').classList.add('hidden');
-                        document.getElementById('dashboardApp').classList.remove('hidden');
-                        refreshUIBalances();
-                        renderActiveAdState();
-                        startNotificationPolling();
+                        showDashboardScreen();
 
                         if (pendingWelcomeAccountNumber) {
                             showAccountNumberPopup(pendingWelcomeFullName, pendingWelcomeAccountNumber);
@@ -3195,12 +3228,7 @@ updateHeaderUserEmail(currentUserEmail);
             } catch (err) {
                 console.error('Logout error:', err);
             }
-            if (notifPollIntervalId) {
-                clearInterval(notifPollIntervalId);
-                notifPollIntervalId = null;
-            }
-            document.getElementById('dashboardApp').classList.add('hidden');
-            document.getElementById('authScreen').classList.remove('hidden');
+            showLoginScreen();
             viewHistory = ['summary']; 
             currentAdIndex = 1;
         }
