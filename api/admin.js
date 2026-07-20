@@ -75,7 +75,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ logs });
     }
 
-       // ---------- listPendingLoans ----------
+    // ---------- listPendingLoans ----------
     if (action === 'listPendingLoans') {
       const loans = await sql`
         SELECT l.id, l.user_id, l.principal, l.interest_rate, l.term_months, l.monthly_payment,
@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ loans });
     }
 
- // ---------- getLoginActivity (live sign-in feed) ----------
+    // ---------- getLoginActivity (live sign-in feed) ----------
     if (action === 'getLoginActivity') {
       const activity = await sql`
         SELECT id, email, method, ip_address, city, region, country, user_agent, created_at
@@ -101,7 +101,6 @@ module.exports = async function handler(req, res) {
     }
 
     // ---------- Everything below requires POST ----------
-
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
       return res.status(405).json({ error: 'Method not allowed' });
@@ -158,7 +157,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-        // ---------- grantLoan(loanId) ----------
+    // ---------- grantLoan(loanId) ----------
     if (action === 'grantLoan') {
       const loanId = Number(req.body.loanId);
       if (!loanId) return res.status(400).json({ error: 'loanId is required' });
@@ -184,7 +183,7 @@ module.exports = async function handler(req, res) {
       `;
 
       await sql`
-        UPDATE loans SET status = 'active', disbursed_at = NOW() WHERE id = ${loan.id}
+        UPDATE loans SET status = 'active', disbursed_at = NOW(), remaining_balance = ${loan.principal} WHERE id = ${loan.id}
       `;
 
       await sql`
@@ -195,7 +194,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, message: `Loan #${loan.id} approved and $${Number(loan.principal).toFixed(2)} disbursed.` });
     }
 
-// ---------- toggleAccountStatus(email) ----------
+    // ---------- toggleAccountStatus(email) ----------
     if (action === 'toggleAccountStatus') {
       const email = normalizeEmail(req.body.email);
       if (!email) return res.status(400).json({ error: 'email is required' });
@@ -215,7 +214,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "addFunds", "withdrawFunds", or "toggleAccountStatus".',
+      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", or "toggleAccountStatus".',
     });
   } catch (err) {
     console.error('Admin API error:', err);
