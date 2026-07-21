@@ -2472,6 +2472,9 @@
             // Real-bank-style processing delay
             await new Promise(resolve => setTimeout(resolve, 3000));
 
+            // Phase 1: the actual transfer. Only errors here mean the transfer
+            // itself failed — this is the only phase allowed to show "transfer failed".
+            let data;
             try {
                 const res = await fetch('/api/transfer', {
                     method: 'POST',
@@ -2484,7 +2487,7 @@
                         description: note || `P2P transfer to ${p2pPendingRecipient.displayName}`
                     })
                 });
-                const data = await res.json();
+                data = await res.json();
 
                 document.getElementById('p2pSendingPane').classList.add('hidden');
 
@@ -2493,7 +2496,17 @@
                     document.getElementById('p2pFormPane').classList.remove('hidden');
                     return;
                 }
+            } catch (err) {
+                document.getElementById('p2pSendingPane').classList.add('hidden');
+                document.getElementById('p2pFormPane').classList.remove('hidden');
+                alert('Network error during transfer. Please try again.');
+                return;
+            }
 
+            // Phase 2: money has already moved successfully at this point — an
+            // error here (refreshing the ledger, showing the pop-up) must never
+            // be reported to the user as a failed transfer.
+            try {
                 await loadRealAccountData();
 
                 const traceRandomId = Math.floor(1000 + Math.random() * 9000);
@@ -2522,9 +2535,10 @@
                     }
                 });
             } catch (err) {
-                document.getElementById('p2pSendingPane').classList.add('hidden');
+                console.error('Post-transfer refresh error (transfer itself succeeded):', err);
+                p2pPendingRecipient = null;
                 document.getElementById('p2pFormPane').classList.remove('hidden');
-                alert('Network error during transfer. Please try again.');
+                alert('Your transfer went through, but we had trouble refreshing your balance. Pull to refresh or reopen the app to see the update.');
             }
         }
 
@@ -2893,15 +2907,16 @@ updateHeaderUserEmail(currentUserEmail);
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
             submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Authenticating...</span>';
 
+            // Phase 1: the actual login request. Only a genuine failure here
+            // (bad credentials, real network drop) should ever show an error —
+            // once this succeeds, the person IS logged in server-side.
             try {
-                      const res = await fetch('/api/auth-session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ action: 'login', email, password, rememberDevice })
-});
-
-
+                const res = await fetch('/api/auth-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ action: 'login', email, password, rememberDevice })
+                });
                 const data = await res.json();
 
                 if (!res.ok) {
@@ -2911,9 +2926,21 @@ updateHeaderUserEmail(currentUserEmail);
                     showAuthError('loginErrorBanner', data.error || 'Login failed. Please try again.');
                     return;
                 }
+            } catch (err) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalContent;
+                showAuthError('loginErrorBanner', 'Network error. Please check your connection and try again.');
+                return;
+            }
 
-                await loadRealAccountData();
-
+            // Phase 2: login already succeeded at this point — loading account
+            // data or running the visual sequence must never be reported back
+            // as a login failure. A brief cookie-propagation delay right after
+            // logging in (especially right after a fast logout→login cycle) is
+            // handled with one retry before giving up.
+            try {
+                await loadRealAccountDataWithRetry();
                 setTimeout(() => {
                     submitBtn.disabled = false;
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
@@ -2921,10 +2948,23 @@ updateHeaderUserEmail(currentUserEmail);
                     runLoginSequence();
                 }, 1300);
             } catch (err) {
+                console.error('Post-login data load failed (login itself succeeded):', err);
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                 submitBtn.innerHTML = originalContent;
-                showAuthError('loginErrorBanner', 'Network error. Please check your connection and try again.');
+                // Still take the person into the app — they're genuinely signed
+                // in. Missing data will simply refresh next time they pull down
+                // or revisit a tab.
+                runLoginSequence();
+            }
+        }
+
+        async function loadRealAccountDataWithRetry() {
+            try {
+                await loadRealAccountData();
+            } catch (err) {
+                await new Promise(resolve => setTimeout(resolve, 400));
+                await loadRealAccountData();
             }
         }
 
@@ -3056,6 +3096,8 @@ updateHeaderUserEmail(currentUserEmail);
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
             submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Creating account...</span>';
 
+            // Phase 1: creating the account itself. Only a genuine failure here
+            // should ever be reported as a signup failure.
             try {
                 const res = await fetch('/api/signup', {
                     method: 'POST',
@@ -3073,25 +3115,32 @@ updateHeaderUserEmail(currentUserEmail);
                     return;
                 }
 
-                await loadRealAccountData();
-
                 if (data.accountNumber) {
                     pendingWelcomeAccountNumber = data.accountNumber;
                     pendingWelcomeFullName = data.user?.fullName || fullName;
                 }
-
-                setTimeout(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                    submitBtn.innerHTML = originalContent;
-                    runLoginSequence();
-                }, 1300);
             } catch (err) {
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                 submitBtn.innerHTML = originalContent;
                 showAuthError('signupErrorBanner', 'Network error. Please check your connection and try again.');
+                return;
             }
+
+            // Phase 2: the account already exists at this point — a hiccup
+            // loading account data must never be reported as a signup failure.
+            try {
+                await loadRealAccountDataWithRetry();
+            } catch (err) {
+                console.error('Post-signup data load failed (account creation itself succeeded):', err);
+            }
+
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalContent;
+                runLoginSequence();
+            }, 1300);
         }
 
         function showNotificationDetail(title, message) {
@@ -4141,6 +4190,8 @@ async function handleFaceIdLogin() {
         return;
     }
 
+    // Phase 1: the actual Face ID verification. Only a genuine failure here
+    // should ever be reported as "Face ID sign-in failed."
     try {
        const optionsRes = await fetch('/api/webauthn-login', {
     method: 'POST',
@@ -4169,16 +4220,23 @@ async function handleFaceIdLogin() {
             alert(data.error || 'Face ID sign-in failed.');
             return;
         }
-
-        await loadRealAccountData();
-        runLoginSequence();
     } catch (err) {
         if (err.name === 'NotAllowedError') {
             return;
         }
         console.error('Face ID login error:', err);
         alert('Face ID sign-in failed. Please try again or use your password.');
+        return;
     }
+
+    // Phase 2: Face ID already verified successfully at this point — a hiccup
+    // loading account data must never be reported as a failed sign-in.
+    try {
+        await loadRealAccountDataWithRetry();
+    } catch (err) {
+        console.error('Post-login data load failed (Face ID sign-in itself succeeded):', err);
+    }
+    runLoginSequence();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -4874,6 +4932,7 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 
 let moneyPopViewReceiptHandler = null;
+let moneyPopAutoCloseTimer = null;
 
 function showMoneyPopSuccess(opts) {
   opts = opts || {};
@@ -4906,9 +4965,20 @@ function showMoneyPopSuccess(opts) {
     isReceived ? 'Money Received' : 'Money Sent',
     `${opts.amountLabel || ''} ${opts.counterpart ? '· ' + opts.counterpart : ''}`
   );
+
+  // Auto-dismiss after 5 seconds if the person doesn't tap it — matches how
+  // real banking apps clear transient success overlays automatically.
+  if (moneyPopAutoCloseTimer) clearTimeout(moneyPopAutoCloseTimer);
+  moneyPopAutoCloseTimer = setTimeout(() => {
+    closeMoneyPopSuccess();
+  }, 5000);
 }
 
 function closeMoneyPopSuccess() {
+  if (moneyPopAutoCloseTimer) {
+    clearTimeout(moneyPopAutoCloseTimer);
+    moneyPopAutoCloseTimer = null;
+  }
   document.getElementById('moneyPopOverlay').classList.add('hidden');
   document.getElementById('moneyPopIconWrap').classList.remove('ahb-pulse-ring');
 }
