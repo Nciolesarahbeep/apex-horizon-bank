@@ -440,7 +440,7 @@
 
 <button onclick="toggleNotificationDropdown(event)" class="relative cursor-pointer focus:outline-none block pt-1">
                             <i class="fa-regular fa-bell text-lg text-gray-300 hover:text-white transition"></i>
-                            <span id="notifBadge" class="absolute -top-1 -right-1 bg-red-500 text-[9px] text-white font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">3</span>
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-[9px] text-white font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center"></span>
                         </button>
                         
                         <div id="notifDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-xl border border-gray-200 text-gray-800 z-50 overflow-hidden">
@@ -1861,10 +1861,20 @@
         // Single source of truth for which screen is visible — every login/logout/
         // reload path routes through these two functions so the two screens can
         // never both end up visible (or both hidden) at the same time.
+        const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute of no activity requires a fresh login
+
+        let lastActivityWriteTime = 0;
+        function markActivity(force) {
+            const now = Date.now();
+            if (!force && now - lastActivityWriteTime < 5000) return; // throttle routine writes
+            lastActivityWriteTime = now;
+            localStorage.setItem('ahb_last_activity', now.toString());
+        }
+
         function showLoginScreen() {
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
-            sessionStorage.removeItem('ahb_dashboard_active');
+            localStorage.removeItem('ahb_last_activity');
             if (notifPollIntervalId) {
                 clearInterval(notifPollIntervalId);
                 notifPollIntervalId = null;
@@ -1874,25 +1884,27 @@
         function showDashboardScreen() {
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('dashboardApp').classList.remove('hidden');
-            sessionStorage.setItem('ahb_dashboard_active', '1');
+            markActivity(true);
             refreshUIBalances();
             renderActiveAdState();
             startNotificationPolling();
         }
 
         async function restoreSessionOnLoad() {
-            // If the dashboard was open before this page refresh (tracked via
-            // sessionStorage, which clears when the tab/browser actually closes),
-            // verify the session is still valid server-side and restore it —
-            // a refresh shouldn't kick an actively-signed-in user back to login.
-            // Otherwise, always require an explicit sign-in and clear any
-            // lingering cookie from a previous session.
+            // A refresh keeps the person signed in ONLY if they were active in
+            // the last minute — this always plays a full ~1 second "restoring
+            // session" animation (it never gets skipped or shortened), verifies
+            // the session is genuinely still valid server-side, then lands back
+            // on the dashboard. Idle 1+ minute, or a session that no longer
+            // checks out, always requires an explicit sign-in.
             const splash = document.getElementById('sessionCheckSplash');
-            const wasActive = sessionStorage.getItem('ahb_dashboard_active') === '1';
+            const lastActivity = parseInt(localStorage.getItem('ahb_last_activity') || '0', 10);
+            const idleMs = Date.now() - lastActivity;
+            const withinIdleWindow = lastActivity > 0 && idleMs < IDLE_TIMEOUT_MS;
 
-            if (wasActive) {
+            if (withinIdleWindow) {
                 try {
-                    const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 700);
+                    const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 1000);
                     if (res.ok) {
                         await loadRealAccountData();
                         splash.classList.add('hidden');
@@ -1903,8 +1915,9 @@
                 } catch (err) {
                     console.error('Session restore check failed:', err);
                 }
-                sessionStorage.removeItem('ahb_dashboard_active');
             }
+
+            localStorage.removeItem('ahb_last_activity');
 
             try {
                 await withMinDelay(
@@ -4930,6 +4943,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(checkSessionAlive, 3000);
   document.addEventListener('click', () => { checkSessionAlive(); }, { passive: true });
 })();
+
+// Keeps the 1-minute "stay signed in on refresh" window alive while the
+// dashboard is actually being used — any real interaction resets the clock.
+['click', 'keydown', 'touchstart', 'scroll'].forEach(function (evt) {
+    document.addEventListener(evt, function () {
+        if (!document.getElementById('dashboardApp').classList.contains('hidden')) {
+            markActivity();
+        }
+    }, { passive: true });
+});
 
 let moneyPopViewReceiptHandler = null;
 let moneyPopAutoCloseTimer = null;
