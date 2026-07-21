@@ -317,11 +317,11 @@
                         <div id="loginErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                            <input type="email" id="loginEmailInput" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                            <input type="email" id="loginEmailInput" name="email" autocomplete="username" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
-                            <input type="password" id="loginPasswordInput" placeholder="••••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                            <input type="password" id="loginPasswordInput" name="password" autocomplete="current-password" placeholder="••••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
                         </div>
 
                         <div class="flex items-center justify-end text-[11px] pt-1">
@@ -358,7 +358,7 @@
                         <div id="signupStep1ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                            <input type="email" id="signupEmailInput" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                            <input type="email" id="signupEmailInput" name="email" autocomplete="email" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
                         </div>
                         <button type="submit" id="signupStep1Btn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
                             <span>Send Verification Code</span>
@@ -376,7 +376,7 @@
                         <div id="signupStep2ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Verification Code</label>
-                            <input type="text" id="signupCodeInput" inputmode="numeric" maxlength="6" placeholder="123456" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center tracking-[0.5em] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                            <input type="text" id="signupCodeInput" name="one-time-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="123456" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center tracking-[0.5em] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                         </div>
                         <button type="submit" id="signupStep2Btn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
                             <span>Verify Email</span>
@@ -395,11 +395,11 @@
                         <div id="signupErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Full Name</label>
-                            <input type="text" id="signupNameInput" placeholder="Jane Doe" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                            <input type="text" id="signupNameInput" name="name" autocomplete="name" placeholder="Jane Doe" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
-                            <input type="password" id="signupPasswordInput" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required minlength="8">
+                            <input type="password" id="signupPasswordInput" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required minlength="8">
                         </div>
                         <label class="flex items-start space-x-2 pt-1">
                             <input type="checkbox" id="signupTermsCheckbox" class="mt-0.5" required>
