@@ -1906,7 +1906,7 @@
                 try {
                     const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 1000);
                     if (res.ok) {
-                        await loadRealAccountData();
+                        await loadRealAccountDataWithRetry();
                         splash.classList.add('hidden');
                         showDashboardScreen();
                         checkForEmailChangeTokenInUrl();
@@ -2520,7 +2520,7 @@
             // error here (refreshing the ledger, showing the pop-up) must never
             // be reported to the user as a failed transfer.
             try {
-                await loadRealAccountData();
+                await loadRealAccountDataWithRetry();
 
                 const traceRandomId = Math.floor(1000 + Math.random() * 9000);
                 const systemTraceString = `#P2P-${traceRandomId}`;
@@ -2662,7 +2662,7 @@
                     return;
                 }
 
-                await loadRealAccountData();
+                await loadRealAccountDataWithRetry();
                 alert(data.message);
 
                 const banner = document.getElementById('successBanner');
@@ -2723,7 +2723,7 @@
                     return;
                 }
 
-                await loadRealAccountData();
+                await loadRealAccountDataWithRetry();
                 input.value = '';
 
                 const systemTraceString = `#${data.traceId}`;
@@ -2975,10 +2975,19 @@ updateHeaderUserEmail(currentUserEmail);
         async function loadRealAccountDataWithRetry() {
             try {
                 await loadRealAccountData();
+                return;
             } catch (err) {
-                await new Promise(resolve => setTimeout(resolve, 400));
-                await loadRealAccountData();
+                console.error('Account data load failed, retrying...', err);
             }
+            try {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await loadRealAccountData();
+                return;
+            } catch (err) {
+                console.error('Account data load failed again, retrying once more...', err);
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await loadRealAccountData();
         }
 
         let signupVerifiedEmail = null;
@@ -4431,7 +4440,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                await loadRealAccountData(); // refreshes checking balance + transactions
+                await loadRealAccountDataWithRetry(); // refreshes checking balance + transactions
                 await loadCreditCardData();  // refreshes card balance + card transactions
 
                 const banner = document.getElementById('successBanner');
@@ -4940,7 +4949,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { window.location.href = '/'; }, 3000);
   }
 
-  setInterval(checkSessionAlive, 3000);
+  setInterval(checkSessionAlive, 20000);
   document.addEventListener('click', () => { checkSessionAlive(); }, { passive: true });
 })();
 
@@ -5040,7 +5049,7 @@ async function pollForIncomingMoney() {
           }
         });
       });
-      await loadRealAccountData();
+      await loadRealAccountDataWithRetry();
     }
 
     latestKnownTxnId = Math.max(...txns.map(t => t.id));
