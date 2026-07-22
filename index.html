@@ -1917,7 +1917,7 @@
             const splash = document.getElementById('sessionCheckSplash');
 
             try {
-                const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 1000);
+                const res = await withMinDelay(fetch('/api/me', { credentials: 'include', cache: 'no-store' }), 1000);
                 if (res.ok) {
                     await loadRealAccountDataWithRetry();
                     splash.classList.add('hidden');
@@ -1950,7 +1950,8 @@
         async function fetchAndRenderNotifications(isPoll) {
             try {
                 const res = await fetch('/api/account-services?resource=notifications', {
-                    credentials: 'include'
+                    credentials: 'include',
+                    cache: 'no-store'
                 });
                 if (!res.ok) return;
                 const data = await res.json();
@@ -2811,7 +2812,7 @@ function updateHeaderUserEmail(email) {
 
 
         async function loadRealAccountData() {
-            const res = await fetch('/api/me', { credentials: 'include' });
+            const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
             if (!res.ok) {
                 throw new Error('Failed to load account data');
             }
@@ -3477,7 +3478,7 @@ updateHeaderUserEmail(currentUserEmail);
 
         async function fetchTransactions() {
             try {
-                const res = await fetch('/api/transactions', { credentials: 'include' });
+                const res = await fetch('/api/transactions', { credentials: 'include', cache: 'no-store' });
                 if (!res.ok) throw new Error('Failed to load transactions');
                 const data = await res.json();
                 allTransactions = data.transactions || [];
@@ -4949,7 +4950,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (killed) return;
     if (document.getElementById('dashboardApp').classList.contains('hidden')) return;
     try {
-      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      const res = await fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' });
       if (res.status === 403) {
         const data = await res.json().catch(() => ({}));
         if (data.error === 'disabled') killSession();
@@ -5035,7 +5036,7 @@ let latestKnownTxnId = null;
 async function pollForIncomingMoney() {
   if (document.getElementById('dashboardApp').classList.contains('hidden')) return;
   try {
-    const res = await fetch('/api/transactions', { credentials: 'include' });
+    const res = await fetch('/api/transactions', { credentials: 'include', cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     const txns = data.transactions || [];
