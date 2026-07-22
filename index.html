@@ -1861,20 +1861,33 @@
         // Single source of truth for which screen is visible — every login/logout/
         // reload path routes through these two functions so the two screens can
         // never both end up visible (or both hidden) at the same time.
-        const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute of no activity requires a fresh login
+        const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute of no activity signs the person out
 
-        let lastActivityWriteTime = 0;
-        function markActivity(force) {
+        let idleLogoutTimer = null;
+        function resetIdleTimer() {
+            if (idleLogoutTimer) clearTimeout(idleLogoutTimer);
+            idleLogoutTimer = setTimeout(() => {
+                handleSignOut(true);
+            }, IDLE_TIMEOUT_MS);
+        }
+
+        let lastActivityMarkTime = 0;
+        function markActivity() {
             const now = Date.now();
-            if (!force && now - lastActivityWriteTime < 5000) return; // throttle routine writes
-            lastActivityWriteTime = now;
-            localStorage.setItem('ahb_last_activity', now.toString());
+            if (now - lastActivityMarkTime < 2000) return; // avoid churn from continuous scroll/typing
+            lastActivityMarkTime = now;
+            if (!document.getElementById('dashboardApp').classList.contains('hidden')) {
+                resetIdleTimer();
+            }
         }
 
         function showLoginScreen() {
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
-            localStorage.removeItem('ahb_last_activity');
+            if (idleLogoutTimer) {
+                clearTimeout(idleLogoutTimer);
+                idleLogoutTimer = null;
+            }
             if (notifPollIntervalId) {
                 clearInterval(notifPollIntervalId);
                 notifPollIntervalId = null;
@@ -1884,40 +1897,37 @@
         function showDashboardScreen() {
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('dashboardApp').classList.remove('hidden');
-            markActivity(true);
+            resetIdleTimer();
             refreshUIBalances();
             renderActiveAdState();
             startNotificationPolling();
         }
 
         async function restoreSessionOnLoad() {
-            // A refresh keeps the person signed in ONLY if they were active in
-            // the last minute — this always plays a full ~1 second "restoring
-            // session" animation (it never gets skipped or shortened), verifies
-            // the session is genuinely still valid server-side, then lands back
-            // on the dashboard. Idle 1+ minute, or a session that no longer
-            // checks out, always requires an explicit sign-in.
+            // Always ask the server whether the session is genuinely still
+            // valid — this always plays a full ~1 second "restoring session"
+            // animation (never skipped or shortened), then either lands back
+            // on the dashboard or requires an explicit sign-in. This doesn't
+            // depend on anything stored in the browser surviving a refresh —
+            // some in-app browser contexts clear that unreliably. The 1-minute
+            // idle rule is enforced live while the app is open instead (see
+            // resetIdleTimer), so closing the app for a while and reopening it
+            // naturally requires signing in again once the session cookie
+            // itself has expired.
             const splash = document.getElementById('sessionCheckSplash');
-            const lastActivity = parseInt(localStorage.getItem('ahb_last_activity') || '0', 10);
-            const idleMs = Date.now() - lastActivity;
-            const withinIdleWindow = lastActivity > 0 && idleMs < IDLE_TIMEOUT_MS;
 
-            if (withinIdleWindow) {
-                try {
-                    const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 1000);
-                    if (res.ok) {
-                        await loadRealAccountDataWithRetry();
-                        splash.classList.add('hidden');
-                        showDashboardScreen();
-                        checkForEmailChangeTokenInUrl();
-                        return;
-                    }
-                } catch (err) {
-                    console.error('Session restore check failed:', err);
+            try {
+                const res = await withMinDelay(fetch('/api/me', { credentials: 'include' }), 1000);
+                if (res.ok) {
+                    await loadRealAccountDataWithRetry();
+                    splash.classList.add('hidden');
+                    showDashboardScreen();
+                    checkForEmailChangeTokenInUrl();
+                    return;
                 }
+            } catch (err) {
+                console.error('Session restore check failed:', err);
             }
-
-            localStorage.removeItem('ahb_last_activity');
 
             try {
                 await withMinDelay(
@@ -3322,14 +3332,19 @@ updateHeaderUserEmail(currentUserEmail);
             advanceStep();
         }
 
-        async function handleSignOut() {
+        async function handleSignOut(isIdleTimeout) {
             const loader = document.getElementById('logoutSequenceLoader');
             const titleEl = document.getElementById('logoutStatusTitle');
             const descEl = document.getElementById('logoutDescriptionText');
 
             loader.classList.remove('hidden');
-            titleEl.innerText = 'Closing Secure Session...';
-            descEl.innerText = 'Encrypting session data and clearing local credentials.';
+            if (isIdleTimeout === true) {
+                titleEl.innerText = 'Session Expired';
+                descEl.innerText = 'You were signed out after 1 minute of inactivity, for your security.';
+            } else {
+                titleEl.innerText = 'Closing Secure Session...';
+                descEl.innerText = 'Encrypting session data and clearing local credentials.';
+            }
 
             await new Promise(resolve => setTimeout(resolve, 900));
 
@@ -3340,8 +3355,8 @@ updateHeaderUserEmail(currentUserEmail);
                 console.error('Logout error:', err);
             }
 
-            titleEl.innerText = 'Session Closed';
-            descEl.innerText = 'You have been securely signed out of Apex Horizon Bank.';
+            titleEl.innerText = isIdleTimeout === true ? 'Signed Out' : 'Session Closed';
+            descEl.innerText = isIdleTimeout === true ? 'Please sign in again to continue.' : 'You have been securely signed out of Apex Horizon Bank.';
 
             await new Promise(resolve => setTimeout(resolve, 700));
 
