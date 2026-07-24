@@ -281,21 +281,21 @@ module.exports = async function handler(req, res) {
     }
 
     // ---------- Notifications + Email (best-effort, never fails the transfer) ----------
+    // NOTE: is_read and created_at are set explicitly on every insert below so
+    // this can't silently fail if the notifications table lacks defaults for them.
     if (isWire) {
       try {
         const amountFormatted = transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const bankLabel = (targetBank && String(targetBank).trim()) || 'External Bank';
 
         await sql`
-          INSERT INTO notifications (user_id, title, message)
-          VALUES (${session.userId}, 'Wire Sent', ${'You sent a $' + amountFormatted + ' wire to ' + bankLabel + '.'})
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${session.userId}, 'Wire Sent', ${'You sent a $' + amountFormatted + ' wire to ' + bankLabel + '.'}, FALSE, NOW())
         `;
       } catch (notifyErr) {
         console.error('Wire notification dispatch error (non-fatal):', notifyErr);
       }
-    }
-
-    if (isP2P && recipientInfo) {
+    } else if (isP2P && recipientInfo) {
       try {
         const senderRows = await sql`SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1`;
         const senderName = senderRows[0]?.full_name || 'Apex User';
@@ -304,12 +304,12 @@ module.exports = async function handler(req, res) {
         const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
         await sql`
-          INSERT INTO notifications (user_id, title, message)
-          VALUES (${session.userId}, 'Payment Sent', ${'You sent $' + amountFormatted + ' to ' + recipientInfo.full_name + '.'})
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${session.userId}, 'Payment Sent', ${'You sent $' + amountFormatted + ' to ' + recipientInfo.full_name + '.'}, FALSE, NOW())
         `;
         await sql`
-          INSERT INTO notifications (user_id, title, message)
-          VALUES (${recipientInfo.id}, 'Payment Received', ${'You received $' + amountFormatted + ' from ' + senderName + '.'})
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${recipientInfo.id}, 'Payment Received', ${'You received $' + amountFormatted + ' from ' + senderName + '.'}, FALSE, NOW())
         `;
 
         if (senderEmail) {
@@ -328,6 +328,19 @@ module.exports = async function handler(req, res) {
         }
       } catch (notifyErr) {
         console.error('Notification/email dispatch error (non-fatal):', notifyErr);
+      }
+    } else {
+      // Internal transfer between the user's own accounts (e.g. checking <-> savings).
+      // This branch previously had no notification at all.
+      try {
+        const amountFormatted = transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${session.userId}, 'Internal Transfer', ${'You moved $' + amountFormatted + ' from ' + fromAccountType + ' to ' + toAccountType + '.'}, FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Internal transfer notification dispatch error (non-fatal):', notifyErr);
       }
     }
 
