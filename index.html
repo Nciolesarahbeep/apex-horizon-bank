@@ -1737,10 +1737,14 @@
                 el.innerText = formattedChecking;
             }
 
-            document.getElementById('activeLoanBalance').innerText = new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD'
-            }).format(activeLoanBalanceValue);
+            const activeLoanBalanceEl = document.getElementById('activeLoanBalance');
+if (activeLoanBalanceEl) {
+    activeLoanBalanceEl.innerText = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+    }).format(activeLoanBalanceValue);
+}
+
             
             refreshLiveCalculations();
         }
