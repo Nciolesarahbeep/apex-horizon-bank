@@ -6,6 +6,21 @@ const bcrypt = require('bcryptjs');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+// Creates an in-app notification row for a user. Call this any time an
+// event happens that the user should be alerted about (KYC decisions,
+// loan updates, card charges, deposits, disputes, etc).
+async function createNotification(userId, title, message) {
+  try {
+    await sql`
+      INSERT INTO notifications (user_id, title, message, is_read, created_at)
+      VALUES (${userId}, ${title}, ${message}, FALSE, NOW())
+    `;
+  } catch (err) {
+    // Never let a notification failure break the parent action.
+    console.error('Create notification error:', err);
+  }
+}
+
 module.exports = async function handler(req, res) {
   const session = getUserFromRequest(req);
   if (!session) {
@@ -97,6 +112,12 @@ module.exports = async function handler(req, res) {
           RETURNING id, status, created_at
         `;
 
+        await createNotification(
+          session.userId,
+          'KYC Submitted',
+          'Your identity verification has been submitted and is under review. This typically completes within 24 hours.'
+        );
+
         return res.status(201).json({
           success: true,
           kycId: kycResult[0].id,
@@ -170,6 +191,12 @@ module.exports = async function handler(req, res) {
           RETURNING id, status, created_at
         `;
 
+        await createNotification(
+          session.userId,
+          'Dispute Filed',
+          `Your dispute for transaction #${transactionId} has been filed. We'll investigate within 5-10 business days.`
+        );
+
         return res.status(201).json({
           success: true,
           disputeId: dispute[0].id,
@@ -233,6 +260,12 @@ module.exports = async function handler(req, res) {
         INSERT INTO transactions (account_id, type, amount, description, created_at)
         VALUES (${account[0].id}, 'ach_in', ${depositAmount}, ${description || 'Direct Deposit'}, NOW())
       `;
+
+      await createNotification(
+        session.userId,
+        'Direct Deposit Received',
+        `A direct deposit of $${depositAmount.toFixed(2)} from ${fromBankName} has been credited to your account.`
+      );
 
       return res.status(201).json({
         success: true,
@@ -384,6 +417,15 @@ module.exports = async function handler(req, res) {
             WHERE account_id = ${account.id}
             RETURNING is_frozen
           `;
+
+          await createNotification(
+            session.userId,
+            updated[0].is_frozen ? 'Card Frozen' : 'Card Unfrozen',
+            updated[0].is_frozen
+              ? 'Your credit card has been frozen. No new purchases can be made until you unfreeze it.'
+              : 'Your credit card has been unfrozen and is ready to use.'
+          );
+
           return res.status(200).json({ success: true, isFrozen: updated[0].is_frozen });
         }
 
@@ -443,6 +485,12 @@ module.exports = async function handler(req, res) {
             VALUES (${account.id}, 'credit_purchase', ${chargeAmount}, ${merchant || 'Card Purchase'}, NOW())
           `;
 
+          await createNotification(
+            session.userId,
+            'Card Charge',
+            `A charge of $${chargeAmount.toFixed(2)} at ${merchant || 'a merchant'} was made on your credit card.`
+          );
+
           return res.status(200).json({ success: true, balance: Number(updated[0].balance) });
         }
 
@@ -488,6 +536,12 @@ module.exports = async function handler(req, res) {
             INSERT INTO transactions (account_id, type, amount, description, created_at)
             VALUES (${account.id}, 'credit_payment', ${-paymentAmount}, 'Payment Received - Thank You', NOW())
           `;
+
+          await createNotification(
+            session.userId,
+            'Credit Card Payment',
+            `Your payment of $${paymentAmount.toFixed(2)} was applied to your credit card balance.`
+          );
 
           return res.status(200).json({ success: true, cardBalance: Number(updatedCard[0].balance) });
         }
@@ -564,6 +618,12 @@ module.exports = async function handler(req, res) {
             SET email = ${row.pending_email}, pending_email = NULL, pending_email_token = NULL, pending_email_expires_at = NULL
             WHERE id = ${session.userId}
           `;
+
+          await createNotification(
+            session.userId,
+            'Email Address Updated',
+            `Your account email has been changed to ${row.pending_email}.`
+          );
 
           return res.status(200).json({ success: true, newEmail: row.pending_email, message: 'Your email address has been updated.' });
         }
@@ -661,6 +721,12 @@ module.exports = async function handler(req, res) {
             RETURNING id, principal, interest_rate, term_months, monthly_payment, status, purpose, created_at
           `;
 
+          await createNotification(
+            session.userId,
+            'Loan Application Submitted',
+            `Your application for a $${principal.toLocaleString()} loan is pending review. We'll notify you once a decision is made.`
+          );
+
           return res.status(200).json({
             success: true,
             message: 'Application submitted successfully. Your loan is pending review and you\'ll be notified once a decision is made.',
@@ -713,6 +779,14 @@ module.exports = async function handler(req, res) {
             INSERT INTO transactions (account_id, type, amount, description, created_at)
             VALUES (${checking.id}, 'debit', ${amount}, ${paymentDescription}, NOW())
           `;
+
+          await createNotification(
+            session.userId,
+            newStatus === 'paid_off' ? 'Loan Paid Off' : 'Loan Payment Applied',
+            newStatus === 'paid_off'
+              ? `Congratulations! Loan #${loan.id} has been fully paid off.`
+              : `Your payment of $${amount.toFixed(2)} was applied to Loan #${loan.id}. Remaining balance: $${newRemaining.toFixed(2)}.`
+          );
 
           return res.status(200).json({
             success: true,
