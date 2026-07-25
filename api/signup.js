@@ -31,6 +31,18 @@ function verificationEmailHtml(code) {
   `;
 }
 
+function pendingReviewEmailHtml(fullName) {
+  return `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+      <div style="font-size: 12px; font-weight: bold; letter-spacing: 0.05em; text-transform: uppercase; color: #10b981; margin-bottom: 16px;">Apex Horizon Bank</div>
+      <h2 style="color:#0f172a; font-size: 18px;">Thanks for applying, ${fullName}</h2>
+      <p>Your application to open an Apex Horizon Bank account has been received and is now under review.</p>
+      <p>We'll email you as soon as a decision has been made — this typically takes less than 24 hours. You won't be able to sign in until your account is approved.</p>
+      <p style="color:#666; font-size:12px;">If you have questions in the meantime, just reply to this email.</p>
+    </div>
+  `;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -118,6 +130,12 @@ module.exports = async function handler(req, res) {
   }
 
   // ---------- Step 3: create the account (only if email was verified) ----------
+  // NOTE: accounts are created with approval_status = 'pending'. The person
+  // is NOT logged in at the end of this step anymore — they can't sign in
+  // until an admin approves them via admin.js (approveAccount). The frontend
+  // must show a "your account is under review" screen using the
+  // approvalStatus field in this response instead of treating this like a
+  // normal successful login.
   if (action === 'create-account') {
     try {
       const { email, password, fullName } = req.body || {};
@@ -150,9 +168,9 @@ module.exports = async function handler(req, res) {
       const passwordHash = await bcrypt.hash(password, 10);
 
       const userResult = await sql`
-        INSERT INTO users (email, password_hash, full_name, created_at, last_login_at)
-        VALUES (${normalizedEmail}, ${passwordHash}, ${fullName}, NOW(), NOW())
-        RETURNING id, email, full_name, last_login_at
+        INSERT INTO users (email, password_hash, full_name, approval_status, created_at, last_login_at)
+        VALUES (${normalizedEmail}, ${passwordHash}, ${fullName}, 'pending', NOW(), NULL)
+        RETURNING id, email, full_name
       `;
       const user = userResult[0];
 
@@ -166,29 +184,26 @@ module.exports = async function handler(req, res) {
           (${user.id}, 'savings', 12500.00, ${savingsAccountNumber})
       `;
 
-      try {
-        await sql`
-          INSERT INTO notifications (user_id, title, message)
-          VALUES (${user.id}, 'Welcome to Apex Horizon Bank', ${'Your account has been created successfully, ' + user.full_name + '. Your account number is ' + checkingAccountNumber + '.'})
-        `;
-      } catch (notifyErr) {
-        console.error('Welcome notification insert error (non-fatal):', notifyErr);
-      }
-
+      // No welcome/in-app notification here — the person can't sign in yet,
+      // so there's no session to show it in. The pending-review email below
+      // is the only communication they get until an admin decides.
       await sendEmail({
         to: user.email,
-        subject: 'Welcome to Apex Horizon Bank',
-        html: welcomeEmailHtml(user.full_name, checkingAccountNumber),
+        subject: 'Your Apex Horizon Bank application is under review',
+        html: pendingReviewEmailHtml(user.full_name),
       });
 
       // Cleanup: this email's verification record is no longer needed
       await sql`DELETE FROM signup_verifications WHERE email = ${normalizedEmail}`;
 
-      const token = signToken({ userId: user.id, email: user.email });
-      setSessionCookie(res, token, true);
+      // Intentionally NOT calling signToken/setSessionCookie here — the
+      // account is pending and must not be able to log in yet.
 
       return res.status(201).json({
-        user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: user.last_login_at },
+        success: true,
+        approvalStatus: 'pending',
+        message: 'Your application has been submitted and is under review. We\'ll email you once a decision is made.',
+        user: { id: user.id, email: user.email, fullName: user.full_name },
         accountNumber: checkingAccountNumber,
       });
     } catch (err) {
