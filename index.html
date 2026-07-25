@@ -423,6 +423,19 @@
                             <span>Create Account</span>
                         </button>
                     </form>
+
+                    <div id="signupStep4Pending" class="hidden p-6 space-y-4 text-center">
+                        <div class="mx-auto w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
+                            <i class="fa-solid fa-clock text-emerald-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-900">Application submitted</h3>
+                            <p id="signupPendingMessage" class="text-[11px] text-gray-500 mt-1.5 leading-relaxed">Your account is under review. We'll email you as soon as a decision is made — this usually takes less than 24 hours.</p>
+                        </div>
+                        <button type="button" onclick="toggleAuthMode()" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs mt-2">
+                            Back to Sign In
+                        </button>
+                    </div>
                 </div>
 
                 <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 text-center">
@@ -1660,18 +1673,25 @@
         let birdClickCount = 0;
         let birdClickTimer = null;
 
-        // HIGH-YIELD SAVINGS / FIXED DEPOSIT ENGINE (realistic daily compounding)
-        const FD_APY_RATE = 0.0725;
-        const FD_TERM_YEARS = 2.0;
-        const ACCOUNT_OPEN_DATE = new Date('2026-01-10T00:00:00');
+        // HIGH-YIELD SAVINGS / FIXED DEPOSIT ENGINE
+        // Real APY rate and accrual start time now come from the backend
+        // (accounts.apy_rate / accounts.interest_accrued_at) instead of being
+        // hardcoded. Actual interest is credited server-side in /api/me on
+        // every load; the client-side compounding below is only a live
+        // *estimate* of interest accruing since the last sync, purely for a
+        // ticking UX effect — it never overrides the real, persisted balance.
+        let FD_APY_RATE = 0;
+        const FD_TERM_YEARS = 2.0; // display-only, used for the "projected at maturity" breakdown
+        let ACCOUNT_OPEN_DATE = new Date();
 
-        let fdWorkingPrincipal = 33450.00;
+        let fdWorkingPrincipal = 0.00;
         let fdAccumulatedProfit = 0.0;
         let savingsBalanceValue = fdWorkingPrincipal;
 
         function computeAccruedInterest() {
+            if (!FD_APY_RATE) return 0;
             const msPerDay = 86400000;
-            const daysElapsed = Math.max(0, Math.floor((Date.now() - ACCOUNT_OPEN_DATE.getTime()) / msPerDay));
+            const daysElapsed = Math.max(0, (Date.now() - ACCOUNT_OPEN_DATE.getTime()) / msPerDay);
             const dailyRate = FD_APY_RATE / 365;
             const compoundedTotal = fdWorkingPrincipal * Math.pow(1 + dailyRate, daysElapsed);
             return compoundedTotal - fdWorkingPrincipal;
@@ -2737,8 +2757,8 @@ if (activeLoanBalanceEl) {
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
-                        fromAccountId: savingsAccountId,
-                        toAccountId: checkingAccountId,
+                        fromAccountType: 'savings',
+                        toAccountType: 'checking',
                         amount: amount,
                         description: 'HYS Withdrawal to Checking'
                     })
@@ -2754,7 +2774,7 @@ if (activeLoanBalanceEl) {
                 await loadRealAccountDataWithRetry();
                 input.value = '';
 
-                const systemTraceString = `#${data.traceId}`;
+                const systemTraceString = `#${Date.now().toString().slice(-8)}`;
                 const formattedAmountString = `+$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 const ledgerDescription = "HYS Withdrawal to Checking";
 
@@ -2857,6 +2877,8 @@ updateHeaderUserEmail(currentUserEmail);
             if (savingsAcct) {
                 savingsAccountId = savingsAcct.id;
                 fdWorkingPrincipal = parseFloat(savingsAcct.balance);
+                FD_APY_RATE = savingsAcct.apy_rate != null ? parseFloat(savingsAcct.apy_rate) : 0;
+                ACCOUNT_OPEN_DATE = savingsAcct.interest_accrued_at ? new Date(savingsAcct.interest_accrued_at) : new Date();
             }
 
             refreshUIBalances();
@@ -2921,6 +2943,8 @@ updateHeaderUserEmail(currentUserEmail);
                 const dot = document.getElementById(`signupStepDot${n}`);
                 if (dot) dot.className = `h-1 flex-1 rounded-full ${n <= step ? 'bg-emerald-500' : 'bg-gray-200'}`;
             });
+            const pendingEl = document.getElementById('signupStep4Pending');
+            if (pendingEl) pendingEl.classList.toggle('hidden', step !== 4);
         }
 
         function showAuthError(bannerId, message) {
@@ -3169,6 +3193,30 @@ updateHeaderUserEmail(currentUserEmail);
                     pendingWelcomeAccountNumber = data.accountNumber;
                     pendingWelcomeFullName = data.user?.fullName || fullName;
                 }
+
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalContent;
+
+                // Accounts now require admin approval before they can sign in —
+                // there is no session to load into a dashboard, so show the
+                // pending-review screen instead of running the login sequence.
+                if (data.approvalStatus === 'pending') {
+                    if (data.message) {
+                        const msgEl = document.getElementById('signupPendingMessage');
+                        if (msgEl) msgEl.innerText = data.message;
+                    }
+                    goToSignupStep(4);
+                    return;
+                }
+
+                // Fallback for older API responses that still log the user in directly.
+                try {
+                    await loadRealAccountDataWithRetry();
+                } catch (err) {
+                    console.error('Post-signup data load failed (account creation itself succeeded):', err);
+                }
+                setTimeout(() => { runLoginSequence(); }, 1300);
             } catch (err) {
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
@@ -3176,21 +3224,6 @@ updateHeaderUserEmail(currentUserEmail);
                 showAuthError('signupErrorBanner', 'Network error. Please check your connection and try again.');
                 return;
             }
-
-            // Phase 2: the account already exists at this point — a hiccup
-            // loading account data must never be reported as a signup failure.
-            try {
-                await loadRealAccountDataWithRetry();
-            } catch (err) {
-                console.error('Post-signup data load failed (account creation itself succeeded):', err);
-            }
-
-            setTimeout(() => {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                submitBtn.innerHTML = originalContent;
-                runLoginSequence();
-            }, 1300);
         }
 
         function showNotificationDetail(title, message) {
