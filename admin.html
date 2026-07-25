@@ -95,7 +95,27 @@
     </table>
     <p id="activityEmpty" class="text-slate-400 text-sm py-4 hidden">No sign-in activity yet.</p>
   </div>
-<!-- Audit log panel -->  <!-- Pending loan applications -->
+<!-- Audit log panel -->  <!-- Pending account approvals -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-user-clock text-indigo-600 mr-1"></i>Pending Account Approvals</h2>
+      <button onclick="loadPendingAccounts()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">Name</th>
+          <th class="py-2 pr-2">Email</th>
+          <th class="py-2 pr-2">Applied</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="pendingAccountsBody"></tbody>
+    </table>
+    <p id="pendingAccountsEmpty" class="text-slate-400 text-sm py-4 hidden">No pending account applications.</p>
+  </div>
+
+  <!-- Pending loan applications -->
   <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-hand-holding-dollar text-amber-600 mr-1"></i>Pending Loan Applications</h2>
@@ -195,6 +215,7 @@ async function unlock() {
     loadTransactions();
         loadLoginActivity();
     loadPendingLoans();
+    loadPendingAccounts();
     if (activityPollTimer) clearInterval(activityPollTimer);
     activityPollTimer = setInterval(loadLoginActivity, 7000);
 
@@ -237,7 +258,10 @@ async function loadUsers() {
         <td class="py-2 pr-2">${u.email}</td>
         <td class="py-2 pr-2">${u.full_name || '—'}</td>
         <td class="py-2 pr-2">${money(u.total_balance)}</td>
-        <td class="py-2 pr-2"><span class="px-2 py-1 rounded-full text-xs font-medium ${u.is_active ? 'status-active' : 'status-disabled'}">${u.is_active ? 'Active' : 'Disabled'}</span></td>
+        <td class="py-2 pr-2">
+          <span class="px-2 py-1 rounded-full text-xs font-medium ${u.is_active ? 'status-active' : 'status-disabled'}">${u.is_active ? 'Active' : 'Disabled'}</span>
+          ${u.approval_status && u.approval_status !== 'approved' ? `<span class="px-2 py-1 rounded-full text-xs font-medium ml-1 ${u.approval_status === 'pending' ? 'bg-amber-100 text-amber-800' : 'status-disabled'}">${u.approval_status === 'pending' ? 'Pending' : 'Rejected'}</span>` : ''}
+        </td>
         <td class="py-2 pr-2">
           <div class="flex gap-1">
             <input type="number" min="0.01" step="0.01" placeholder="Amt" class="w-20 border border-slate-300 rounded px-1 py-1 text-xs" id="amt-${u.id}">
@@ -351,6 +375,59 @@ async function grantLoan(loanId) {
     const data = await api('grantLoan', { method: 'POST', body: { loanId } });
     showToast(data.message, false);
     loadPendingLoans();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function loadPendingAccounts() {
+  try {
+    const { accounts } = await api('listPendingAccounts');
+    const body = document.getElementById('pendingAccountsBody');
+    const empty = document.getElementById('pendingAccountsEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', accounts.length > 0);
+    accounts.forEach(a => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${a.full_name || '—'}</td>
+        <td class="py-2 pr-2">${a.email}</td>
+        <td class="py-2 pr-2">${when(a.created_at)}</td>
+        <td class="py-2">
+          <div class="flex gap-1">
+            <button onclick="approveAccount(${a.id})" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Approve</button>
+            <button onclick="rejectAccount(${a.id})" class="bg-red-600 text-white rounded px-3 py-1 text-xs hover:bg-red-700">Reject</button>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function approveAccount(userId) {
+  if (!confirm('Approve this account? They will be able to sign in immediately.')) return;
+  try {
+    const data = await api('approveAccount', { method: 'POST', body: { userId } });
+    showToast(data.message, false);
+    loadPendingAccounts();
+    loadUsers();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function rejectAccount(userId) {
+  const reason = prompt('Reason for rejection (optional, shown to the applicant):', '') || '';
+  if (!confirm('Reject this account application?')) return;
+  try {
+    const data = await api('rejectAccount', { method: 'POST', body: { userId, reason } });
+    showToast(data.message, false);
+    loadPendingAccounts();
+    loadUsers();
   } catch (e) {
     showToast(e.message, true);
   }
