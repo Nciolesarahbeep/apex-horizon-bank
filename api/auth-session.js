@@ -30,7 +30,7 @@ module.exports = async function handler(req, res) {
       const normalizedEmail = normalizeEmail(email);
 
       const result = await sql`
-        SELECT id, email, password_hash, full_name, is_active
+        SELECT id, email, password_hash, full_name, is_active, approval_status, approval_reason
         FROM users
         WHERE email = ${normalizedEmail}
         LIMIT 1
@@ -45,6 +45,23 @@ module.exports = async function handler(req, res) {
 
       if (!passwordMatches) {
         return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      // Approval gate — checked before is_active, since a never-approved
+      // account was never "active" to begin with.
+      if (user.approval_status === 'pending') {
+        return res.status(403).json({
+          error: 'Your account is still under review. We\'ll notify you by email once a decision is made.',
+          approvalStatus: 'pending',
+        });
+      }
+      if (user.approval_status === 'rejected') {
+        return res.status(403).json({
+          error: user.approval_reason
+            ? `Your account application was not approved: ${user.approval_reason}`
+            : 'Your account application was not approved. Please contact support for details.',
+          approvalStatus: 'rejected',
+        });
       }
 
       if (!user.is_active) {
