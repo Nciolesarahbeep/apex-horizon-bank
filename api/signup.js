@@ -178,10 +178,10 @@ module.exports = async function handler(req, res) {
       const savingsAccountNumber = await generateUniqueAccountNumber();
 
       await sql`
-        INSERT INTO accounts (user_id, account_type, balance, account_number)
+        INSERT INTO accounts (user_id, account_type, balance, account_number, apy_rate, interest_accrued_at)
         VALUES
-          (${user.id}, 'checking', 5000.00, ${checkingAccountNumber}),
-          (${user.id}, 'savings', 12500.00, ${savingsAccountNumber})
+          (${user.id}, 'checking', 5000.00, ${checkingAccountNumber}, 0, NULL),
+          (${user.id}, 'savings', 12500.00, ${savingsAccountNumber}, 0.0450, NOW())
       `;
 
       // No welcome/in-app notification here — the person can't sign in yet,
