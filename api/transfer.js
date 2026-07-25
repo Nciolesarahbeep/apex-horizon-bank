@@ -213,8 +213,21 @@ module.exports = async function handler(req, res) {
 
       const nameParts = (recipient.full_name || '').trim().split(/\s+/);
       const firstName = nameParts[0] || 'Apex user';
-      note = description || `P2P transfer to ${firstName}`;
-      noteIncoming = description || `P2P transfer received`;
+
+      // Fetch the sender's own name now so it can be embedded directly into
+      // the recipient's transaction description — not just a notification —
+      // so the recipient sees who paid them everywhere: transaction list,
+      // receipt, and notification, not just one of those places.
+      const senderRowsForNote = await sql`SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1`;
+      const senderFullName = senderRowsForNote[0]?.full_name || 'an Apex Horizon user';
+      const senderEmailForNotify = senderRowsForNote[0]?.email;
+      const senderNameParts = senderFullName.trim().split(/\s+/);
+      const senderFirstName = senderNameParts[0] || 'Apex';
+      const senderLastInitial = senderNameParts.length > 1 ? senderNameParts[senderNameParts.length - 1][0] + '.' : '';
+      const senderDisplayName = senderLastInitial ? `${senderFirstName} ${senderLastInitial}` : senderFirstName;
+
+      note = description ? `${description} — to ${firstName}` : `P2P transfer to ${firstName}`;
+      noteIncoming = description ? `${description} — from ${senderDisplayName}` : `P2P transfer from ${senderDisplayName}`;
     } else if (isWire) {
       // External wire — money leaves Apex Horizon entirely, so there is no
       // internal destination account to credit, only a single outbound entry.
@@ -255,12 +268,15 @@ module.exports = async function handler(req, res) {
 
     const outType = isWire ? 'wire_out' : (isP2P ? 'p2p_out' : 'transfer_out');
 
-    await sql`
+    const outboundTxnRows = await sql`
       INSERT INTO transactions (account_id, type, amount, description, created_at)
       VALUES (${fromAccount.id}, ${outType}, ${transferAmount}, ${note}, NOW())
+      RETURNING id, created_at
     `;
+    const outboundTransactionId = outboundTxnRows[0].id;
 
     let updatedTo = null;
+    let inboundTransactionId = null;
 
     // Wires are external — money leaves the bank, so there's no internal
     // destination account to credit or log an incoming transaction for.
@@ -274,10 +290,12 @@ module.exports = async function handler(req, res) {
 
       const inType = isP2P ? 'p2p_in' : 'transfer_in';
 
-      await sql`
+      const inboundTxnRows = await sql`
         INSERT INTO transactions (account_id, type, amount, description, created_at)
         VALUES (${toAccount.id}, ${inType}, ${transferAmount}, ${noteIncoming}, NOW())
+        RETURNING id
       `;
+      inboundTransactionId = inboundTxnRows[0].id;
     }
 
     // ---------- Notifications + Email (best-effort, never fails the transfer) ----------
@@ -297,9 +315,8 @@ module.exports = async function handler(req, res) {
       }
     } else if (isP2P && recipientInfo) {
       try {
-        const senderRows = await sql`SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1`;
-        const senderName = senderRows[0]?.full_name || 'Apex User';
-        const senderEmail = senderRows[0]?.email;
+        const senderName = senderFullName;
+        const senderEmail = senderEmailForNotify;
         const amountFormatted = transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -344,10 +361,29 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    // Masked beneficiary account for wire receipts — same last-4 convention
+    // used elsewhere in the app (never show a full account number back).
+    const maskedBeneficiary = isWire && beneficiaryNumber
+      ? '••••' + String(beneficiaryNumber).trim().slice(-4)
+      : undefined;
+
     return res.status(200).json({
       success: true,
       isP2P,
       isWire,
+      transactionId: outboundTransactionId,
+      transactionTimestamp: outboundTxnRows[0].created_at,
+      description: note,
+      recipientDisplayName: isP2P && recipientInfo
+        ? (() => {
+            const parts = (recipientInfo.full_name || '').trim().split(/\s+/);
+            const first = parts[0] || 'Apex user';
+            const lastInitial = parts.length > 1 ? parts[parts.length - 1][0] + '.' : '';
+            return lastInitial ? `${first} ${lastInitial}` : first;
+          })()
+        : undefined,
+      wireBankName: isWire ? ((targetBank && String(targetBank).trim()) || 'External Bank') : undefined,
+      wireMaskedBeneficiary: maskedBeneficiary,
       from: { accountType: fromAccountType, balance: updatedFrom[0].balance },
       to: (isP2P || isWire)
         ? { balance: undefined } // don't leak recipient's balance back to sender; wires have no internal recipient
