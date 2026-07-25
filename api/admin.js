@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
       const search = normalizeEmail(req.query.search || '');
       const users = search
         ? await sql`
-            SELECT u.id, u.email, u.full_name, u.is_active, u.created_at,
+            SELECT u.id, u.email, u.full_name, u.is_active, u.approval_status, u.created_at,
                    COALESCE(SUM(a.balance), 0) AS total_balance
             FROM users u
             LEFT JOIN accounts a ON a.user_id = u.id
@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
             LIMIT 100
           `
         : await sql`
-            SELECT u.id, u.email, u.full_name, u.is_active, u.created_at,
+            SELECT u.id, u.email, u.full_name, u.is_active, u.approval_status, u.created_at,
                    COALESCE(SUM(a.balance), 0) AS total_balance
             FROM users u
             LEFT JOIN accounts a ON a.user_id = u.id
@@ -87,6 +87,17 @@ module.exports = async function handler(req, res) {
         ORDER BY l.created_at ASC
       `;
       return res.status(200).json({ loans });
+    }
+
+    // ---------- listPendingAccounts (new signup approval queue) ----------
+    if (action === 'listPendingAccounts') {
+      const accounts = await sql`
+        SELECT id, email, full_name, created_at
+        FROM users
+        WHERE approval_status = 'pending'
+        ORDER BY created_at ASC
+      `;
+      return res.status(200).json({ accounts });
     }
 
     // ---------- getLoginActivity (live sign-in feed) ----------
@@ -194,6 +205,75 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, message: `Loan #${loan.id} approved and $${Number(loan.principal).toFixed(2)} disbursed.` });
     }
 
+    // ---------- approveAccount(userId) ----------
+    if (action === 'approveAccount') {
+      const userId = Number(req.body.userId);
+      if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+      const userRows = await sql`
+        SELECT id, email, approval_status FROM users WHERE id = ${userId} LIMIT 1
+      `;
+      if (userRows.length === 0) return res.status(404).json({ error: 'User not found' });
+      const user = userRows[0];
+
+      if (user.approval_status !== 'pending') {
+        return res.status(400).json({ error: `This account is already ${user.approval_status}, not pending.` });
+      }
+
+      await sql`
+        UPDATE users
+        SET approval_status = 'approved', approved_at = NOW(), approved_by = 'admin'
+        WHERE id = ${userId}
+      `;
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('approveAccount', ${user.email}, NULL, 'Account approved and can now sign in', NOW())
+      `;
+
+      // Best-effort welcome notification — never fails the approval itself.
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${userId}, 'Account Approved', 'Your Apex Horizon Bank account has been approved. You can now sign in.', FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Approve account notification error (non-fatal):', notifyErr);
+      }
+
+      return res.status(200).json({ success: true, message: `Account for ${user.email} approved.` });
+    }
+
+    // ---------- rejectAccount(userId, reason) ----------
+    if (action === 'rejectAccount') {
+      const userId = Number(req.body.userId);
+      const reason = (req.body.reason || '').trim();
+      if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+      const userRows = await sql`
+        SELECT id, email, approval_status FROM users WHERE id = ${userId} LIMIT 1
+      `;
+      if (userRows.length === 0) return res.status(404).json({ error: 'User not found' });
+      const user = userRows[0];
+
+      if (user.approval_status !== 'pending') {
+        return res.status(400).json({ error: `This account is already ${user.approval_status}, not pending.` });
+      }
+
+      await sql`
+        UPDATE users
+        SET approval_status = 'rejected', approval_reason = ${reason || null}, approved_at = NOW(), approved_by = 'admin'
+        WHERE id = ${userId}
+      `;
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('rejectAccount', ${user.email}, NULL, ${reason || 'Account application rejected'}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Account for ${user.email} rejected.` });
+    }
+
     // ---------- toggleAccountStatus(email) ----------
     if (action === 'toggleAccountStatus') {
       const email = normalizeEmail(req.body.email);
@@ -214,7 +294,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", or "toggleAccountStatus".',
+      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", or "toggleAccountStatus".',
     });
   } catch (err) {
     console.error('Admin API error:', err);
