@@ -364,70 +364,153 @@
                         <div id="signupStepDot1" class="h-1 flex-1 rounded-full bg-emerald-500"></div>
                         <div id="signupStepDot2" class="h-1 flex-1 rounded-full bg-gray-200"></div>
                         <div id="signupStepDot3" class="h-1 flex-1 rounded-full bg-gray-200"></div>
+                        <div id="signupStepDot4" class="h-1 flex-1 rounded-full bg-gray-200"></div>
                     </div>
 
-                    <form id="signupStep1Form" onsubmit="handleSignupStep1(event)" class="p-5 space-y-4">
+                    <div id="signupStep1" class="p-5 space-y-4">
                         <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Let's verify your email first</h3>
-                            <p class="text-[11px] text-gray-500 mt-1">We'll send a 6-digit code to confirm it's really you.</p>
+                            <h3 class="text-sm font-bold text-gray-900">Let's get started</h3>
+                            <p class="text-[11px] text-gray-500 mt-1">Tell us a bit about yourself.</p>
                         </div>
                         <div id="signupStep1ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                            <input type="email" id="signupEmailInput" name="email" autocomplete="email" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Full Legal Name</label>
+                            <input type="text" id="signupFullNameInput" autocomplete="name" placeholder="Jane Doe" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         </div>
-                        <button type="submit" id="signupStep1Btn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
-                            <span>Send Verification Code</span>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Date of Birth</label>
+                            <input type="date" id="signupDobInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Phone Number</label>
+                            <input type="tel" id="signupPhoneInput" autocomplete="tel" placeholder="(555) 123-4567" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <button type="button" onclick="handleSignupNext(1)" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
+                            <span>Continue</span>
                         </button>
                         <p class="text-center text-[11px] text-gray-500 pt-1">
                             Already have an account? <button type="button" onclick="toggleAuthMode()" class="text-emerald-600 font-bold hover:underline">Sign in</button>
                         </p>
-                    </form>
+                    </div>
 
-                    <form id="signupStep2Form" onsubmit="handleSignupStep2(event)" class="hidden p-5 space-y-4">
+                    <div id="signupStep2" class="hidden p-5 space-y-4">
                         <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Enter your code</h3>
-                            <p id="signupStep2SubText" class="text-[11px] text-gray-500 mt-1">We sent a 6-digit code to your email.</p>
+                            <h3 class="text-sm font-bold text-gray-900">Home Address</h3>
+                            <p class="text-[11px] text-gray-500 mt-1">Where should we send your account documents?</p>
                         </div>
                         <div id="signupStep2ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Verification Code</label>
-                            <input type="text" id="signupCodeInput" name="one-time-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="123456" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center tracking-[0.5em] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Street Address</label>
+                            <input type="text" id="signupStreetInput" autocomplete="street-address" placeholder="123 Main St" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         </div>
-                        <button type="submit" id="signupStep2Btn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
-                            <span>Verify Email</span>
-                        </button>
-                        <p class="text-center text-[11px] text-gray-500 pt-1">
-                            Didn't get it? <button type="button" id="signupResendBtn" onclick="resendSignupCode()" class="text-emerald-600 font-bold hover:underline">Resend code</button>
-                        </p>
-                        <button type="button" onclick="goToSignupStep(1)" class="w-full text-[11px] text-gray-400 hover:text-gray-600">&larr; Use a different email</button>
-                    </form>
-
-                    <form id="signupStep3Form" onsubmit="handleSignupStep3(event)" class="hidden p-5 space-y-4">
-                        <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Almost there</h3>
-                            <p class="text-[11px] text-gray-500 mt-1">Set up your name and password to finish.</p>
-                        </div>
-                        <div id="signupErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Full Name</label>
-                            <input type="text" id="signupNameInput" name="name" autocomplete="name" placeholder="Jane Doe" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">City</label>
+                            <input type="text" id="signupCityInput" autocomplete="address-level2" placeholder="Springfield" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">State</label>
+                                <input type="text" id="signupStateInput" autocomplete="address-level1" placeholder="IL" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">ZIP Code</label>
+                                <input type="text" id="signupZipInput" autocomplete="postal-code" inputmode="numeric" placeholder="62704" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="handleSignupBack(2)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
+                                Back
+                            </button>
+                            <button type="button" onclick="handleSignupNext(2)" class="flex-1 bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs">
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="signupStep3" class="hidden p-5 space-y-4">
+                        <div class="text-center mb-1">
+                            <h3 class="text-sm font-bold text-gray-900">Account & Identity</h3>
+                            <p class="text-[11px] text-gray-500 mt-1">Set your login and verify your identity.</p>
+                        </div>
+                        <div id="signupStep3ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
+                            <input type="email" id="signupEmailInput" autocomplete="email" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
-                            <input type="password" id="signupPasswordInput" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required minlength="8">
+                            <input type="password" id="signupPasswordInput" autocomplete="new-password" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500" minlength="8">
                         </div>
-                        <label class="flex items-start space-x-2 pt-1">
-                            <input type="checkbox" id="signupTermsCheckbox" class="mt-0.5" required>
-                            <span class="text-[10px] text-gray-500 leading-relaxed">I agree to the Apex Horizon Bank Terms of Service, Privacy Policy, and E-Sign Consent Disclosure.</span>
-                        </label>
-                        <button type="submit" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
-                            <i class="fa-solid fa-user-plus text-emerald-400"></i>
-                            <span>Create Account</span>
-                        </button>
-                    </form>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Confirm Password</label>
+                            <input type="password" id="signupConfirmPasswordInput" autocomplete="new-password" placeholder="Re-enter password" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500" minlength="8">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">ID Type</label>
+                            <select id="signupIdTypeInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                <option value="drivers_license">Driver's License</option>
+                                <option value="passport">Passport</option>
+                                <option value="state_id">State ID</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">ID Number</label>
+                            <input type="text" id="signupIdNumberInput" placeholder="ID number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">SSN (last 4 digits)</label>
+                            <input type="text" id="signupSsnLast4Input" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="handleSignupBack(3)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
+                                Back
+                            </button>
+                            <button type="button" onclick="handleSignupNext(3)" class="flex-1 bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs">
+                                Continue
+                            </button>
+                        </div>
+                    </div>
 
-                    <div id="signupStep4Pending" class="hidden p-6 space-y-4 text-center">
+                    <div id="signupStep4" class="hidden p-5 space-y-4">
+                        <div class="text-center mb-1">
+                            <h3 class="text-sm font-bold text-gray-900">Almost there</h3>
+                            <p class="text-[11px] text-gray-500 mt-1">Set a security question and review your details.</p>
+                        </div>
+                        <div id="signupStep4ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Security Question</label>
+                            <select id="signupSecurityQInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                <option value="">Select a question</option>
+                                <option value="First pet's name?">First pet's name?</option>
+                                <option value="City you were born in?">City you were born in?</option>
+                                <option value="Mother's maiden name?">Mother's maiden name?</option>
+                                <option value="Name of your first school?">Name of your first school?</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Your Answer</label>
+                            <input type="text" id="signupSecurityAInput" placeholder="Answer" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+
+                        <div id="signupReviewSummary" class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-[11px] text-gray-600 space-y-1"></div>
+
+                        <label class="flex items-start space-x-2 pt-1">
+                            <input type="checkbox" id="signupTermsCheckbox" class="mt-0.5">
+                            <span class="text-[10px] text-gray-500 leading-relaxed">I agree to the Apex Horizon Bank Terms of Service, Privacy Policy, and E-Sign Consent Disclosure, and confirm the information provided is accurate.</span>
+                        </label>
+
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" onclick="handleSignupBack(4)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
+                                Back
+                            </button>
+                            <button type="button" id="signupSubmitBtn" onclick="handleSignupFinalSubmit()" class="flex-1 bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs">
+                                <i class="fa-solid fa-user-plus text-emerald-400"></i>
+                                <span>Create Account</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="signupStep5Pending" class="hidden p-6 space-y-4 text-center">
                         <div class="mx-auto w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
                             <i class="fa-solid fa-clock text-emerald-600 text-2xl"></i>
                         </div>
@@ -1944,16 +2027,6 @@ if (activeLoanBalanceEl) {
         }
 
         async function restoreSessionOnLoad() {
-            // Always ask the server whether the session is genuinely still
-            // valid — this always plays a full ~1 second "restoring session"
-            // animation (never skipped or shortened), then either lands back
-            // on the dashboard or requires an explicit sign-in. This doesn't
-            // depend on anything stored in the browser surviving a refresh —
-            // some in-app browser contexts clear that unreliably. The 1-minute
-            // idle rule is enforced live while the app is open instead (see
-            // resetIdleTimer), so closing the app for a while and reopening it
-            // naturally requires signing in again once the session cookie
-            // itself has expired.
             const splash = document.getElementById('sessionCheckSplash');
 
             try {
@@ -2408,9 +2481,6 @@ if (activeLoanBalanceEl) {
             document.getElementById('modalTrace').innerText = trace;
             document.getElementById('modalAmount').innerText = amount;
 
-            // Deterministic confirmation number derived from the trace/transaction
-            // ID — the same transaction must always show the same confirmation
-            // number, not a fresh random one every time the receipt is reopened.
             const prefix = 'AH';
             const suffixChars = 'abcdefghijklmnopqrstuvwxyz';
             let hash = 0;
@@ -2542,11 +2612,8 @@ if (activeLoanBalanceEl) {
             document.getElementById('p2pConfirmPane').classList.add('hidden');
             document.getElementById('p2pSendingPane').classList.remove('hidden');
 
-            // Real-bank-style processing delay
             await new Promise(resolve => setTimeout(resolve, 3000));
 
-            // Phase 1: the actual transfer. Only errors here mean the transfer
-            // itself failed — this is the only phase allowed to show "transfer failed".
             let data;
             try {
                 const res = await fetch('/api/transfer', {
@@ -2576,9 +2643,6 @@ if (activeLoanBalanceEl) {
                 return;
             }
 
-            // Phase 2: money has already moved successfully at this point — an
-            // error here (refreshing the ledger, showing the pop-up) must never
-            // be reported to the user as a failed transfer.
             try {
                 await loadRealAccountDataWithRetry();
 
@@ -2665,8 +2729,6 @@ if (activeLoanBalanceEl) {
                 return;
             }
 
-            // The wire itself already succeeded server-side at this point — a
-            // hiccup refreshing the ledger must never be reported as a failure.
             try {
                 await loadRealAccountDataWithRetry();
             } catch (err) {
@@ -2991,18 +3053,17 @@ updateHeaderUserEmail(currentUserEmail);
             document.getElementById('loginFormWrapper').classList.toggle('hidden');
             document.getElementById('signupFormWrapper').classList.toggle('hidden');
             goToSignupStep(1);
-            signupVerifiedEmail = null;
         }
 
         function goToSignupStep(step) {
-            [1, 2, 3].forEach(n => {
-                const formEl = document.getElementById(`signupStep${n}Form`);
-                if (formEl) formEl.classList.toggle('hidden', n !== step);
+            [1, 2, 3, 4].forEach(n => {
+                const stepEl = document.getElementById(`signupStep${n}`);
+                if (stepEl) stepEl.classList.toggle('hidden', n !== step);
                 const dot = document.getElementById(`signupStepDot${n}`);
                 if (dot) dot.className = `h-1 flex-1 rounded-full ${n <= step ? 'bg-emerald-500' : 'bg-gray-200'}`;
             });
-            const pendingEl = document.getElementById('signupStep4Pending');
-            if (pendingEl) pendingEl.classList.toggle('hidden', step !== 4);
+            const pendingEl = document.getElementById('signupStep5Pending');
+            if (pendingEl) pendingEl.classList.toggle('hidden', step !== 5);
         }
 
         function showAuthError(bannerId, message) {
@@ -3013,6 +3074,165 @@ updateHeaderUserEmail(currentUserEmail);
 
         function hideAuthError(bannerId) {
             document.getElementById(bannerId).classList.add('hidden');
+        }
+
+        function hideAllSignupErrors() {
+            ['signupStep1ErrorBanner', 'signupStep2ErrorBanner', 'signupStep3ErrorBanner', 'signupStep4ErrorBanner'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+        }
+
+        function validateSignupStep(step) {
+            const val = id => (document.getElementById(id)?.value || '').trim();
+
+            if (step === 1) {
+                if (!val('signupFullNameInput') || !val('signupDobInput') || !val('signupPhoneInput')) {
+                    showAuthError('signupStep1ErrorBanner', 'Please fill in your name, date of birth, and phone number.');
+                    return false;
+                }
+            }
+
+            if (step === 2) {
+                if (!val('signupStreetInput') || !val('signupCityInput') || !val('signupStateInput') || !val('signupZipInput')) {
+                    showAuthError('signupStep2ErrorBanner', 'Please complete your full address.');
+                    return false;
+                }
+            }
+
+            if (step === 3) {
+                const email = val('signupEmailInput');
+                const password = val('signupPasswordInput');
+                const confirmPassword = val('signupConfirmPasswordInput');
+                const idNumber = val('signupIdNumberInput');
+                const ssnLast4 = val('signupSsnLast4Input');
+
+                if (!email || !email.includes('@') || !email.includes('.')) {
+                    showAuthError('signupStep3ErrorBanner', 'Please enter a valid email address.');
+                    return false;
+                }
+                if (password.length < 8) {
+                    showAuthError('signupStep3ErrorBanner', 'Password must be at least 8 characters.');
+                    return false;
+                }
+                if (password !== confirmPassword) {
+                    showAuthError('signupStep3ErrorBanner', 'Passwords do not match.');
+                    return false;
+                }
+                if (!idNumber) {
+                    showAuthError('signupStep3ErrorBanner', 'Please enter your ID number.');
+                    return false;
+                }
+                if (!/^\d{4}$/.test(ssnLast4)) {
+                    showAuthError('signupStep3ErrorBanner', 'Enter exactly 4 digits for the last 4 of your SSN.');
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function buildSignupReviewSummary() {
+            const val = id => (document.getElementById(id)?.value || '').trim();
+            const idTypeSelect = document.getElementById('signupIdTypeInput');
+            const idTypeLabel = idTypeSelect ? idTypeSelect.selectedOptions[0].text : '';
+
+            document.getElementById('signupReviewSummary').innerHTML = `
+                <p><strong>Name:</strong> ${val('signupFullNameInput')}</p>
+                <p><strong>Email:</strong> ${val('signupEmailInput')}</p>
+                <p><strong>Phone:</strong> ${val('signupPhoneInput')}</p>
+                <p><strong>Address:</strong> ${val('signupStreetInput')}, ${val('signupCityInput')}, ${val('signupStateInput')} ${val('signupZipInput')}</p>
+                <p><strong>ID:</strong> ${idTypeLabel} ending in ${val('signupIdNumberInput').slice(-4)}</p>
+            `;
+        }
+
+        function handleSignupNext(fromStep) {
+            hideAllSignupErrors();
+            if (!validateSignupStep(fromStep)) return;
+            const nextStep = fromStep + 1;
+            goToSignupStep(nextStep);
+            if (nextStep === 4) buildSignupReviewSummary();
+        }
+
+        function handleSignupBack(fromStep) {
+            hideAllSignupErrors();
+            goToSignupStep(fromStep - 1);
+        }
+
+        async function handleSignupFinalSubmit() {
+            hideAllSignupErrors();
+
+            const val = id => (document.getElementById(id)?.value || '').trim();
+            const securityQ = val('signupSecurityQInput');
+            const securityA = val('signupSecurityAInput');
+            const agreeTerms = document.getElementById('signupTermsCheckbox').checked;
+
+            if (!securityQ) {
+                showAuthError('signupStep4ErrorBanner', 'Please select a security question.');
+                return;
+            }
+            if (!securityA) {
+                showAuthError('signupStep4ErrorBanner', 'Please provide an answer to your security question.');
+                return;
+            }
+            if (!agreeTerms) {
+                showAuthError('signupStep4ErrorBanner', 'Please agree to the Terms of Service to continue.');
+                return;
+            }
+
+            const submitBtn = document.getElementById('signupSubmitBtn');
+            const originalContent = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Creating account...</span>';
+
+            const payload = {
+                action: 'create-account',
+                fullName: val('signupFullNameInput'),
+                dob: val('signupDobInput'),
+                phone: val('signupPhoneInput'),
+                street: val('signupStreetInput'),
+                city: val('signupCityInput'),
+                state: val('signupStateInput'),
+                zip: val('signupZipInput'),
+                email: val('signupEmailInput'),
+                password: val('signupPasswordInput'),
+                idType: document.getElementById('signupIdTypeInput').value,
+                idNumber: val('signupIdNumberInput'),
+                ssnLast4: val('signupSsnLast4Input'),
+                securityQuestion: securityQ,
+                securityAnswer: securityA,
+            };
+
+            try {
+                const res = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalContent;
+
+                if (!res.ok) {
+                    showAuthError('signupStep4ErrorBanner', data.error || 'Signup failed. Please try again.');
+                    return;
+                }
+
+                if (data.message) {
+                    const msgEl = document.getElementById('signupPendingMessage');
+                    if (msgEl) msgEl.innerText = data.message;
+                }
+                goToSignupStep(5);
+            } catch (err) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalContent;
+                showAuthError('signupStep4ErrorBanner', 'Network error. Please check your connection and try again.');
+            }
         }
 
         async function handleSignIn(event) {
@@ -3030,9 +3250,6 @@ updateHeaderUserEmail(currentUserEmail);
             submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
             submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Authenticating...</span>';
 
-            // Phase 1: the actual login request. Only a genuine failure here
-            // (bad credentials, real network drop) should ever show an error —
-            // once this succeeds, the person IS logged in server-side.
             try {
                 const res = await fetch('/api/auth-session', {
                     method: 'POST',
@@ -3057,11 +3274,6 @@ updateHeaderUserEmail(currentUserEmail);
                 return;
             }
 
-            // Phase 2: login already succeeded at this point — loading account
-            // data or running the visual sequence must never be reported back
-            // as a login failure. A brief cookie-propagation delay right after
-            // logging in (especially right after a fast logout→login cycle) is
-            // handled with one retry before giving up.
             try {
                 await loadRealAccountDataWithRetry();
                 setTimeout(() => {
@@ -3075,9 +3287,6 @@ updateHeaderUserEmail(currentUserEmail);
                 submitBtn.disabled = false;
                 submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                 submitBtn.innerHTML = originalContent;
-                // Still take the person into the app — they're genuinely signed
-                // in. Missing data will simply refresh next time they pull down
-                // or revisit a tab.
                 runLoginSequence();
             }
         }
@@ -3098,190 +3307,6 @@ updateHeaderUserEmail(currentUserEmail);
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
             await loadRealAccountData();
-        }
-
-        let signupVerifiedEmail = null;
-
-        async function handleSignupStep1(event) {
-            event.preventDefault();
-            hideAuthError('signupStep1ErrorBanner');
-            const email = document.getElementById('signupEmailInput').value.trim();
-            const btn = document.getElementById('signupStep1Btn');
-            const originalContent = btn.innerHTML;
-
-            btn.disabled = true;
-            btn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Sending code...</span>';
-
-            try {
-                const res = await withMinDelay(fetch('/api/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'send-code', email })
-                }), 900);
-                const data = await res.json();
-
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-
-                if (!res.ok) {
-                    showAuthError('signupStep1ErrorBanner', data.error || 'Could not send verification code.');
-                    return;
-                }
-
-                document.getElementById('signupStep2SubText').innerText = `We sent a 6-digit code to ${email}.`;
-                goToSignupStep(2);
-            } catch (err) {
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-                showAuthError('signupStep1ErrorBanner', 'Network error. Please try again.');
-            }
-        }
-
-        async function handleSignupStep2(event) {
-            event.preventDefault();
-            hideAuthError('signupStep2ErrorBanner');
-            const email = document.getElementById('signupEmailInput').value.trim();
-            const code = document.getElementById('signupCodeInput').value.trim();
-            const btn = document.getElementById('signupStep2Btn');
-            const originalContent = btn.innerHTML;
-
-            btn.disabled = true;
-            btn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Verifying...</span>';
-
-            try {
-                const res = await withMinDelay(fetch('/api/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'verify-code', email, code })
-                }), 800);
-                const data = await res.json();
-
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-
-                if (!res.ok) {
-                    showAuthError('signupStep2ErrorBanner', data.error || 'Invalid or expired code.');
-                    return;
-                }
-
-                signupVerifiedEmail = email;
-                goToSignupStep(3);
-            } catch (err) {
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-                showAuthError('signupStep2ErrorBanner', 'Network error. Please try again.');
-            }
-        }
-
-        async function resendSignupCode() {
-            const email = document.getElementById('signupEmailInput').value.trim();
-            const btn = document.getElementById('signupResendBtn');
-            const originalText = btn.innerText;
-            btn.disabled = true;
-            btn.innerText = 'Sending...';
-
-            try {
-                await fetch('/api/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'send-code', email })
-                });
-            } catch (err) {
-                console.error('Resend code error:', err);
-            }
-
-            let cooldown = 30;
-            const interval = setInterval(() => {
-                btn.innerText = `Resend in ${cooldown}s`;
-                cooldown--;
-                if (cooldown < 0) {
-                    clearInterval(interval);
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                }
-            }, 1000);
-        }
-
-        async function handleSignupStep3(event) {
-            event.preventDefault();
-            hideAuthError('signupErrorBanner');
-
-            if (!signupVerifiedEmail) {
-                showAuthError('signupErrorBanner', 'Please verify your email first.');
-                goToSignupStep(1);
-                return;
-            }
-
-            const form = event.target;
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalContent = submitBtn.innerHTML;
-            const fullName = document.getElementById('signupNameInput').value;
-            const password = document.getElementById('signupPasswordInput').value;
-            const termsAccepted = document.getElementById('signupTermsCheckbox').checked;
-
-            if (!termsAccepted) {
-                showAuthError('signupErrorBanner', 'You must agree to the Terms of Service to continue.');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
-            submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Creating account...</span>';
-
-            // Phase 1: creating the account itself. Only a genuine failure here
-            // should ever be reported as a signup failure.
-            try {
-                const res = await fetch('/api/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ action: 'create-account', email: signupVerifiedEmail, password, fullName })
-                });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    submitBtn.disabled = false;
-                    submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                    submitBtn.innerHTML = originalContent;
-                    showAuthError('signupErrorBanner', data.error || 'Signup failed. Please try again.');
-                    return;
-                }
-
-                if (data.accountNumber) {
-                    pendingWelcomeAccountNumber = data.accountNumber;
-                    pendingWelcomeFullName = data.user?.fullName || fullName;
-                }
-
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                submitBtn.innerHTML = originalContent;
-
-                // Accounts now require admin approval before they can sign in —
-                // there is no session to load into a dashboard, so show the
-                // pending-review screen instead of running the login sequence.
-                if (data.approvalStatus === 'pending') {
-                    if (data.message) {
-                        const msgEl = document.getElementById('signupPendingMessage');
-                        if (msgEl) msgEl.innerText = data.message;
-                    }
-                    goToSignupStep(4);
-                    return;
-                }
-
-                // Fallback for older API responses that still log the user in directly.
-                try {
-                    await loadRealAccountDataWithRetry();
-                } catch (err) {
-                    console.error('Post-signup data load failed (account creation itself succeeded):', err);
-                }
-                setTimeout(() => { runLoginSequence(); }, 1300);
-            } catch (err) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                submitBtn.innerHTML = originalContent;
-                showAuthError('signupErrorBanner', 'Network error. Please check your connection and try again.');
-                return;
-            }
         }
 
         function showNotificationDetail(title, message) {
@@ -3897,7 +3922,6 @@ updateHeaderUserEmail(currentUserEmail);
                 console.error('Email change confirmation error:', err);
             }
 
-            // Strip the token from the URL so refreshing doesn't re-trigger it
             params.delete('emailChangeToken');
             const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
             window.history.replaceState({}, '', newUrl);
@@ -4141,8 +4165,6 @@ async function submitForgotPasswordEmail() {
             return;
         }
 
-        // Backend always returns success here whether or not the email exists —
-        // that's intentional (prevents email enumeration). Show the "check your inbox" step.
         document.getElementById('fpStep1').classList.add('hidden');
         document.getElementById('fpStep3').classList.remove('hidden');
         document.getElementById('fpStep3').innerHTML = `
@@ -4170,7 +4192,6 @@ function checkForResetTokenInUrl() {
         document.getElementById('fpStep2').classList.remove('hidden');
         document.getElementById('fpStep3').classList.add('hidden');
         document.getElementById('fpErrorBanner1').classList.add('hidden');
-        // Remove the token from the visible URL/history once it's been captured
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
@@ -4336,8 +4357,6 @@ async function handleFaceIdLogin() {
         return;
     }
 
-    // Phase 1: the actual Face ID verification. Only a genuine failure here
-    // should ever be reported as "Face ID sign-in failed."
     try {
        const optionsRes = await fetch('/api/webauthn-login', {
     method: 'POST',
@@ -4375,8 +4394,6 @@ async function handleFaceIdLogin() {
         return;
     }
 
-    // Phase 2: Face ID already verified successfully at this point — a hiccup
-    // loading account data must never be reported as a failed sign-in.
     try {
         await loadRealAccountDataWithRetry();
     } catch (err) {
@@ -4564,8 +4581,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                await loadRealAccountDataWithRetry(); // refreshes checking balance + transactions
-                await loadCreditCardData();  // refreshes card balance + card transactions
+                await loadRealAccountDataWithRetry();
+                await loadCreditCardData();
 
                 const banner = document.getElementById('successBanner');
                 if (banner) {
@@ -5122,8 +5139,6 @@ function showMoneyPopSuccess(opts) {
     `${opts.amountLabel || ''} ${opts.counterpart ? '· ' + opts.counterpart : ''}`
   );
 
-  // Auto-dismiss after 5 seconds if the person doesn't tap it — matches how
-  // real banking apps clear transient success overlays automatically.
   if (moneyPopAutoCloseTimer) clearTimeout(moneyPopAutoCloseTimer);
   moneyPopAutoCloseTimer = setTimeout(() => {
     closeMoneyPopSuccess();
