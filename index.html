@@ -562,7 +562,12 @@
             </div>
         </div>
 
-        <div id="dashboardApp" class="hidden flex-1 flex flex-col">
+        <div id="pullToRefreshIndicator" class="hidden fixed top-2 left-1/2 z-[9998] bg-slate-900 text-white text-[10px] font-mono uppercase tracking-wider px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2">
+    <div id="pullToRefreshSpinner" class="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
+    <span id="pullToRefreshLabel">Pull to refresh</span>
+</div>
+
+<div id="dashboardApp" class="hidden flex-1 flex flex-col">
             
             <header class="bg-slate-900 text-white h-16 sticky top-0 z-50 flex items-center justify-between px-4 shadow-md">
                 <div class="flex items-center space-x-2 cursor-pointer" onclick="triggerViewSwitch('summary')">
@@ -2239,6 +2244,12 @@ if (activeLoanBalanceEl) {
             if (dropdown) dropdown.classList.add('hidden');
         });
 
+        document.addEventListener('click', function (e) {
+            if (currentOpenSwipeWrapper && !currentOpenSwipeWrapper.contains(e.target)) {
+                closeSwipe(currentOpenSwipeWrapper);
+            }
+        });
+
         async function submitLoanApplication() {
             const apr = parseFloat(document.getElementById('utilityProductSelect').value);
             const principal = parseFloat(document.getElementById('loanCalculatorAmountSlider').value);
@@ -3655,33 +3666,157 @@ updateHeaderUserEmail(currentUserEmail);
             }
         }
 
+        let currentOpenSwipeWrapper = null;
+
+        function closeSwipe(wrapper) {
+            if (!wrapper) return;
+            const fg = wrapper.querySelector('.swipe-foreground');
+            if (fg) {
+                fg.style.transition = 'transform 0.25s ease';
+                fg.style.transform = 'translateX(0)';
+            }
+            delete wrapper.dataset.swiped;
+            if (currentOpenSwipeWrapper === wrapper) currentOpenSwipeWrapper = null;
+        }
+
+        function attachSwipeGesture(wrapper, foreground, revealWidth) {
+            let startX = 0, startY = 0, currentX = 0, dragging = false, axisLocked = null;
+
+            function onStart(clientX, clientY) {
+                if (currentOpenSwipeWrapper && currentOpenSwipeWrapper !== wrapper) {
+                    closeSwipe(currentOpenSwipeWrapper);
+                }
+                startX = clientX;
+                startY = clientY;
+                dragging = true;
+                axisLocked = null;
+                foreground.style.transition = 'none';
+            }
+
+            function onMove(clientX, clientY) {
+                if (!dragging) return;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                if (axisLocked === null) {
+                    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+                        axisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+                    }
+                }
+                if (axisLocked !== 'x') return;
+                const base = wrapper.dataset.swiped === 'true' ? -revealWidth : 0;
+                currentX = Math.min(0, Math.max(-revealWidth, base + dx));
+                foreground.style.transform = `translateX(${currentX}px)`;
+            }
+
+            function onEnd() {
+                if (!dragging) return;
+                dragging = false;
+                foreground.style.transition = 'transform 0.25s ease';
+                if (axisLocked === 'x') {
+                    if (currentX < -revealWidth / 2) {
+                        foreground.style.transform = `translateX(-${revealWidth}px)`;
+                        wrapper.dataset.swiped = 'true';
+                        currentOpenSwipeWrapper = wrapper;
+                    } else {
+                        foreground.style.transform = 'translateX(0)';
+                        delete wrapper.dataset.swiped;
+                        if (currentOpenSwipeWrapper === wrapper) currentOpenSwipeWrapper = null;
+                    }
+                }
+                axisLocked = null;
+            }
+
+            foreground.addEventListener('touchstart', e => onStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+            foreground.addEventListener('touchmove', e => {
+                onMove(e.touches[0].clientX, e.touches[0].clientY);
+                if (axisLocked === 'x') e.preventDefault();
+            }, { passive: false });
+            foreground.addEventListener('touchend', onEnd);
+
+            foreground.addEventListener('mousedown', e => {
+                onStart(e.clientX, e.clientY);
+                const onMouseMove = ev => onMove(ev.clientX, ev.clientY);
+                const onMouseUp = () => {
+                    onEnd();
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+
+        function handleDisputeTransaction(txn) {
+            const confirmed = confirm(`Report "${txn.description}" as suspicious or incorrect? Our team will review it within 1 business day.`);
+            if (!confirmed) return;
+            alert("Thanks — this transaction has been flagged for review. You'll get a notification once it's resolved.");
+        }
+
+        function createSwipeableTxnRow(txn) {
+            const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
+            const amountAbs = Math.abs(parseFloat(txn.amount));
+            const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+
+            const wrapper = document.createElement('div');
+            wrapper.className = "relative overflow-hidden rounded-lg animate-fade-in";
+
+            const actionsLayer = document.createElement('div');
+            actionsLayer.className = "absolute inset-y-0 right-0 flex items-stretch rounded-r-lg overflow-hidden";
+            actionsLayer.innerHTML = `
+                <button class="w-16 bg-slate-700 hover:bg-slate-800 text-white text-[9px] font-bold uppercase flex flex-col items-center justify-center gap-1" data-action="receipt">
+                    <i class="fa-solid fa-receipt text-xs"></i>Receipt
+                </button>
+                <button class="w-16 bg-red-500 hover:bg-red-600 text-white text-[9px] font-bold uppercase flex flex-col items-center justify-center gap-1" data-action="dispute">
+                    <i class="fa-solid fa-flag text-xs"></i>Dispute
+                </button>
+            `;
+
+            const foreground = document.createElement('div');
+            foreground.className = "swipe-foreground relative z-10 p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center cursor-pointer hover:bg-gray-100";
+            foreground.innerHTML = `
+                <div class="min-w-0 pr-2">
+                    <p class="text-xs font-bold text-gray-900 truncate">${txn.description}</p>
+                    <p class="text-[9px] text-gray-400 font-mono">${dateStr} | ID #TXN-${txn.id}</p>
+                </div>
+                <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
+            `;
+
+            const openReceipt = () => openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
+                timestamp: txn.created_at,
+                type: formatTxnType(txn.type)
+            });
+
+            foreground.onclick = function () {
+                if (wrapper.dataset.swiped === 'true') { closeSwipe(wrapper); return; }
+                openReceipt();
+            };
+
+            actionsLayer.querySelector('[data-action="receipt"]').onclick = function (e) {
+                e.stopPropagation();
+                closeSwipe(wrapper);
+                openReceipt();
+            };
+            actionsLayer.querySelector('[data-action="dispute"]').onclick = function (e) {
+                e.stopPropagation();
+                closeSwipe(wrapper);
+                handleDisputeTransaction(txn);
+            };
+
+            wrapper.appendChild(actionsLayer);
+            wrapper.appendChild(foreground);
+            attachSwipeGesture(wrapper, foreground, 128);
+
+            return wrapper;
+        }
+
         function renderTransactionLedger() {
             const container = document.getElementById('realTransactionContainer');
             if (!container) return;
             container.innerHTML = '';
 
             allTransactions.slice(0, 10).forEach(txn => {
-                const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
-                const amountAbs = Math.abs(parseFloat(txn.amount));
-                const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-
-                const element = document.createElement('div');
-                element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
-                element.onclick = function () {
-                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
-                        timestamp: txn.created_at,
-                        type: formatTxnType(txn.type)
-                    });
-                };
-                element.innerHTML = `
-                    <div class="min-w-0 pr-2">
-                        <p class="text-xs font-bold text-gray-900 truncate">${txn.description}</p>
-                        <p class="text-[9px] text-gray-400 font-mono">${dateStr} | ID #TXN-${txn.id}</p>
-                    </div>
-                    <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
-                `;
-                container.appendChild(element);
+                container.appendChild(createSwipeableTxnRow(txn));
             });
         }
 
@@ -3690,27 +3825,7 @@ updateHeaderUserEmail(currentUserEmail);
             container.innerHTML = '';
 
             allTransactions.slice(10, 26).forEach(txn => {
-                const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
-                const amountAbs = Math.abs(parseFloat(txn.amount));
-                const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-
-                const element = document.createElement('div');
-                element.className = "p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center animate-fade-in cursor-pointer hover:bg-gray-100 transition";
-                element.onclick = function () {
-                    openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
-                        timestamp: txn.created_at,
-                        type: formatTxnType(txn.type)
-                    });
-                };
-                element.innerHTML = `
-                    <div class="min-w-0 pr-2">
-                        <p class="text-xs font-bold text-gray-900 truncate">${txn.description}</p>
-                        <p class="text-[9px] text-gray-400 font-mono">${dateStr} | ID #TXN-${txn.id}</p>
-                    </div>
-                    <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
-                `;
-                container.appendChild(element);
+                container.appendChild(createSwipeableTxnRow(txn));
             });
 
             const interfaceContainer = document.getElementById('logActionInterface');
@@ -3756,7 +3871,16 @@ updateHeaderUserEmail(currentUserEmail);
                 categoryChartInstance = new Chart(chartCanvas, {
                     type: 'doughnut',
                     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
-                    options: { plugins: { legend: { display: false } }, cutout: '65%' }
+                    options: {
+                        plugins: { legend: { display: false } },
+                        cutout: '65%',
+                        animation: {
+                            animateRotate: true,
+                            animateScale: true,
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
                 });
             }
 
@@ -3793,7 +3917,19 @@ updateHeaderUserEmail(currentUserEmail);
                         labels: Object.keys(monthBuckets),
                         datasets: [{ data: Object.values(monthBuckets), backgroundColor: '#10b981', borderRadius: 4 }]
                     },
-                    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    options: {
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } },
+                        animation: {
+                            duration: 900,
+                            easing: 'easeOutQuart',
+                            delay: (context) => {
+                                return context.type === 'data' && context.mode === 'default'
+                                    ? context.dataIndex * 90
+                                    : 0;
+                            }
+                        }
+                    }
                 });
             }
         }
@@ -5139,6 +5275,11 @@ document.addEventListener('DOMContentLoaded', () => {
   animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   animation-fill-mode: forwards;
 }
+#pullToRefreshIndicator {
+  opacity: 0;
+  transform: translate(-50%, -40px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
 </style>
 
 <script>
@@ -5301,6 +5442,96 @@ async function pollForIncomingMoney() {
   }
 }
 setInterval(pollForIncomingMoney, 8000);
+
+(function () {
+    let ptrStartY = 0;
+    let ptrCurrentY = 0;
+    let ptrDragging = false;
+    let ptrTriggered = false;
+    const PTR_THRESHOLD = 70;
+
+    function isDashboardVisible() {
+        const dash = document.getElementById('dashboardApp');
+        return dash && !dash.classList.contains('hidden');
+    }
+
+    function isAnyOverlayOpen() {
+        const overlayIds = [
+            'receiptModal', 'forgotPasswordModal', 'accountNumberModal', 'moneyPopOverlay',
+            'sessionKilledOverlay', 'loadingOverlay', 'bubbleLoader', 'preQualLoader',
+            'loginSequenceLoader', 'logoutSequenceLoader'
+        ];
+        return overlayIds.some(id => {
+            const el = document.getElementById(id);
+            return el && !el.classList.contains('hidden');
+        });
+    }
+
+    function resetIndicator() {
+        const indicator = document.getElementById('pullToRefreshIndicator');
+        if (!indicator) return;
+        indicator.style.opacity = '0';
+        indicator.style.transform = 'translate(-50%, -40px)';
+        setTimeout(() => indicator.classList.add('hidden'), 250);
+    }
+
+    document.addEventListener('touchstart', function (e) {
+        if (!isDashboardVisible() || isAnyOverlayOpen()) return;
+        if (window.scrollY > 0) return;
+        ptrStartY = e.touches[0].clientY;
+        ptrDragging = true;
+        ptrTriggered = false;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+        if (!ptrDragging) return;
+        ptrCurrentY = e.touches[0].clientY;
+        const dy = ptrCurrentY - ptrStartY;
+        if (dy <= 0) return;
+        if (window.scrollY > 0) { ptrDragging = false; return; }
+
+        const indicator = document.getElementById('pullToRefreshIndicator');
+        const label = document.getElementById('pullToRefreshLabel');
+        if (!indicator || !label) return;
+
+        indicator.classList.remove('hidden');
+        const pull = Math.min(dy, PTR_THRESHOLD * 1.6);
+        indicator.style.opacity = String(Math.min(pull / PTR_THRESHOLD, 1));
+        indicator.style.transform = `translate(-50%, ${Math.min(pull, PTR_THRESHOLD) - 30}px)`;
+        label.innerText = dy > PTR_THRESHOLD ? 'Release to refresh' : 'Pull to refresh';
+
+        if (dy > 12) e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', function () {
+        if (!ptrDragging) return;
+        ptrDragging = false;
+        const dy = ptrCurrentY - ptrStartY;
+        const indicator = document.getElementById('pullToRefreshIndicator');
+        const label = document.getElementById('pullToRefreshLabel');
+        const spinner = document.getElementById('pullToRefreshSpinner');
+
+        if (dy > PTR_THRESHOLD && !ptrTriggered && indicator && label && spinner) {
+            ptrTriggered = true;
+            label.innerText = 'Refreshing...';
+            spinner.classList.add('animate-spin');
+            indicator.style.opacity = '1';
+            indicator.style.transform = 'translate(-50%, 10px)';
+
+            loadRealAccountDataWithRetry().catch(() => {}).finally(() => {
+                setTimeout(() => {
+                    spinner.classList.remove('animate-spin');
+                    resetIndicator();
+                }, 400);
+            });
+        } else {
+            resetIndicator();
+        }
+
+        ptrCurrentY = 0;
+        ptrStartY = 0;
+    }, { passive: true });
+})();
 </script>
     <script>
   if ('serviceWorker' in navigator) {
