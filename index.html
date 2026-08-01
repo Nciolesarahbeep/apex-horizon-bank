@@ -49,25 +49,57 @@
         #appShellRoot.theme-dark .bg-white {
             background-color: #1e293b !important;
         }
-        #appShellRoot.theme-dark .text-gray-900 {
-            color: #e2e8f0 !important;
+        #appShellRoot.theme-dark .bg-gray-100 {
+            background-color: #334155 !important;
+        }
+        #appShellRoot.theme-dark .hover\:bg-gray-50:hover,
+        #appShellRoot.theme-dark .hover\:bg-gray-100:hover {
+            background-color: #273449 !important;
+        }
+
+        #appShellRoot.theme-dark .text-gray-900,
+        #appShellRoot.theme-dark .text-slate-900,
+        #appShellRoot.theme-dark .text-slate-800 {
+            color: #f1f5f9 !important;
         }
         #appShellRoot.theme-dark .text-gray-700,
-        #appShellRoot.theme-dark .text-gray-600 {
+        #appShellRoot.theme-dark .text-gray-600,
+        #appShellRoot.theme-dark .text-slate-700,
+        #appShellRoot.theme-dark .text-slate-600 {
             color: #cbd5e1 !important;
+        }
+        #appShellRoot.theme-dark .text-gray-500,
+        #appShellRoot.theme-dark .text-slate-500 {
+            color: #94a3b8 !important;
         }
         #appShellRoot.theme-dark .text-gray-400 {
             color: #94a3b8 !important;
         }
+
         #appShellRoot.theme-dark .border-gray-200,
-        #appShellRoot.theme-dark .border-gray-100 {
+        #appShellRoot.theme-dark .border-gray-100,
+        #appShellRoot.theme-dark .border-gray-300 {
             border-color: #334155 !important;
         }
-        #appShellRoot.theme-dark .bg-gray-100 {
-            background-color: #334155 !important;
+        #appShellRoot.theme-dark .divide-gray-100 > * + * {
+            border-color: #334155 !important;
         }
-        #appShellRoot.theme-dark .hover\:bg-gray-50:hover {
-            background-color: #273449 !important;
+
+        #appShellRoot.theme-dark input,
+        #appShellRoot.theme-dark select,
+        #appShellRoot.theme-dark textarea {
+            background-color: #0f172a !important;
+            color: #f1f5f9 !important;
+            border-color: #334155 !important;
+        }
+        #appShellRoot.theme-dark input::placeholder,
+        #appShellRoot.theme-dark textarea::placeholder {
+            color: #64748b !important;
+        }
+        #appShellRoot.theme-dark input:read-only,
+        #appShellRoot.theme-dark select:disabled {
+            background-color: #1e293b !important;
+            color: #94a3b8 !important;
         }
     </style>
 <link rel="manifest" href="/manifest.json">
@@ -4028,6 +4060,11 @@ updateHeaderUserEmail(currentUserEmail);
 
         function setAppearanceMode(mode) {
             appearanceMode = mode;
+            try {
+                localStorage.setItem('ahb-appearance-mode', mode);
+            } catch (err) {
+                console.error('Could not save appearance preference:', err);
+            }
             ['light', 'dark', 'system'].forEach(m => {
                 const btn = document.getElementById(`appearanceBtn-${m}`);
                 const check = btn.querySelector('.appearanceCheck');
@@ -4113,8 +4150,30 @@ updateHeaderUserEmail(currentUserEmail);
             renderLinkedDevices();
         }
 
+        function initAppearanceMode() {
+            let saved = 'light';
+            try {
+                const stored = localStorage.getItem('ahb-appearance-mode');
+                if (stored === 'light' || stored === 'dark' || stored === 'system') {
+                    saved = stored;
+                }
+            } catch (err) {
+                console.error('Could not read appearance preference:', err);
+            }
+            setAppearanceMode(saved);
+        }
+
         renderLanguageList();
         renderLinkedDevices();
+        initAppearanceMode();
+
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (appearanceMode === 'system') {
+                    setAppearanceMode('system');
+                }
+            });
+        }
 // ===== FORGOT PASSWORD =====
 let fpCurrentToken = null;
 
