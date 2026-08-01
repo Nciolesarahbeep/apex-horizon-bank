@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apex Horizon Bank — Application Received</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .pulse-ring {
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.85; }
+  }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-md p-8 w-full max-w-md text-center">
+
+    <div class="pulse-ring inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-5">
+      <i class="fa-solid fa-clock text-2xl text-amber-600"></i>
+    </div>
+
+    <h1 class="text-xl font-bold text-slate-800 mb-2">Application Received</h1>
+    <p class="text-sm text-slate-500 mb-6">Apex Horizon Bank</p>
+
+    <p class="text-slate-600 mb-6 leading-relaxed">
+      Thanks for applying! Your account application is now under review by our team.
+      This typically takes less than 24 hours. We'll email you as soon as a decision has been made.
+    </p>
+
+    <div class="bg-slate-50 rounded-lg p-4 text-left text-sm text-slate-600 mb-6 space-y-2">
+      <div class="flex items-start gap-2">
+        <i class="fa-solid fa-check text-emerald-600 mt-0.5"></i>
+        <span>Application submitted successfully</span>
+      </div>
+      <div class="flex items-start gap-2">
+        <i class="fa-solid fa-hourglass-half text-amber-500 mt-0.5"></i>
+        <span>Under review by our team</span>
+      </div>
+      <div class="flex items-start gap-2">
+        <i class="fa-regular fa-envelope text-slate-400 mt-0.5"></i>
+        <span>You'll be notified by email once approved</span>
+      </div>
+    </div>
+
+    <p class="text-xs text-slate-400 mb-6">
+      You won't be able to sign in until your account has been approved. If it's been longer than 24 hours, feel free to reach out to support.
+    </p>
+
+    <a href="/login.html" class="block w-full bg-indigo-600 text-white rounded-lg py-2.5 font-medium hover:bg-indigo-700">
+      Return to Sign In
+    </a>
+
+  </div>
+</div>
+
+</body>
+</html>
