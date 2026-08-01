@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apex Horizon Bank — Create Account</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .input-field {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+  }
+  .input-field:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #6366f1;
+    border-color: #6366f1;
+  }
+  .signup-step { animation: fadeIn 0.25s ease; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: translateY(0); } }
+  .step-dot {
+    width: 10px; height: 10px; border-radius: 9999px;
+    background: #e2e8f0; transition: background 0.2s;
+  }
+  .step-dot.active { background: #4f46e5; }
+  .hidden { display: none; }
+
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  #loadingOverlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .bubble-loader {
+    display: flex;
+    gap: 8px;
+    background: #fff;
+    padding: 18px 22px;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  .bubble-loader span {
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background: #4f46e5;
+    animation: bubbleBounce 1s ease-in-out infinite;
+  }
+  .bubble-loader span:nth-child(2) { background: #6366f1; animation-delay: 0.15s; }
+  .bubble-loader span:nth-child(3) { background: #818cf8; animation-delay: 0.3s; }
+  @keyframes bubbleBounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<div id="loadingOverlay">
+  <div class="bubble-loader">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</div>
+
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-md p-6 sm:p-8 w-full max-w-md">
+
+    <div class="text-center mb-6">
+      <i class="fa-solid fa-shield-halved text-3xl text-indigo-600"></i>
+      <h1 class="text-xl font-bold mt-2 text-slate-800">Create Your Account</h1>
+      <p class="text-sm text-slate-500">Apex Horizon Bank</p>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="flex items-center justify-center gap-2 mb-6">
+      <div class="step-dot active" data-dot="1"></div>
+      <div class="step-dot" data-dot="2"></div>
+      <div class="step-dot" data-dot="3"></div>
+      <div class="step-dot" data-dot="4"></div>
+    </div>
+
+    <div id="formError" class="hidden mb-4 px-3 py-2 rounded-lg text-sm bg-red-100 text-red-800"></div>
+
+    <div id="signupWizard">
+
+      <!-- Step 1: Personal Info -->
+      <div id="step1" class="signup-step">
+        <h2 class="font-semibold text-slate-700 mb-3">Personal Information</h2>
+        <input id="fullName" placeholder="Full Legal Name" class="input-field">
+        <input id="dob" type="date" placeholder="Date of Birth" class="input-field">
+        <input id="phone" type="tel" placeholder="Phone Number" class="input-field">
+        <button onclick="nextStep(1)" class="w-full bg-indigo-600 text-white rounded-lg py-2.5 font-medium hover:bg-indigo-700 mt-1">
+          Continue <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+
+      <!-- Step 2: Address -->
+      <div id="step2" class="signup-step hidden">
+        <h2 class="font-semibold text-slate-700 mb-3">Home Address</h2>
+        <input id="street" placeholder="Street Address" class="input-field">
+        <input id="city" placeholder="City" class="input-field">
+        <div class="grid grid-cols-2 gap-2">
+          <input id="state" placeholder="State" class="input-field">
+          <input id="zip" placeholder="ZIP Code" class="input-field">
+        </div>
+        <div class="flex gap-2 mt-1">
+          <button onclick="prevStep(2)" class="flex-1 bg-slate-200 text-slate-700 rounded-lg py-2.5 font-medium hover:bg-slate-300">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Back
+          </button>
+          <button onclick="nextStep(2)" class="flex-1 bg-indigo-600 text-white rounded-lg py-2.5 font-medium hover:bg-indigo-700">
+            Continue <i class="fa-solid fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Account Setup + Identity -->
+      <div id="step3" class="signup-step hidden">
+        <h2 class="font-semibold text-slate-700 mb-3">Account & Identity</h2>
+        <input id="email" type="email" placeholder="Email Address" class="input-field">
+        <input id="password" type="password" placeholder="Password (min 8 characters)" class="input-field">
+        <input id="confirmPassword" type="password" placeholder="Confirm Password" class="input-field">
+
+        <select id="idType" class="input-field">
+          <option value="drivers_license">Driver's License</option>
+          <option value="passport">Passport</option>
+          <option value="state_id">State ID</option>
+        </select>
+        <input id="idNumber" placeholder="ID Number" class="input-field">
+        <input id="ssnLast4" maxlength="4" inputmode="numeric" placeholder="SSN (last 4 digits)" class="input-field">
+
+        <div class="flex gap-2 mt-1">
+          <button onclick="prevStep(3)" class="flex-1 bg-slate-200 text-slate-700 rounded-lg py-2.5 font-medium hover:bg-slate-300">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Back
+          </button>
+          <button onclick="nextStep(3)" class="flex-1 bg-indigo-600 text-white rounded-lg py-2.5 font-medium hover:bg-indigo-700">
+            Continue <i class="fa-solid fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4: Security & Review -->
+      <div id="step4" class="signup-step hidden">
+        <h2 class="font-semibold text-slate-700 mb-3">Security & Review</h2>
+        <select id="securityQ" class="input-field">
+          <option value="">Select a security question</option>
+          <option value="First pet's name?">First pet's name?</option>
+          <option value="City you were born in?">City you were born in?</option>
+          <option value="Mother's maiden name?">Mother's maiden name?</option>
+          <option value="Name of your first school?">Name of your first school?</option>
+        </select>
+        <input id="securityA" placeholder="Your Answer" class="input-field">
+
+        <div id="reviewSummary" class="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 mb-3 space-y-1"></div>
+
+        <label class="flex items-start gap-2 text-sm text-slate-600 mb-3">
+          <input type="checkbox" id="agreeTerms" class="mt-1">
+          <span>I agree to the Terms of Service and Privacy Policy, and confirm the information provided is accurate.</span>
+        </label>
+
+        <div class="flex gap-2">
+          <button onclick="prevStep(4)" class="flex-1 bg-slate-200 text-slate-700 rounded-lg py-2.5 font-medium hover:bg-slate-300">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Back
+          </button>
+          <button id="submitBtn" onclick="submitSignup()" class="flex-1 bg-emerald-600 text-white rounded-lg py-2.5 font-medium hover:bg-emerald-700">
+            Create Account
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="text-center text-sm text-slate-500 mt-5">
+      Already have an account? <a href="/login.html" class="text-indigo-600 font-medium hover:underline">Sign in</a>
+    </p>
+
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+
+function showError(msg) {
+  const el = document.getElementById('formError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearError() {
+  document.getElementById('formError').classList.add('hidden');
+}
+
+function showLoader() {
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+
+function hideLoader() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+function updateDots() {
+  document.querySelectorAll('.step-dot').forEach(dot => {
+    dot.classList.toggle('active', Number(dot.dataset.dot) <= currentStep);
+  });
+}
+
+function goToStep(target) {
+  document.getElementById(`step${currentStep}`).classList.add('hidden');
+  document.getElementById(`step${target}`).classList.remove('hidden');
+  currentStep = target;
+  updateDots();
+  if (currentStep === 4) buildReviewSummary();
+}
+
+function nextStep(step) {
+  clearError();
+  if (!validateStep(step)) return;
+  showLoader();
+  setTimeout(() => {
+    hideLoader();
+    goToStep(step + 1);
+  }, 2000);
+}
+
+function prevStep(step) {
+  clearError();
+  goToStep(step - 1);
+}
+
+function validateStep(step) {
+  const val = id => document.getElementById(id).value.trim();
+
+  if (step === 1) {
+    if (!val('fullName') || !val('dob') || !val('phone')) {
+      showError('Please fill in your name, date of birth, and phone number.');
+      return false;
+    }
+  }
+
+  if (step === 2) {
+    if (!val('street') || !val('city') || !val('state') || !val('zip')) {
+      showError('Please complete your full address.');
+      return false;
+    }
+  }
+
+  if (step === 3) {
+    const email = val('email');
+    const password = val('password');
+    const confirmPassword = val('confirmPassword');
+    const idNumber = val('idNumber');
+    const ssnLast4 = val('ssnLast4');
+
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      showError('Please enter a valid email address.');
+      return false;
+    }
+    if (password.length < 8) {
+      showError('Password must be at least 8 characters.');
+      return false;
+    }
+    if (password !== confirmPassword) {
+      showError('Passwords do not match.');
+      return false;
+    }
+    if (!idNumber) {
+      showError('Please enter your ID number.');
+      return false;
+    }
+    if (!/^\d{4}$/.test(ssnLast4)) {
+      showError('Enter exactly 4 digits for the last 4 of your SSN.');
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function buildReviewSummary() {
+  const val = id => document.getElementById(id).value.trim();
+  document.getElementById('reviewSummary').innerHTML = `
+    <p><strong>Name:</strong> ${val('fullName')}</p>
+    <p><strong>Email:</strong> ${val('email')}</p>
+    <p><strong>Phone:</strong> ${val('phone')}</p>
+    <p><strong>Address:</strong> ${val('street')}, ${val('city')}, ${val('state')} ${val('zip')}</p>
+    <p><strong>ID:</strong> ${document.getElementById('idType').selectedOptions[0].text} ending in ${val('idNumber').slice(-4)}</p>
+  `;
+}
+
+async function submitSignup() {
+  clearError();
+
+  const securityQ = document.getElementById('securityQ').value;
+  const securityA = document.getElementById('securityA').value.trim();
+  const agreeTerms = document.getElementById('agreeTerms').checked;
+
+  if (!securityQ) {
+    showError('Please select a security question.');
+    return;
+  }
+  if (!securityA) {
+    showError('Please provide an answer to your security question.');
+    return;
+  }
+  if (!agreeTerms) {
+    showError('Please agree to the Terms of Service to continue.');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+
+  const val = id => document.getElementById(id).value.trim();
+
+  const payload = {
+    action: 'create-account',
+    fullName: val('fullName'),
+    dob: val('dob'),
+    phone: val('phone'),
+    street: val('street'),
+    city: val('city'),
+    state: val('state'),
+    zip: val('zip'),
+    email: val('email'),
+    password: val('password'),
+    idType: document.getElementById('idType').value,
+    idNumber: val('idNumber'),
+    ssnLast4: val('ssnLast4'),
+    securityQuestion: securityQ,
+    securityAnswer: securityA,
+  };
+
+  showLoader();
+
+  // Keep the bubble loader visible for at least 2s regardless of network speed
+  const minDelay = new Promise(resolve => setTimeout(resolve, 2000));
+
+  try {
+    const [res] = await Promise.all([
+      fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }),
+      minDelay
+    ]);
+
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.href = '/signup-pending.html';
+    } else {
+      hideLoader();
+      showError(data.error || 'Something went wrong. Please try again.');
+      submitBtn.disabled = false;
+    }
+  } catch (err) {
+    hideLoader();
+    showError('Network error. Please check your connection and try again.');
+    submitBtn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
