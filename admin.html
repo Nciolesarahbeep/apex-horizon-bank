@@ -147,6 +147,7 @@
       <thead>
         <tr class="text-left text-slate-500 border-b">
           <th class="py-2 pr-2">User</th>
+          <th class="py-2 pr-2">Type</th>
           <th class="py-2 pr-2">Transaction</th>
           <th class="py-2 pr-2">Reason</th>
           <th class="py-2 pr-2">Filed</th>
@@ -455,6 +456,16 @@ async function rejectAccount(userId) {
   }
 }
 
+function formatDisputeType(t) {
+  const map = {
+    unauthorized: "Didn't Make This",
+    duplicate: 'Charged Twice',
+    incorrect_amount: 'Wrong Amount',
+    other: 'Other'
+  };
+  return map[t] || t;
+}
+
 async function loadDisputes() {
   try {
     const { disputes } = await api('listDisputes');
@@ -467,6 +478,7 @@ async function loadDisputes() {
       tr.className = 'border-b last:border-0';
       tr.innerHTML = `
         <td class="py-2 pr-2">${d.user_full_name || '—'}<br><span class="text-slate-400 text-xs">${d.user_email}</span></td>
+        <td class="py-2 pr-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">${formatDisputeType(d.dispute_type)}</span></td>
         <td class="py-2 pr-2">${d.transaction_description}<br><span class="text-slate-400 text-xs">${money(d.amount)} · #TXN-${d.transaction_id}</span></td>
         <td class="py-2 pr-2 max-w-[180px]">${d.reason || '—'}</td>
         <td class="py-2 pr-2">${when(d.created_at)}</td>
@@ -485,22 +497,35 @@ async function loadDisputes() {
 }
 
 async function resolveDisputeAdmin(disputeId) {
-  const adminNotes = prompt('Notes for the customer (optional):', '') || '';
-  if (!confirm('Mark this dispute as resolved?')) return;
+  const resolution = prompt('Notes for the customer (optional):', '') || '';
+  const refundInput = prompt('Refund amount to credit the customer (leave blank for no refund):', '') || '';
+  const resolutionAmount = refundInput.trim() ? Number(refundInput.trim()) : null;
+
+  if (refundInput.trim() && (!Number.isFinite(resolutionAmount) || resolutionAmount <= 0)) {
+    showToast('Enter a valid positive refund amount, or leave it blank.', true);
+    return;
+  }
+
+  const confirmMsg = resolutionAmount
+    ? `Resolve this dispute and credit the customer $${resolutionAmount.toFixed(2)}?`
+    : 'Mark this dispute as resolved (no refund)?';
+  if (!confirm(confirmMsg)) return;
+
   try {
-    const data = await api('resolveDispute', { method: 'POST', body: { disputeId, adminNotes } });
+    const data = await api('resolveDispute', { method: 'POST', body: { disputeId, resolution, resolutionAmount } });
     showToast(data.message, false);
     loadDisputes();
+    loadUsers();
   } catch (e) {
     showToast(e.message, true);
   }
 }
 
 async function rejectDisputeAdmin(disputeId) {
-  const adminNotes = prompt('Reason for rejecting (shown to customer):', '') || '';
+  const resolution = prompt('Reason for rejecting (shown to customer):', '') || '';
   if (!confirm('Reject this dispute?')) return;
   try {
-    const data = await api('rejectDispute', { method: 'POST', body: { disputeId, adminNotes } });
+    const data = await api('rejectDispute', { method: 'POST', body: { disputeId, resolution } });
     showToast(data.message, false);
     loadDisputes();
   } catch (e) {
