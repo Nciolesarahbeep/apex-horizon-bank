@@ -3746,10 +3746,29 @@ updateHeaderUserEmail(currentUserEmail);
             });
         }
 
-        function handleDisputeTransaction(txn) {
-            const confirmed = confirm(`Report "${txn.description}" as suspicious or incorrect? Our team will review it within 1 business day.`);
+        async function handleDisputeTransaction(txn) {
+            const reason = prompt(`Why are you disputing "${txn.description}"? (optional)`, '') || '';
+            const confirmed = confirm('Submit this transaction for dispute review?');
             if (!confirmed) return;
-            alert("Thanks — this transaction has been flagged for review. You'll get a notification once it's resolved.");
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'disputes', disputeAction: 'file', transactionId: txn.id, reason })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'Could not file dispute. Please try again.');
+                    return;
+                }
+
+                alert(data.message || 'Thanks — this transaction has been flagged for review.');
+            } catch (err) {
+                alert('Network error filing dispute. Please try again.');
+            }
         }
 
         function createSwipeableTxnRow(txn) {
