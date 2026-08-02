@@ -137,6 +137,27 @@
     <p id="pendingLoansEmpty" class="text-slate-400 text-sm py-4 hidden">No pending loan applications.</p>
   </div>
 
+  <!-- Transaction disputes -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-flag text-red-600 mr-1"></i>Transaction Disputes</h2>
+      <button onclick="loadDisputes()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">User</th>
+          <th class="py-2 pr-2">Transaction</th>
+          <th class="py-2 pr-2">Reason</th>
+          <th class="py-2 pr-2">Filed</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="disputesBody"></tbody>
+    </table>
+    <p id="disputesEmpty" class="text-slate-400 text-sm py-4 hidden">No open disputes.</p>
+  </div>
+
   <div id="auditPanel" class="bg-white rounded-xl shadow-sm p-4 mb-6 hidden">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-800">Audit Logs — <span id="auditEmailLabel"></span></h2>
@@ -216,6 +237,7 @@ async function unlock() {
         loadLoginActivity();
     loadPendingLoans();
     loadPendingAccounts();
+    loadDisputes();
     if (activityPollTimer) clearInterval(activityPollTimer);
     activityPollTimer = setInterval(loadLoginActivity, 7000);
 
@@ -428,6 +450,59 @@ async function rejectAccount(userId) {
     showToast(data.message, false);
     loadPendingAccounts();
     loadUsers();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function loadDisputes() {
+  try {
+    const { disputes } = await api('listDisputes');
+    const body = document.getElementById('disputesBody');
+    const empty = document.getElementById('disputesEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', disputes.length > 0);
+    disputes.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${d.user_full_name || '—'}<br><span class="text-slate-400 text-xs">${d.user_email}</span></td>
+        <td class="py-2 pr-2">${d.transaction_description}<br><span class="text-slate-400 text-xs">${money(d.amount)} · #TXN-${d.transaction_id}</span></td>
+        <td class="py-2 pr-2 max-w-[180px]">${d.reason || '—'}</td>
+        <td class="py-2 pr-2">${when(d.created_at)}</td>
+        <td class="py-2">
+          <div class="flex gap-1">
+            <button onclick="resolveDisputeAdmin(${d.id})" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Resolve</button>
+            <button onclick="rejectDisputeAdmin(${d.id})" class="bg-red-600 text-white rounded px-3 py-1 text-xs hover:bg-red-700">Reject</button>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function resolveDisputeAdmin(disputeId) {
+  const adminNotes = prompt('Notes for the customer (optional):', '') || '';
+  if (!confirm('Mark this dispute as resolved?')) return;
+  try {
+    const data = await api('resolveDispute', { method: 'POST', body: { disputeId, adminNotes } });
+    showToast(data.message, false);
+    loadDisputes();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function rejectDisputeAdmin(disputeId) {
+  const adminNotes = prompt('Reason for rejecting (shown to customer):', '') || '';
+  if (!confirm('Reject this dispute?')) return;
+  try {
+    const data = await api('rejectDispute', { method: 'POST', body: { disputeId, adminNotes } });
+    showToast(data.message, false);
+    loadDisputes();
   } catch (e) {
     showToast(e.message, true);
   }
