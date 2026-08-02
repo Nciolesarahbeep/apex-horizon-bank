@@ -163,20 +163,20 @@
                         <div class="mx-auto w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mb-3 shadow-md">
                             <i class="fa-solid fa-check text-white text-2xl"></i>
                         </div>
-                        <h2 class="text-xl font-bold text-gray-900">Payment Sent</h2>
-                        <p class="text-gray-400 text-xs mt-1">The recipient will be notified.</p>
+                        <h2 id="modalReceiptTitle" class="text-xl font-bold text-gray-900">Payment Sent</h2>
+                        <p class="text-gray-400 text-xs mt-1">This receipt is proof of a completed transaction.</p>
                         <p class="text-xs font-bold text-gray-900 mt-3">Confirmation # <span id="modalConfNum" class="font-mono"></span></p>
                         <p class="text-[10px] text-gray-400 font-mono mt-1" id="modalDateTime">—</p>
                     </div>
 
                     <div class="border-t border-gray-100">
                         <div class="px-5 py-3 border-b border-gray-100">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Sender</p>
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Account Holder</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalSenderName">—</p>
                             <p class="text-xs text-gray-500" id="modalSenderEmail">—</p>
                         </div>
                         <div id="modalRecipientRow" class="hidden px-5 py-3 border-b border-gray-100">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Recipient</p>
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide" id="modalRecipientLabel">Recipient</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalRecipient">—</p>
                         </div>
                         <div class="px-5 py-3 border-b border-gray-100">
@@ -188,18 +188,22 @@
                             <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalType">Internal Transfer</p>
                         </div>
                         <div class="px-5 py-3 border-b border-gray-100">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">From Account</p>
-                            <p class="text-sm font-bold text-gray-900 mt-0.5">Primary Checking</p>
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide" id="modalAccountLabelHeading">Account</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5" id="modalFromAccount">Primary Checking</p>
                             <p class="text-xs text-gray-500 font-mono" id="modalTrace"></p>
+                        </div>
+                        <div id="modalBalanceRow" class="hidden px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Balance After Transaction</p>
+                            <p id="modalBalanceAfter" class="text-sm font-bold text-gray-900 mt-0.5">—</p>
                         </div>
                         <div class="px-5 py-3 border-b border-gray-100">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Description</p>
                             <p id="modalDesc" class="text-sm font-bold text-gray-900 mt-0.5"></p>
                         </div>
-                        <div class="px-5 py-3">
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Apex Horizon Transfer Fee</p>
-                            <p class="text-sm font-bold text-gray-900 mt-0.5">$0.00</p>
-                            <p class="text-[10px] text-gray-400 mt-1 leading-normal">Regular account transaction fees may still apply depending on your account tier.</p>
+                        <div id="modalFeeRow" class="hidden px-5 py-3">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide" id="modalFeeLabel">Apex Horizon Transfer Fee</p>
+                            <p id="modalFeeAmount" class="text-sm font-bold text-gray-900 mt-0.5">$0.00</p>
+                            <p id="modalFeeNote" class="text-[10px] text-gray-400 mt-1 leading-normal">Regular account transaction fees may still apply depending on your account tier.</p>
                         </div>
                     </div>
                 </div>
@@ -214,6 +218,48 @@
                 </div>
             </div>
         </div>
+<div id="disputeModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <button onclick="closeDisputeModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-sm font-bold text-gray-900">File a Dispute</h3>
+            <div class="w-6"></div>
+        </div>
+        <div class="p-5 space-y-4">
+            <div id="disputeTxnSummary" class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-xs text-gray-600"></div>
+
+            <div id="disputeErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">What's the issue?</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="selectDisputeType('unauthorized')" id="disputeTypeBtn-unauthorized" class="p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                        I didn't make this
+                    </button>
+                    <button type="button" onclick="selectDisputeType('duplicate')" id="disputeTypeBtn-duplicate" class="p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                        Charged twice
+                    </button>
+                    <button type="button" onclick="selectDisputeType('incorrect_amount')" id="disputeTypeBtn-incorrect_amount" class="p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                        Wrong amount
+                    </button>
+                    <button type="button" onclick="selectDisputeType('other')" id="disputeTypeBtn-other" class="p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                        Something else
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Tell us more</label>
+                <textarea id="disputeReasonInput" rows="3" placeholder="Describe what happened..." class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"></textarea>
+            </div>
+
+            <button onclick="submitDispute()" id="disputeSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
+                Submit Dispute
+            </button>
+            <p class="text-[10px] text-gray-400 text-center leading-relaxed">Our team typically investigates within 5–10 business days.</p>
+        </div>
+    </div>
+</div>
 <div id="forgotPasswordModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -2517,26 +2563,55 @@ if (activeLoanBalanceEl) {
             }, 1000);
         }
 
+        function maskAccountNumber(num) {
+            const str = String(num || '').trim();
+            return str.length >= 4 ? '•••• ' + str.slice(-4) : '•••• ????';
+        }
+
+        function getAccountLabel(accountType) {
+            if (accountType === 'savings') {
+                return `High-Yield Savings ${maskAccountNumber(mySavingsAccountNumber)}`;
+            }
+            if (accountType === 'credit') {
+                const lastFour = (cardData && cardData.lastFour) ? cardData.lastFour : '????';
+                return `Apex Pavilion Infinite •••• ${lastFour}`;
+            }
+            return `Primary Checking ${maskAccountNumber(myCheckingAccountNumber)}`;
+        }
+
+        function computeFeeInfo(type) {
+            const t = String(type || '').toLowerCase();
+            if (t.includes('p2p')) {
+                return { show: true, amount: '$0.00', label: 'Apex-to-Apex Transfer Fee', note: 'Transfers between Apex Horizon accounts are always free.' };
+            }
+            if (t.includes('wire')) {
+                return { show: true, amount: '$0.00', label: 'Outbound Wire Fee', note: 'Wire fee waived this cycle for your account tier.' };
+            }
+            return { show: false };
+        }
+
+        function generateConfirmationCode(seedValue) {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // avoids ambiguous 0/O/1/I
+            let hash = 0;
+            const seed = String(seedValue || '');
+            for (let i = 0; i < seed.length; i++) {
+                hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+            }
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+                code += chars.charAt(hash % chars.length);
+                hash = Math.floor(hash / chars.length) || (hash + 7);
+            }
+            return `APEX-${code}`;
+        }
+
         function openReceiptModal(desc, trace, amount, opts) {
             opts = opts || {};
 
             document.getElementById('modalDesc').innerText = desc;
             document.getElementById('modalTrace').innerText = trace;
             document.getElementById('modalAmount').innerText = amount;
-
-            const prefix = 'AH';
-            const suffixChars = 'abcdefghijklmnopqrstuvwxyz';
-            let hash = 0;
-            const seed = String(trace || '');
-            for (let i = 0; i < seed.length; i++) {
-                hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-            }
-            let suffix = '';
-            for (let i = 0; i < 3; i++) {
-                suffix += suffixChars.charAt(hash % suffixChars.length);
-                hash = Math.floor(hash / suffixChars.length) || (hash + 7);
-            }
-            document.getElementById('modalConfNum').innerText = `${prefix}***${suffix}`;
+            document.getElementById('modalConfNum').innerText = generateConfirmationCode(trace);
 
             const ts = opts.timestamp ? new Date(opts.timestamp) : new Date();
             const dateTimeEl = document.getElementById('modalDateTime');
@@ -2547,17 +2622,59 @@ if (activeLoanBalanceEl) {
                 });
             }
 
+            const typeLabel = opts.type || 'Internal Transfer';
             const typeEl = document.getElementById('modalType');
-            if (typeEl) typeEl.innerText = opts.type || 'Internal Transfer';
+            if (typeEl) typeEl.innerText = typeLabel;
+
+            const isCredit = String(amount || '').trim().startsWith('+');
+            const titleEl = document.getElementById('modalReceiptTitle');
+            if (titleEl) {
+                titleEl.innerText = opts.title || (isCredit ? 'Payment Received' : 'Payment Sent');
+            }
 
             const recipientRow = document.getElementById('modalRecipientRow');
             const recipientEl = document.getElementById('modalRecipient');
+            const recipientLabelEl = document.getElementById('modalRecipientLabel');
             if (recipientRow && recipientEl) {
                 if (opts.recipient) {
                     recipientEl.innerText = opts.recipient;
+                    if (recipientLabelEl) recipientLabelEl.innerText = isCredit ? 'Received From' : 'Recipient';
                     recipientRow.classList.remove('hidden');
                 } else {
                     recipientRow.classList.add('hidden');
+                }
+            }
+
+            const accountLabelEl = document.getElementById('modalFromAccount');
+            const accountHeadingEl = document.getElementById('modalAccountLabelHeading');
+            if (accountLabelEl) {
+                accountLabelEl.innerText = opts.accountLabel || getAccountLabel(opts.accountType || 'checking');
+            }
+            if (accountHeadingEl) {
+                accountHeadingEl.innerText = isCredit ? 'Deposited To' : 'Paid From';
+            }
+
+            const balanceRow = document.getElementById('modalBalanceRow');
+            const balanceEl = document.getElementById('modalBalanceAfter');
+            if (balanceRow && balanceEl) {
+                if (opts.balanceAfter) {
+                    balanceEl.innerText = opts.balanceAfter;
+                    balanceRow.classList.remove('hidden');
+                } else {
+                    balanceRow.classList.add('hidden');
+                }
+            }
+
+            const feeRow = document.getElementById('modalFeeRow');
+            if (feeRow) {
+                const feeInfo = computeFeeInfo(typeLabel);
+                if (feeInfo.show) {
+                    document.getElementById('modalFeeLabel').innerText = feeInfo.label;
+                    document.getElementById('modalFeeAmount').innerText = feeInfo.amount;
+                    document.getElementById('modalFeeNote').innerText = feeInfo.note;
+                    feeRow.classList.remove('hidden');
+                } else {
+                    feeRow.classList.add('hidden');
                 }
             }
 
@@ -2709,7 +2826,9 @@ if (activeLoanBalanceEl) {
                         openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
                             timestamp: sentAt,
                             recipient: recipientLabel,
-                            type: 'P2P Transfer'
+                            type: 'P2P Transfer',
+                            accountType: 'checking',
+                            balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                         });
                     }
                 });
@@ -2795,7 +2914,9 @@ if (activeLoanBalanceEl) {
                 openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
                     timestamp: sentAt,
                     type: 'Outbound Wire',
-                    recipient: `${bankLabel} (Acct ${maskedBeneficiary})`
+                    recipient: `${bankLabel} (Acct ${maskedBeneficiary})`,
+                    accountType: 'checking',
+                    balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 });
             };
 
@@ -2946,7 +3067,12 @@ if (activeLoanBalanceEl) {
                 ledgerLogNode.className = "p-2.5 bg-white border border-gray-200 rounded-lg flex justify-between items-center shadow-xs animate-fade-in cursor-pointer hover:bg-gray-50 transition";
 
                 ledgerLogNode.onclick = function() {
-                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                    openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
+                        title: 'Transfer Complete',
+                        type: 'Internal Transfer',
+                        accountType: 'checking',
+                        balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    });
                 };
 
                 ledgerLogNode.innerHTML = `
@@ -2959,7 +3085,12 @@ if (activeLoanBalanceEl) {
                 `;
                 liveWireLogContainer.insertBefore(ledgerLogNode, liveWireLogContainer.firstChild);
 
-                openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString);
+                openReceiptModal(ledgerDescription, systemTraceString, formattedAmountString, {
+                    title: 'Transfer Complete',
+                    type: 'Internal Transfer',
+                    accountType: 'checking',
+                    balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                });
             } catch (err) {
                 loader.classList.add('hidden');
                 alert('Network error during transfer. Please try again.');
@@ -3042,6 +3173,7 @@ updateHeaderUserEmail(currentUserEmail);
                 fdWorkingPrincipal = parseFloat(savingsAcct.balance);
                 FD_APY_RATE = savingsAcct.apy_rate != null ? parseFloat(savingsAcct.apy_rate) : 0;
                 ACCOUNT_OPEN_DATE = savingsAcct.interest_accrued_at ? new Date(savingsAcct.interest_accrued_at) : new Date();
+                mySavingsAccountNumber = savingsAcct.account_number || savingsAcct.accountNumber || null;
             }
 
             refreshUIBalances();
@@ -3082,6 +3214,7 @@ updateHeaderUserEmail(currentUserEmail);
         setInterval(updateDataFreshnessLabel, 1000);
 
         let myCheckingAccountNumber = null;
+        let mySavingsAccountNumber = null;
 
         function copyCheckingAccountNumber() {
             if (!myCheckingAccountNumber) return;
@@ -3746,28 +3879,104 @@ updateHeaderUserEmail(currentUserEmail);
             });
         }
 
-        async function handleDisputeTransaction(txn) {
-            const reason = prompt(`Why are you disputing "${txn.description}"? (optional)`, '') || '';
-            const confirmed = confirm('Submit this transaction for dispute review?');
-            if (!confirmed) return;
+        let pendingDisputeTxn = null;
+        let selectedDisputeType = null;
+
+        function handleDisputeTransaction(txn) {
+            pendingDisputeTxn = txn;
+            selectedDisputeType = null;
+
+            document.getElementById('disputeReasonInput').value = '';
+            document.getElementById('disputeErrorBanner').classList.add('hidden');
+            ['unauthorized', 'duplicate', 'incorrect_amount', 'other'].forEach(t => {
+                const btn = document.getElementById(`disputeTypeBtn-${t}`);
+                if (btn) btn.className = 'p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50';
+            });
+
+            const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
+            const amountAbs = Math.abs(parseFloat(txn.amount));
+            const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('disputeTxnSummary').innerHTML = `
+                <p class="font-bold text-gray-900">${txn.description}</p>
+                <p class="mt-0.5">${amountFormatted} · #TXN-${txn.id}</p>
+            `;
+
+            document.getElementById('disputeModal').classList.remove('hidden');
+        }
+
+        function closeDisputeModal() {
+            document.getElementById('disputeModal').classList.add('hidden');
+            pendingDisputeTxn = null;
+            selectedDisputeType = null;
+        }
+
+        function selectDisputeType(type) {
+            selectedDisputeType = type;
+            ['unauthorized', 'duplicate', 'incorrect_amount', 'other'].forEach(t => {
+                const btn = document.getElementById(`disputeTypeBtn-${t}`);
+                if (!btn) return;
+                if (t === type) {
+                    btn.className = 'p-2.5 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left text-xs font-semibold text-gray-900';
+                } else {
+                    btn.className = 'p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50';
+                }
+            });
+        }
+
+        async function submitDispute() {
+            if (!pendingDisputeTxn) return;
+
+            const errorBanner = document.getElementById('disputeErrorBanner');
+            errorBanner.classList.add('hidden');
+
+            const reason = document.getElementById('disputeReasonInput').value.trim();
+
+            if (!selectedDisputeType) {
+                errorBanner.textContent = 'Please select what kind of issue this is.';
+                errorBanner.classList.remove('hidden');
+                return;
+            }
+            if (!reason) {
+                errorBanner.textContent = 'Please tell us a bit more about what happened.';
+                errorBanner.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.getElementById('disputeSubmitBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Submitting...';
 
             try {
                 const res = await fetch('/api/account-services', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ resource: 'disputes', disputeAction: 'file', transactionId: txn.id, reason })
+                    body: JSON.stringify({
+                        resource: 'disputes',
+                        transactionId: pendingDisputeTxn.id,
+                        disputeType: selectedDisputeType,
+                        reason
+                    })
                 });
                 const data = await res.json();
 
+                btn.disabled = false;
+                btn.innerText = originalText;
+
                 if (!res.ok) {
-                    alert(data.error || 'Could not file dispute. Please try again.');
+                    errorBanner.textContent = data.error || 'Could not file dispute. Please try again.';
+                    errorBanner.classList.remove('hidden');
                     return;
                 }
 
-                alert(data.message || 'Thanks — this transaction has been flagged for review.');
+                closeDisputeModal();
+                alert(data.message || "Thanks — your dispute has been filed. We'll investigate within 5–10 business days.");
             } catch (err) {
-                alert('Network error filing dispute. Please try again.');
+                btn.disabled = false;
+                btn.innerText = originalText;
+                errorBanner.textContent = 'Network error. Please try again.';
+                errorBanner.classList.remove('hidden');
             }
         }
 
@@ -3803,7 +4012,8 @@ updateHeaderUserEmail(currentUserEmail);
 
             const openReceipt = () => openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
                 timestamp: txn.created_at,
-                type: formatTxnType(txn.type)
+                type: formatTxnType(txn.type),
+                accountType: 'checking'
             });
 
             foreground.onclick = function () {
@@ -4743,7 +4953,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.onclick = function () {
                     openReceiptModal(txn.description, `#CRD-${txn.id}`, displayAmount, {
                         timestamp: txn.created_at,
-                        type: isPayment ? 'Card Payment' : 'Card Purchase'
+                        type: isPayment ? 'Card Payment' : 'Card Purchase',
+                        accountType: 'credit'
                     });
                 };
                 row.innerHTML = `
@@ -5447,7 +5658,10 @@ async function pollForIncomingMoney() {
           onViewReceipt: function () {
             openReceiptModal(t.description, `#TXN-${t.id}`, amountFormatted, {
               timestamp: t.created_at,
-              type: formatTxnType(t.type)
+              type: formatTxnType(t.type),
+              recipient: t.type === 'loan_disbursement' ? 'Apex Horizon Bank — Loan Disbursement' : undefined,
+              accountType: 'checking',
+              balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             });
           }
         });
@@ -5478,7 +5692,7 @@ setInterval(pollForIncomingMoney, 8000);
         const overlayIds = [
             'receiptModal', 'forgotPasswordModal', 'accountNumberModal', 'moneyPopOverlay',
             'sessionKilledOverlay', 'loadingOverlay', 'bubbleLoader', 'preQualLoader',
-            'loginSequenceLoader', 'logoutSequenceLoader'
+            'loginSequenceLoader', 'logoutSequenceLoader', 'disputeModal'
         ];
         return overlayIds.some(id => {
             const el = document.getElementById(id);
