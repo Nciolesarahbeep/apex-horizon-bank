@@ -100,6 +100,22 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ accounts });
     }
 
+    // ---------- listDisputes (transaction dispute review queue) ----------
+    if (action === 'listDisputes') {
+      const disputes = await sql`
+        SELECT d.id, d.reason, d.status, d.created_at, d.admin_notes,
+               t.id AS transaction_id, t.type AS transaction_type, t.amount,
+               t.description AS transaction_description, t.created_at AS transaction_created_at,
+               u.email AS user_email, u.full_name AS user_full_name
+        FROM disputes d
+        JOIN transactions t ON t.id = d.transaction_id
+        JOIN users u ON u.id = d.user_id
+        WHERE d.status IN ('open', 'under_review')
+        ORDER BY d.created_at ASC
+      `;
+      return res.status(200).json({ disputes });
+    }
+
     // ---------- getLoginActivity (live sign-in feed) ----------
     if (action === 'getLoginActivity') {
       const activity = await sql`
@@ -274,6 +290,78 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, message: `Account for ${user.email} rejected.` });
     }
 
+    // ---------- resolveDispute(disputeId, adminNotes) ----------
+    if (action === 'resolveDispute') {
+      const disputeId = Number(req.body.disputeId);
+      const adminNotes = (req.body.adminNotes || '').trim();
+      if (!disputeId) return res.status(400).json({ error: 'disputeId is required' });
+
+      const rows = await sql`SELECT id, user_id, status FROM disputes WHERE id = ${disputeId} LIMIT 1`;
+      if (rows.length === 0) return res.status(404).json({ error: 'Dispute not found' });
+      const dispute = rows[0];
+
+      if (dispute.status === 'resolved' || dispute.status === 'rejected') {
+        return res.status(400).json({ error: `This dispute is already ${dispute.status}.` });
+      }
+
+      await sql`
+        UPDATE disputes SET status = 'resolved', admin_notes = ${adminNotes || null}, resolved_at = NOW()
+        WHERE id = ${disputeId}
+      `;
+
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${dispute.user_id}, 'Dispute Resolved', ${adminNotes ? `Your dispute has been resolved: ${adminNotes}` : 'Your dispute has been resolved.'}, FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Dispute resolution notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('resolveDispute', NULL, NULL, ${'Dispute #' + disputeId + ' resolved'}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Dispute #${disputeId} marked as resolved.` });
+    }
+
+    // ---------- rejectDispute(disputeId, adminNotes) ----------
+    if (action === 'rejectDispute') {
+      const disputeId = Number(req.body.disputeId);
+      const adminNotes = (req.body.adminNotes || '').trim();
+      if (!disputeId) return res.status(400).json({ error: 'disputeId is required' });
+
+      const rows = await sql`SELECT id, user_id, status FROM disputes WHERE id = ${disputeId} LIMIT 1`;
+      if (rows.length === 0) return res.status(404).json({ error: 'Dispute not found' });
+      const dispute = rows[0];
+
+      if (dispute.status === 'resolved' || dispute.status === 'rejected') {
+        return res.status(400).json({ error: `This dispute is already ${dispute.status}.` });
+      }
+
+      await sql`
+        UPDATE disputes SET status = 'rejected', admin_notes = ${adminNotes || null}, resolved_at = NOW()
+        WHERE id = ${disputeId}
+      `;
+
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${dispute.user_id}, 'Dispute Update', ${adminNotes ? `Your dispute was reviewed: ${adminNotes}` : 'Your dispute was reviewed and closed.'}, FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Dispute rejection notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('rejectDispute', NULL, NULL, ${'Dispute #' + disputeId + ' rejected'}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Dispute #${disputeId} rejected.` });
+    }
+
     // ---------- toggleAccountStatus(email) ----------
     if (action === 'toggleAccountStatus') {
       const email = normalizeEmail(req.body.email);
@@ -294,7 +382,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", or "toggleAccountStatus".',
+      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "resolveDispute", "rejectDispute", or "toggleAccountStatus".',
     });
   } catch (err) {
     console.error('Admin API error:', err);
