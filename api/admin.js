@@ -103,14 +103,15 @@ module.exports = async function handler(req, res) {
     // ---------- listDisputes (transaction dispute review queue) ----------
     if (action === 'listDisputes') {
       const disputes = await sql`
-        SELECT d.id, d.reason, d.status, d.created_at, d.admin_notes,
+        SELECT d.id, d.dispute_type, d.reason, d.status, d.resolution, d.resolution_amount, d.created_at,
                t.id AS transaction_id, t.type AS transaction_type, t.amount,
                t.description AS transaction_description, t.created_at AS transaction_created_at,
-               u.email AS user_email, u.full_name AS user_full_name
-        FROM disputes d
+               d.account_id,
+               u.id AS user_id, u.email AS user_email, u.full_name AS user_full_name
+        FROM transaction_disputes d
         JOIN transactions t ON t.id = d.transaction_id
         JOIN users u ON u.id = d.user_id
-        WHERE d.status IN ('open', 'under_review')
+        WHERE d.status IN ('open', 'investigating')
         ORDER BY d.created_at ASC
       `;
       return res.status(200).json({ disputes });
@@ -290,13 +291,21 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, message: `Account for ${user.email} rejected.` });
     }
 
-    // ---------- resolveDispute(disputeId, adminNotes) ----------
+    // ---------- resolveDispute(disputeId, resolution, resolutionAmount) ----------
     if (action === 'resolveDispute') {
       const disputeId = Number(req.body.disputeId);
-      const adminNotes = (req.body.adminNotes || '').trim();
+      const resolution = (req.body.resolution || '').trim();
+      const resolutionAmount = req.body.resolutionAmount != null && req.body.resolutionAmount !== ''
+        ? Number(req.body.resolutionAmount)
+        : null;
       if (!disputeId) return res.status(400).json({ error: 'disputeId is required' });
+      if (resolutionAmount != null && (!Number.isFinite(resolutionAmount) || resolutionAmount <= 0)) {
+        return res.status(400).json({ error: 'Refund amount must be a positive number.' });
+      }
 
-      const rows = await sql`SELECT id, user_id, status FROM disputes WHERE id = ${disputeId} LIMIT 1`;
+      const rows = await sql`
+        SELECT id, user_id, account_id, status FROM transaction_disputes WHERE id = ${disputeId} LIMIT 1
+      `;
       if (rows.length === 0) return res.status(404).json({ error: 'Dispute not found' });
       const dispute = rows[0];
 
@@ -305,14 +314,28 @@ module.exports = async function handler(req, res) {
       }
 
       await sql`
-        UPDATE disputes SET status = 'resolved', admin_notes = ${adminNotes || null}, resolved_at = NOW()
+        UPDATE transaction_disputes
+        SET status = 'resolved', resolution = ${resolution || null}, resolution_amount = ${resolutionAmount}
         WHERE id = ${disputeId}
       `;
 
+      // If a refund amount was entered, actually credit the customer's account —
+      // this is what makes "resolving in the customer's favor" mean something real.
+      if (resolutionAmount) {
+        await sql`UPDATE accounts SET balance = balance + ${resolutionAmount} WHERE id = ${dispute.account_id}`;
+        await sql`
+          INSERT INTO transactions (account_id, type, amount, description, created_at)
+          VALUES (${dispute.account_id}, 'credit', ${resolutionAmount}, ${'Dispute Refund — Case #' + disputeId}, NOW())
+        `;
+      }
+
       try {
+        const notifMessage = resolutionAmount
+          ? `Your dispute has been resolved in your favor. $${resolutionAmount.toFixed(2)} has been credited to your account.${resolution ? ' ' + resolution : ''}`
+          : (resolution ? `Your dispute has been resolved: ${resolution}` : 'Your dispute has been resolved.');
         await sql`
           INSERT INTO notifications (user_id, title, message, is_read, created_at)
-          VALUES (${dispute.user_id}, 'Dispute Resolved', ${adminNotes ? `Your dispute has been resolved: ${adminNotes}` : 'Your dispute has been resolved.'}, FALSE, NOW())
+          VALUES (${dispute.user_id}, 'Dispute Resolved', ${notifMessage}, FALSE, NOW())
         `;
       } catch (notifyErr) {
         console.error('Dispute resolution notification error (non-fatal):', notifyErr);
@@ -320,19 +343,24 @@ module.exports = async function handler(req, res) {
 
       await sql`
         INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
-        VALUES ('resolveDispute', NULL, NULL, ${'Dispute #' + disputeId + ' resolved'}, NOW())
+        VALUES ('resolveDispute', NULL, ${resolutionAmount}, ${'Dispute #' + disputeId + ' resolved'}, NOW())
       `;
 
-      return res.status(200).json({ success: true, message: `Dispute #${disputeId} marked as resolved.` });
+      return res.status(200).json({
+        success: true,
+        message: resolutionAmount
+          ? `Dispute #${disputeId} resolved and $${resolutionAmount.toFixed(2)} refunded to the customer.`
+          : `Dispute #${disputeId} marked as resolved.`
+      });
     }
 
-    // ---------- rejectDispute(disputeId, adminNotes) ----------
+    // ---------- rejectDispute(disputeId, resolution) ----------
     if (action === 'rejectDispute') {
       const disputeId = Number(req.body.disputeId);
-      const adminNotes = (req.body.adminNotes || '').trim();
+      const resolution = (req.body.resolution || '').trim();
       if (!disputeId) return res.status(400).json({ error: 'disputeId is required' });
 
-      const rows = await sql`SELECT id, user_id, status FROM disputes WHERE id = ${disputeId} LIMIT 1`;
+      const rows = await sql`SELECT id, user_id, status FROM transaction_disputes WHERE id = ${disputeId} LIMIT 1`;
       if (rows.length === 0) return res.status(404).json({ error: 'Dispute not found' });
       const dispute = rows[0];
 
@@ -341,14 +369,14 @@ module.exports = async function handler(req, res) {
       }
 
       await sql`
-        UPDATE disputes SET status = 'rejected', admin_notes = ${adminNotes || null}, resolved_at = NOW()
+        UPDATE transaction_disputes SET status = 'rejected', resolution = ${resolution || null}
         WHERE id = ${disputeId}
       `;
 
       try {
         await sql`
           INSERT INTO notifications (user_id, title, message, is_read, created_at)
-          VALUES (${dispute.user_id}, 'Dispute Update', ${adminNotes ? `Your dispute was reviewed: ${adminNotes}` : 'Your dispute was reviewed and closed.'}, FALSE, NOW())
+          VALUES (${dispute.user_id}, 'Dispute Update', ${resolution ? `Your dispute was reviewed: ${resolution}` : 'Your dispute was reviewed and closed.'}, FALSE, NOW())
         `;
       } catch (notifyErr) {
         console.error('Dispute rejection notification error (non-fatal):', notifyErr);
