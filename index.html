@@ -3023,6 +3023,7 @@ if (activeLoanBalanceEl) {
                 return;
             }
 
+            const loanId = currentActiveLoan.id;
             const suggested = Number(currentActiveLoan.monthly_payment).toFixed(2);
             const input = prompt(`Remaining balance: $${Number(currentActiveLoan.remaining_balance ?? currentActiveLoan.principal).toFixed(2)}\n\nHow much would you like to pay?`, suggested);
             if (input === null) return;
@@ -3041,7 +3042,7 @@ if (activeLoanBalanceEl) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ resource: 'loans', loanAction: 'makePayment', loanId: currentActiveLoan.id, amount })
+                    body: JSON.stringify({ resource: 'loans', loanAction: 'makePayment', loanId, amount })
                 });
                 const data = await res.json();
                 loader.classList.add('hidden');
@@ -3052,7 +3053,6 @@ if (activeLoanBalanceEl) {
                 }
 
                 await loadRealAccountDataWithRetry();
-                alert(data.message);
 
                 const banner = document.getElementById('successBanner');
                 banner.classList.remove('-translate-y-full');
@@ -3061,6 +3061,20 @@ if (activeLoanBalanceEl) {
                     banner.classList.remove('translate-y-4');
                     banner.classList.add('-translate-y-full');
                 }, 5000);
+
+                const paymentDesc = `Loan Payment — Loan #${loanId}`;
+                const matchedTxn = allTransactions.find(t => t.description === paymentDesc);
+                const traceId = matchedTxn ? `#TXN-${matchedTxn.id}` : `#LN-${loanId}-${Date.now().toString().slice(-6)}`;
+                const txnTimestamp = matchedTxn ? matchedTxn.created_at : new Date().toISOString();
+                const formattedAmount = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                openReceiptModal(paymentDesc, traceId, formattedAmount, {
+                    timestamp: txnTimestamp,
+                    type: 'Loan Payment',
+                    accountType: 'checking',
+                    balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    title: data.status === 'paid_off' ? 'Loan Paid Off!' : 'Payment Applied'
+                });
             } catch (err) {
                 loader.classList.add('hidden');
                 alert('Network error making payment. Please try again.');
@@ -5086,6 +5100,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         banner.classList.add('-translate-y-full');
                     }, 5000);
                 }
+
+                const matchedTxn = allTransactions.find(t => t.description === 'Credit Card Payment');
+                const traceId = matchedTxn ? `#TXN-${matchedTxn.id}` : `#CRD-PMT-${Date.now().toString().slice(-6)}`;
+                const txnTimestamp = matchedTxn ? matchedTxn.created_at : new Date().toISOString();
+                const formattedAmount = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                openReceiptModal('Credit Card Payment', traceId, formattedAmount, {
+                    timestamp: txnTimestamp,
+                    type: 'Card Payment',
+                    accountType: 'checking',
+                    balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                });
             } catch (err) {
                 if (loader) loader.classList.add('hidden');
                 console.error('Card payment error:', err);
