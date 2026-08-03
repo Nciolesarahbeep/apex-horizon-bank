@@ -196,6 +196,16 @@
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Balance After Transaction</p>
                             <p id="modalBalanceAfter" class="text-sm font-bold text-gray-900 mt-0.5">—</p>
                         </div>
+                        <div id="modalAvailabilityRow" class="hidden px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Funds Availability</p>
+                            <p id="modalAvailability" class="text-sm font-bold text-emerald-600 mt-0.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check"></i> Available Now
+                            </p>
+                        </div>
+                        <div id="modalAchTraceRow" class="hidden px-5 py-3 border-b border-gray-100">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">ACH Trace Number</p>
+                            <p id="modalAchTrace" class="text-sm font-bold text-gray-900 mt-0.5 font-mono">—</p>
+                        </div>
                         <div class="px-5 py-3 border-b border-gray-100">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Description</p>
                             <p id="modalDesc" class="text-sm font-bold text-gray-900 mt-0.5"></p>
@@ -209,7 +219,7 @@
                 </div>
 
                 <div class="p-4 border-t border-gray-100 shrink-0 space-y-2">
-                    <button onclick="closeReceiptModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm transition">
+                    <button onclick="handleModalPrimaryAction()" id="modalPrimaryActionBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm transition">
                         Send Another Transfer
                     </button>
                     <button onclick="window.print()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
@@ -2605,6 +2615,22 @@ if (activeLoanBalanceEl) {
             return `APEX-${code}`;
         }
 
+        function generateAchTraceNumber(seedValue) {
+            let hash = 0;
+            const seed = String(seedValue || '');
+            for (let i = 0; i < seed.length; i++) {
+                hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+            }
+            let digits = '';
+            for (let i = 0; i < 15; i++) {
+                digits += (hash % 10).toString();
+                hash = Math.floor(hash / 10) || (hash + 7);
+            }
+            return digits;
+        }
+
+        let lastReceiptWasCredit = false;
+
         function openReceiptModal(desc, trace, amount, opts) {
             opts = opts || {};
 
@@ -2627,6 +2653,8 @@ if (activeLoanBalanceEl) {
             if (typeEl) typeEl.innerText = typeLabel;
 
             const isCredit = String(amount || '').trim().startsWith('+');
+            lastReceiptWasCredit = isCredit;
+
             const titleEl = document.getElementById('modalReceiptTitle');
             if (titleEl) {
                 titleEl.innerText = opts.title || (isCredit ? 'Payment Received' : 'Payment Sent');
@@ -2665,6 +2693,23 @@ if (activeLoanBalanceEl) {
                 }
             }
 
+            const availabilityRow = document.getElementById('modalAvailabilityRow');
+            if (availabilityRow) {
+                availabilityRow.classList.toggle('hidden', !isCredit);
+            }
+
+            const achTraceRow = document.getElementById('modalAchTraceRow');
+            const achTraceEl = document.getElementById('modalAchTrace');
+            const isAchType = /ach|direct deposit/i.test(typeLabel);
+            if (achTraceRow && achTraceEl) {
+                if (isCredit && isAchType) {
+                    achTraceEl.innerText = generateAchTraceNumber(trace);
+                    achTraceRow.classList.remove('hidden');
+                } else {
+                    achTraceRow.classList.add('hidden');
+                }
+            }
+
             const feeRow = document.getElementById('modalFeeRow');
             if (feeRow) {
                 const feeInfo = computeFeeInfo(typeLabel);
@@ -2678,7 +2723,19 @@ if (activeLoanBalanceEl) {
                 }
             }
 
+            const primaryBtn = document.getElementById('modalPrimaryActionBtn');
+            if (primaryBtn) {
+                primaryBtn.innerText = isCredit ? 'Done' : 'Send Another Transfer';
+            }
+
             document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function handleModalPrimaryAction() {
+            closeReceiptModal();
+            if (!lastReceiptWasCredit) {
+                triggerViewSwitch('send-menu');
+            }
         }
 
         function closeReceiptModal() {
@@ -3762,11 +3819,19 @@ updateHeaderUserEmail(currentUserEmail);
                 wire_out: 'Outbound Wire',
                 transfer_out: 'Internal Transfer (Sent)',
                 transfer_in: 'Internal Transfer (Received)',
+                ach_in: 'Direct Deposit (ACH)',
                 loan_disbursement: 'Loan Disbursement',
                 debit: 'Debit',
                 credit: 'Credit'
             };
             return map[rawType] || rawType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function getReceivedFromLabel(txn) {
+            if (txn.type === 'loan_disbursement') return 'Apex Horizon Bank — Loan Disbursement';
+            if (txn.type === 'credit') return 'Apex Horizon Bank — Account Credit';
+            if (txn.type === 'ach_in') return txn.description || 'External Bank (ACH Deposit)';
+            return txn.description || 'Apex Horizon Account Holder';
         }
 
         const OUTGOING_TYPES = ['p2p_out', 'wire_out', 'transfer_out', 'debit'];
@@ -4010,10 +4075,12 @@ updateHeaderUserEmail(currentUserEmail);
                 <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
             `;
 
+            const isIncomingType = ['p2p_in', 'transfer_in', 'ach_in', 'credit', 'loan_disbursement'].includes(txn.type);
             const openReceipt = () => openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
                 timestamp: txn.created_at,
                 type: formatTxnType(txn.type),
-                accountType: 'checking'
+                accountType: 'checking',
+                recipient: isIncomingType ? getReceivedFromLabel(txn) : undefined
             });
 
             foreground.onclick = function () {
@@ -5650,16 +5717,17 @@ async function pollForIncomingMoney() {
       freshIncoming.forEach(t => {
         const rawAmount = Math.abs(parseFloat(t.amount));
         const amountFormatted = `+$${rawAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const senderLabel = getReceivedFromLabel(t);
         showMoneyPopSuccess({
           direction: 'received',
           amountLabel: amountFormatted,
           amountValue: rawAmount,
-          counterpart: t.type === 'loan_disbursement' ? 'Loan Approved & Disbursed' : t.description,
+          counterpart: t.type === 'loan_disbursement' ? 'Loan Approved & Disbursed' : senderLabel,
           onViewReceipt: function () {
             openReceiptModal(t.description, `#TXN-${t.id}`, amountFormatted, {
               timestamp: t.created_at,
               type: formatTxnType(t.type),
-              recipient: t.type === 'loan_disbursement' ? 'Apex Horizon Bank — Loan Disbursement' : undefined,
+              recipient: senderLabel,
               accountType: 'checking',
               balanceAfter: `$${rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             });
