@@ -3063,9 +3063,8 @@ if (activeLoanBalanceEl) {
                 }, 5000);
 
                 const paymentDesc = `Loan Payment — Loan #${loanId}`;
-                const matchedTxn = allTransactions.find(t => t.description === paymentDesc);
-                const traceId = matchedTxn ? `#TXN-${matchedTxn.id}` : `#LN-${loanId}-${Date.now().toString().slice(-6)}`;
-                const txnTimestamp = matchedTxn ? matchedTxn.created_at : new Date().toISOString();
+                const traceId = data.transactionId ? `#TXN-${data.transactionId}` : `#LN-${loanId}-${Date.now().toString().slice(-6)}`;
+                const txnTimestamp = data.transactionTimestamp || new Date().toISOString();
                 const formattedAmount = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                 openReceiptModal(paymentDesc, traceId, formattedAmount, {
@@ -5101,9 +5100,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, 5000);
                 }
 
-                const matchedTxn = allTransactions.find(t => t.description === 'Credit Card Payment');
-                const traceId = matchedTxn ? `#TXN-${matchedTxn.id}` : `#CRD-PMT-${Date.now().toString().slice(-6)}`;
-                const txnTimestamp = matchedTxn ? matchedTxn.created_at : new Date().toISOString();
+                const traceId = data.transactionId ? `#TXN-${data.transactionId}` : `#CRD-PMT-${Date.now().toString().slice(-6)}`;
+                const txnTimestamp = data.transactionTimestamp || new Date().toISOString();
                 const formattedAmount = `-$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                 openReceiptModal('Credit Card Payment', traceId, formattedAmount, {
