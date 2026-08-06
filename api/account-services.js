@@ -528,9 +528,10 @@ module.exports = async function handler(req, res) {
             RETURNING balance
           `;
 
-          await sql`
+          const checkingTxnRows = await sql`
             INSERT INTO transactions (account_id, type, amount, description, created_at)
             VALUES (${checking.id}, 'debit', ${paymentAmount}, 'Credit Card Payment', NOW())
+            RETURNING id, created_at
           `;
           await sql`
             INSERT INTO transactions (account_id, type, amount, description, created_at)
@@ -543,7 +544,12 @@ module.exports = async function handler(req, res) {
             `Your payment of $${paymentAmount.toFixed(2)} was applied to your credit card balance.`
           );
 
-          return res.status(200).json({ success: true, cardBalance: Number(updatedCard[0].balance) });
+          return res.status(200).json({
+            success: true,
+            cardBalance: Number(updatedCard[0].balance),
+            transactionId: checkingTxnRows[0].id,
+            transactionTimestamp: checkingTxnRows[0].created_at
+          });
         }
 
         return res.status(400).json({ error: 'Invalid cardAction.' });
@@ -775,9 +781,10 @@ module.exports = async function handler(req, res) {
           `;
 
           const paymentDescription = `Loan Payment — Loan #${loan.id}`;
-          await sql`
+          const paymentTxnRows = await sql`
             INSERT INTO transactions (account_id, type, amount, description, created_at)
             VALUES (${checking.id}, 'debit', ${amount}, ${paymentDescription}, NOW())
+            RETURNING id, created_at
           `;
 
           await createNotification(
@@ -792,7 +799,9 @@ module.exports = async function handler(req, res) {
             success: true,
             message: newStatus === 'paid_off' ? 'Payment successful — loan fully paid off!' : `Payment of $${amount.toFixed(2)} applied. Remaining balance: $${newRemaining.toFixed(2)}.`,
             remainingBalance: newRemaining,
-            status: newStatus
+            status: newStatus,
+            transactionId: paymentTxnRows[0].id,
+            transactionTimestamp: paymentTxnRows[0].created_at
           });
         }
 
