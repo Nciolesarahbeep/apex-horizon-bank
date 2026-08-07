@@ -115,6 +115,28 @@
     <p id="pendingAccountsEmpty" class="text-slate-400 text-sm py-4 hidden">No pending account applications.</p>
   </div>
 
+  <!-- Enhanced verification (KYC) requests -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-id-card text-purple-600 mr-1"></i>Enhanced Verification Requests</h2>
+      <button onclick="loadPendingKyc()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">User</th>
+          <th class="py-2 pr-2">ID Type</th>
+          <th class="py-2 pr-2">SSN</th>
+          <th class="py-2 pr-2">Address</th>
+          <th class="py-2 pr-2">Submitted</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="pendingKycBody"></tbody>
+    </table>
+    <p id="pendingKycEmpty" class="text-slate-400 text-sm py-4 hidden">No pending verification requests.</p>
+  </div>
+
   <!-- Pending loan applications -->
   <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
     <div class="flex items-center justify-between mb-3">
@@ -238,6 +260,7 @@ async function unlock() {
         loadLoginActivity();
     loadPendingLoans();
     loadPendingAccounts();
+    loadPendingKyc();
     loadDisputes();
     if (activityPollTimer) clearInterval(activityPollTimer);
     activityPollTimer = setInterval(loadLoginActivity, 7000);
@@ -451,6 +474,60 @@ async function rejectAccount(userId) {
     showToast(data.message, false);
     loadPendingAccounts();
     loadUsers();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function loadPendingKyc() {
+  try {
+    const { kycRequests } = await api('listPendingKyc');
+    const body = document.getElementById('pendingKycBody');
+    const empty = document.getElementById('pendingKycEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', kycRequests.length > 0);
+    kycRequests.forEach(k => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      const idLabel = { drivers_license: "Driver's License", passport: 'Passport', state_id: 'State ID' }[k.id_type] || k.id_type;
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${k.user_full_name || '—'}<br><span class="text-slate-400 text-xs">${k.user_email}</span></td>
+        <td class="py-2 pr-2">${idLabel}<br><span class="text-slate-400 text-xs font-mono">${k.id_number}</span></td>
+        <td class="py-2 pr-2 font-mono">•••-••-${k.ssn_last_four}</td>
+        <td class="py-2 pr-2 max-w-[160px]">${k.street_address}, ${k.city}, ${k.state} ${k.zip_code}</td>
+        <td class="py-2 pr-2">${when(k.created_at)}</td>
+        <td class="py-2">
+          <div class="flex gap-1">
+            <button onclick="approveKycAdmin(${k.id})" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Approve</button>
+            <button onclick="rejectKycAdmin(${k.id})" class="bg-red-600 text-white rounded px-3 py-1 text-xs hover:bg-red-700">Reject</button>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function approveKycAdmin(kycId) {
+  if (!confirm('Approve this identity verification? The customer will be able to send wire transfers immediately.')) return;
+  try {
+    const data = await api('approveKyc', { method: 'POST', body: { kycId } });
+    showToast(data.message, false);
+    loadPendingKyc();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function rejectKycAdmin(kycId) {
+  const reason = prompt('Reason for rejecting (shown to customer):', '') || '';
+  if (!confirm('Reject this verification request?')) return;
+  try {
+    const data = await api('rejectKyc', { method: 'POST', body: { kycId, reason } });
+    showToast(data.message, false);
+    loadPendingKyc();
   } catch (e) {
     showToast(e.message, true);
   }
