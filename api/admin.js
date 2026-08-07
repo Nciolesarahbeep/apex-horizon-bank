@@ -100,6 +100,20 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ accounts });
     }
 
+    // ---------- listPendingKyc (enhanced verification review queue) ----------
+    if (action === 'listPendingKyc') {
+      const kycRequests = await sql`
+        SELECT k.id, k.user_id, k.ssn_last_four, k.date_of_birth, k.street_address, k.city, k.state, k.zip_code,
+               k.id_type, k.id_number, k.id_expiry_date, k.id_issuing_state, k.created_at,
+               u.email AS user_email, u.full_name AS user_full_name
+        FROM kyc_verifications k
+        JOIN users u ON u.id = k.user_id
+        WHERE k.status = 'pending'
+        ORDER BY k.created_at ASC
+      `;
+      return res.status(200).json({ kycRequests });
+    }
+
     // ---------- listDisputes (transaction dispute review queue) ----------
     if (action === 'listDisputes') {
       const disputes = await sql`
@@ -291,6 +305,71 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, message: `Account for ${user.email} rejected.` });
     }
 
+    // ---------- approveKyc(kycId) ----------
+    if (action === 'approveKyc') {
+      const kycId = Number(req.body.kycId);
+      if (!kycId) return res.status(400).json({ error: 'kycId is required' });
+
+      const rows = await sql`SELECT id, user_id, status FROM kyc_verifications WHERE id = ${kycId} LIMIT 1`;
+      if (rows.length === 0) return res.status(404).json({ error: 'Verification request not found' });
+      const kyc = rows[0];
+
+      if (kyc.status !== 'pending') {
+        return res.status(400).json({ error: `This request is already ${kyc.status}.` });
+      }
+
+      await sql`UPDATE kyc_verifications SET status = 'verified', verified_at = NOW() WHERE id = ${kycId}`;
+
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${kyc.user_id}, 'Identity Verified', 'Your enhanced identity verification has been approved. You can now send wire transfers.', FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('KYC approval notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('approveKyc', NULL, NULL, ${'KYC #' + kycId + ' approved'}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Verification #${kycId} approved.` });
+    }
+
+    // ---------- rejectKyc(kycId, reason) ----------
+    if (action === 'rejectKyc') {
+      const kycId = Number(req.body.kycId);
+      const reason = (req.body.reason || '').trim();
+      if (!kycId) return res.status(400).json({ error: 'kycId is required' });
+
+      const rows = await sql`SELECT id, user_id, status FROM kyc_verifications WHERE id = ${kycId} LIMIT 1`;
+      if (rows.length === 0) return res.status(404).json({ error: 'Verification request not found' });
+      const kyc = rows[0];
+
+      if (kyc.status !== 'pending') {
+        return res.status(400).json({ error: `This request is already ${kyc.status}.` });
+      }
+
+      await sql`UPDATE kyc_verifications SET status = 'rejected', rejected_reason = ${reason || null} WHERE id = ${kycId}`;
+
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${kyc.user_id}, 'Verification Update', ${reason ? `Your verification was not approved: ${reason}` : 'Your verification was not approved.'}, FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('KYC rejection notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('rejectKyc', NULL, NULL, ${'KYC #' + kycId + ' rejected'}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Verification #${kycId} rejected.` });
+    }
+
     // ---------- resolveDispute(disputeId, resolution, resolutionAmount) ----------
     if (action === 'resolveDispute') {
       const disputeId = Number(req.body.disputeId);
@@ -410,7 +489,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "resolveDispute", "rejectDispute", or "toggleAccountStatus".',
+      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", or "toggleAccountStatus".',
     });
   } catch (err) {
     console.error('Admin API error:', err);
