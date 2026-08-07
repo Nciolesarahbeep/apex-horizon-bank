@@ -1,10 +1,25 @@
 const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest } = require('../lib/auth');
+const { sendEmail } = require('../lib/email');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+
+function emailChangeConfirmationHtml(confirmUrl) {
+  return `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+      <div style="font-size: 12px; font-weight: bold; letter-spacing: 0.05em; text-transform: uppercase; color: #10b981; margin-bottom: 16px;">Apex Horizon Bank</div>
+      <h2 style="color:#0f172a; font-size: 18px;">Confirm Your New Email</h2>
+      <p>Click the button below to confirm this is your new email address for your Apex Horizon Bank account.</p>
+      <p style="margin: 24px 0; text-align: center;">
+        <a href="${confirmUrl}" style="display:inline-block; background:#0f172a; color:#fff; padding:12px 24px; border-radius:8px; font-weight:bold; text-decoration:none;">Confirm Email Change</a>
+      </p>
+      <p style="color:#666; font-size:12px;">This link expires in 30 minutes. If you didn't request this change, you can safely ignore this email — your current email remains active.</p>
+    </div>
+  `;
+}
 
 // Creates an in-app notification row for a user. Call this any time an
 // event happens that the user should be alerted about (KYC decisions,
@@ -810,6 +825,45 @@ module.exports = async function handler(req, res) {
         console.error('Loan action error:', err);
         return res.status(500).json({ error: 'Failed to process loan action.' });
       }
+    }
+  }
+
+  // ---------- Passcode (in-app unlock code, separate from login password) ----------
+  if (resource === 'passcode') {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    try {
+      const { newPasscode, confirmPasscode } = req.body || {};
+
+      if (!newPasscode || !confirmPasscode) {
+        return res.status(400).json({ error: 'Both passcode fields are required.' });
+      }
+      if (!/^\d{4,6}$/.test(String(newPasscode))) {
+        return res.status(400).json({ error: 'Passcode must be 4 to 6 digits.' });
+      }
+      if (String(newPasscode) !== String(confirmPasscode)) {
+        return res.status(400).json({ error: 'Passcodes do not match.' });
+      }
+
+      const passcodeHash = await bcrypt.hash(String(newPasscode), 10);
+
+      await sql`
+        UPDATE users SET passcode_hash = ${passcodeHash} WHERE id = ${session.userId}
+      `;
+
+      await createNotification(
+        session.userId,
+        'Passcode Updated',
+        'Your app passcode was changed. If this wasn\'t you, please contact support immediately.'
+      );
+
+      return res.status(200).json({ success: true, message: 'Passcode updated successfully.' });
+    } catch (err) {
+      console.error('Update passcode error:', err);
+      return res.status(500).json({ error: 'Failed to update passcode.' });
     }
   }
 
