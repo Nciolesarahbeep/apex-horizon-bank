@@ -1116,8 +1116,11 @@
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
                         <p class="text-[9px] text-gray-400 uppercase font-bold">This Month by Category</p>
-                        <canvas id="spendingCategoryChart" height="220"></canvas>
-                        <div id="spendingCategoryLegend" class="grid grid-cols-2 gap-2 pt-1"></div>
+                        <div id="spendingCategoryChartWrap">
+                            <canvas id="spendingCategoryChart" height="220"></canvas>
+                            <div id="spendingCategoryLegend" class="grid grid-cols-2 gap-2 pt-1"></div>
+                        </div>
+                        <div id="spendingCategoryEmpty" class="hidden"></div>
                     </div>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
@@ -2114,6 +2117,34 @@ if (activeLoanBalanceEl) {
         // matches how real banking sites always show at least a brief "working on it" state.
         function withMinDelay(promise, ms) {
             return Promise.all([promise, new Promise(resolve => setTimeout(resolve, ms))]).then(([result]) => result);
+        }
+
+        function skeletonRowsHtml(count) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center">
+                        <div class="min-w-0 pr-2 flex-1 space-y-1.5">
+                            <div class="skeleton-bar h-3" style="width: ${55 + (i % 3) * 10}%"></div>
+                            <div class="skeleton-bar h-2 w-2/5"></div>
+                        </div>
+                        <div class="skeleton-bar h-3 w-14 shrink-0"></div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function emptyStateHtml(icon, title, subtitle) {
+            return `
+                <div class="text-center py-8 px-4">
+                    <div class="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                        <i class="fa-solid ${icon} text-gray-400 text-lg"></i>
+                    </div>
+                    <p class="text-sm font-bold text-gray-700">${title}</p>
+                    ${subtitle ? `<p class="text-xs text-gray-400 mt-1 leading-relaxed max-w-[240px] mx-auto">${subtitle}</p>` : ''}
+                </div>
+            `;
         }
 
         let pendingWelcomeAccountNumber = null;
@@ -3800,6 +3831,17 @@ updateHeaderUserEmail(currentUserEmail);
         let currentActiveLoan = null;
 
         async function loadMyLoans() {
+            const loanContainer = document.getElementById('activeLoanContainer');
+            if (loanContainer) {
+                loanContainer.innerHTML = `
+                    <div class="space-y-2.5">
+                        <div class="skeleton-bar h-2.5 w-1/3" style="background:#334155"></div>
+                        <div class="skeleton-bar h-6 w-2/3" style="background:#334155"></div>
+                        <div class="skeleton-bar h-2 w-1/2" style="background:#334155"></div>
+                    </div>
+                `;
+            }
+
             try {
                 const res = await fetch('/api/account-services?resource=loans', { credentials: 'include' });
                 if (!res.ok) return;
@@ -4072,6 +4114,9 @@ updateHeaderUserEmail(currentUserEmail);
         }
 
         async function fetchTransactions() {
+            const ledgerContainer = document.getElementById('realTransactionContainer');
+            if (ledgerContainer) ledgerContainer.innerHTML = skeletonRowsHtml(4);
+
             try {
                 const res = await fetch('/api/transactions', { credentials: 'include', cache: 'no-store' });
                 if (!res.ok) throw new Error('Failed to load transactions');
@@ -4394,9 +4439,27 @@ updateHeaderUserEmail(currentUserEmail);
             if (!container) return;
             container.innerHTML = '';
 
+            if (allTransactions.length === 0) {
+                container.innerHTML = emptyStateHtml(
+                    'fa-receipt',
+                    'No transactions yet',
+                    'Once you send, receive, or spend money, your activity will show up here.'
+                );
+                const interfaceContainer = document.getElementById('logActionInterface');
+                if (interfaceContainer) interfaceContainer.innerHTML = '';
+                return;
+            }
+
             allTransactions.slice(0, 10).forEach(txn => {
                 container.appendChild(createSwipeableTxnRow(txn));
             });
+
+            const interfaceContainer = document.getElementById('logActionInterface');
+            if (interfaceContainer) {
+                interfaceContainer.innerHTML = allTransactions.length > 10
+                    ? `<button id="loadOlderBtn" onclick="loadMoreTransactions()" class="w-full text-center text-[11px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-lg border border-emerald-200 cursor-pointer transition-all duration-300">Load Older Log Files</button>`
+                    : '';
+            }
         }
 
         function loadMoreTransactions() {
@@ -4444,8 +4507,26 @@ updateHeaderUserEmail(currentUserEmail);
             const values = Object.values(totals);
             const colors = labels.map(l => (CATEGORY_RULES.find(c => c.name === l) || { color: '#999999' }).color);
 
+            const chartWrap = document.getElementById('spendingCategoryChartWrap');
+            const chartEmpty = document.getElementById('spendingCategoryEmpty');
+
+            if (labels.length === 0) {
+                if (chartWrap) chartWrap.classList.add('hidden');
+                if (chartEmpty) {
+                    chartEmpty.classList.remove('hidden');
+                    chartEmpty.innerHTML = emptyStateHtml(
+                        'fa-chart-pie',
+                        'No spending yet this month',
+                        'Once you make a purchase or transfer, your spending breakdown will show up here.'
+                    );
+                }
+            } else {
+                if (chartWrap) chartWrap.classList.remove('hidden');
+                if (chartEmpty) chartEmpty.classList.add('hidden');
+            }
+
             const chartCanvas = document.getElementById('spendingCategoryChart');
-            if (chartCanvas) {
+            if (chartCanvas && labels.length > 0) {
                 if (categoryChartInstance) categoryChartInstance.destroy();
                 categoryChartInstance = new Chart(chartCanvas, {
                     type: 'doughnut',
@@ -4461,6 +4542,9 @@ updateHeaderUserEmail(currentUserEmail);
                         }
                     }
                 });
+            } else if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+                categoryChartInstance = null;
             }
 
             const legendContainer = document.getElementById('spendingCategoryLegend');
@@ -5189,6 +5273,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let cardData = null;
 
         async function loadCreditCardData() {
+            const clearedContainer = document.getElementById('creditTab-cleared');
+            if (clearedContainer) clearedContainer.innerHTML = skeletonRowsHtml(3);
+
             try {
                 const res = await fetch('/api/account-services?resource=credit-card', { credentials: 'include' });
                 if (!res.ok) return;
@@ -5288,7 +5375,11 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = '';
 
             if (transactions.length === 0) {
-                container.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 font-medium">No card activity yet.</div>';
+                container.innerHTML = emptyStateHtml(
+                    'fa-credit-card',
+                    'No card activity yet',
+                    'Purchases and payments made with your Apex card will appear here.'
+                );
                 return;
             }
 
@@ -5870,6 +5961,15 @@ document.addEventListener('DOMContentLoaded', () => {
   opacity: 0;
   transform: translate(-50%, -40px);
   transition: opacity 0.2s ease, transform 0.2s ease;
+}
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.skeleton-bar {
+  background: #e2e8f0;
+  border-radius: 6px;
+  animation: skeletonPulse 1.3s ease-in-out infinite;
 }
 </style>
 
