@@ -1148,7 +1148,10 @@
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-1">
                         <p class="text-[9px] text-gray-400 uppercase font-bold">Total Spent This Month</p>
-                        <h2 id="spendingTotalLabel" class="text-2xl font-bold font-mono text-gray-900">$0.00</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 id="spendingTotalLabel" class="text-2xl font-bold font-mono text-gray-900">$0.00</h2>
+                            <span id="spendingMomBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full items-center gap-1"></span>
+                        </div>
                     </div>
                 </section>
 
@@ -2163,6 +2166,25 @@ if (activeLoanBalanceEl) {
                     ${subtitle ? `<p class="text-xs text-gray-400 mt-1 leading-relaxed max-w-[240px] mx-auto">${subtitle}</p>` : ''}
                 </div>
             `;
+        }
+
+        function animateCountUp(el, targetValue, durationMs = 800) {
+            if (!el) return;
+            const startValue = 0;
+            const startTime = performance.now();
+            function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+            function tick(now) {
+                const progress = Math.min((now - startTime) / durationMs, 1);
+                const eased = easeOutQuart(progress);
+                const current = startValue + (targetValue - startValue) * eased;
+                el.innerText = '$' + current.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if (progress < 1) {
+                    requestAnimationFrame(tick);
+                } else {
+                    el.innerText = '$' + targetValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+            }
+            requestAnimationFrame(tick);
         }
 
         let pendingWelcomeAccountNumber = null;
@@ -4519,7 +4541,37 @@ updateHeaderUserEmail(currentUserEmail);
 
             const totalSpent = Object.values(totals).reduce((a, b) => a + b, 0);
             const totalLabel = document.getElementById('spendingTotalLabel');
-            if (totalLabel) totalLabel.innerText = '$' + totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (totalLabel) animateCountUp(totalLabel, totalSpent);
+
+            const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthTxns = allTransactions.filter(t => {
+                const d = new Date(t.created_at);
+                return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear() && OUTGOING_TYPES.includes(t.type);
+            });
+            const lastMonthTotal = lastMonthTxns.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
+
+            const momBadge = document.getElementById('spendingMomBadge');
+            if (momBadge) {
+                if (lastMonthTotal > 0) {
+                    const pctChange = ((totalSpent - lastMonthTotal) / lastMonthTotal) * 100;
+                    const isUp = pctChange > 0.5;
+                    const isDown = pctChange < -0.5;
+                    momBadge.classList.remove('hidden');
+                    momBadge.classList.add('inline-flex');
+                    if (isUp) {
+                        momBadge.className = 'inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full items-center gap-1 bg-red-50 text-red-600';
+                        momBadge.innerHTML = `<i class="fa-solid fa-arrow-trend-up"></i> ${Math.abs(pctChange).toFixed(0)}% vs last month`;
+                    } else if (isDown) {
+                        momBadge.className = 'inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full items-center gap-1 bg-emerald-50 text-emerald-600';
+                        momBadge.innerHTML = `<i class="fa-solid fa-arrow-trend-down"></i> ${Math.abs(pctChange).toFixed(0)}% vs last month`;
+                    } else {
+                        momBadge.className = 'inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full items-center gap-1 bg-gray-100 text-gray-500';
+                        momBadge.innerHTML = `<i class="fa-solid fa-minus"></i> Same as last month`;
+                    }
+                } else {
+                    momBadge.classList.add('hidden');
+                }
+            }
 
             const labels = Object.keys(totals);
             const values = Object.values(totals);
@@ -4568,7 +4620,7 @@ updateHeaderUserEmail(currentUserEmail);
             const legendContainer = document.getElementById('spendingCategoryLegend');
             if (legendContainer) {
                 legendContainer.innerHTML = labels.map((l, i) => `
-                    <div class="flex items-center space-x-1.5 text-[10px]">
+                    <div class="flex items-center space-x-1.5 text-[10px] animate-fade-in" style="animation-delay: ${i * 80}ms; opacity: 0; animation-fill-mode: forwards;">
                         <span class="w-2 h-2 rounded-full" style="background:${colors[i]}"></span>
                         <span class="text-gray-600 truncate">${l}</span>
                         <span class="font-mono font-bold text-gray-900 ml-auto">$${values[i].toFixed(0)}</span>
