@@ -1164,8 +1164,13 @@
                         <span class="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded shadow-2xs">Active Engine</span>
                     </div>
 
-                    <div class="relative w-full aspect-[1.586/1] bg-gradient-to-tr from-slate-950 via-slate-900 to-emerald-950 rounded-2xl p-5 text-white flex flex-col justify-between shadow-xl border border-slate-800 overflow-hidden transition-all duration-300" id="visualCreditCard">
-                        <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_50%_120%,#10b981,transparent)]"></div>
+                    <div class="relative w-full aspect-[1.586/1]" style="perspective: 1200px;">
+                        <div class="relative w-full h-full bg-gradient-to-tr from-slate-950 via-slate-900 to-emerald-950 rounded-2xl p-5 text-white flex flex-col justify-between shadow-xl border border-slate-800 overflow-hidden" id="visualCreditCard" style="transform-style: preserve-3d;">
+                            <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_50%_120%,#10b981,transparent)]"></div>
+                            <div id="cardFrostOverlay" class="hidden absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 rounded-2xl">
+                                <i class="fa-solid fa-snowflake text-3xl text-sky-300"></i>
+                                <span class="text-xs font-bold tracking-widest uppercase text-sky-100">Card Frozen</span>
+                            </div>
                         
                         <div class="flex justify-between items-start z-10">
                             <div>
@@ -1194,6 +1199,7 @@
                                 <div class="w-3.5 h-3.5 bg-amber-500 rounded-full -ml-2 opacity-80"></div>
                             </div>
                             <span class="text-[8px] font-mono text-slate-500 uppercase tracking-widest">VISA PLATINUM</span>
+                        </div>
                         </div>
                     </div>
 
@@ -2045,14 +2051,14 @@
         }
 
         function refreshUIBalances() {
-            const formattedChecking = new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD'
-            }).format(rawBalanceValue);
-            
             const elements = document.getElementsByClassName('checkingBalanceLabel');
             for (let el of elements) {
-                el.innerText = formattedChecking;
+                const previousValue = parseCurrencyText(el.innerText);
+                if (Math.abs(previousValue - rawBalanceValue) > 0.004) {
+                    animateCountUp(el, rawBalanceValue, 700, previousValue);
+                } else {
+                    el.innerText = '$' + rawBalanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
             }
 
             const activeLoanBalanceEl = document.getElementById('activeLoanBalance');
@@ -2168,9 +2174,9 @@ if (activeLoanBalanceEl) {
             `;
         }
 
-        function animateCountUp(el, targetValue, durationMs = 800) {
+        function animateCountUp(el, targetValue, durationMs = 800, fromValue = 0) {
             if (!el) return;
-            const startValue = 0;
+            const startValue = fromValue;
             const startTime = performance.now();
             function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
             function tick(now) {
@@ -2185,6 +2191,11 @@ if (activeLoanBalanceEl) {
                 }
             }
             requestAnimationFrame(tick);
+        }
+
+        function parseCurrencyText(text) {
+            const n = parseFloat(String(text || '').replace(/[^0-9.-]/g, ''));
+            return Number.isFinite(n) ? n : 0;
         }
 
         let pendingWelcomeAccountNumber = null;
@@ -5363,9 +5374,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const velocityText = document.getElementById('cardVelocityLimitText');
                 const velocitySlider = document.getElementById('cardVelocitySlider');
 
-                if (balanceLabel) balanceLabel.innerText = currencyFormatter.format(data.balance);
+                [balanceLabel, portfolioLabel].forEach(el => {
+                    if (!el) return;
+                    const prev = parseCurrencyText(el.innerText);
+                    if (Math.abs(prev - data.balance) > 0.004) {
+                        animateCountUp(el, data.balance, 700, prev);
+                    } else {
+                        el.innerText = currencyFormatter.format(data.balance);
+                    }
+                });
                 if (availableLabel) availableLabel.innerText = currencyFormatter.format(data.availableCredit);
-                if (portfolioLabel) portfolioLabel.innerText = currencyFormatter.format(data.balance);
                 if (lastFourLabel) lastFourLabel.innerText = data.lastFour;
                 if (velocityText) velocityText.innerText = currencyFormatter.format(data.velocityLimit);
                 if (velocitySlider) velocitySlider.value = data.velocityLimit;
@@ -5377,20 +5395,39 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        let freezeStateInitialized = false;
+
         function applyFreezeVisualState(isFrozen) {
+            const wasFrozen = cardIsFrozen;
             cardIsFrozen = isFrozen;
             const cardElement = document.getElementById('visualCreditCard');
+            const frostOverlay = document.getElementById('cardFrostOverlay');
             const toggleContainer = document.getElementById('freezeToggleNode');
             const toggleBall = toggleContainer ? toggleContainer.querySelector('div') : null;
             if (!cardElement || !toggleContainer || !toggleBall) return;
 
+            const stateActuallyChanged = freezeStateInitialized && wasFrozen !== isFrozen;
+            freezeStateInitialized = true;
+
+            if (stateActuallyChanged) {
+                cardElement.classList.remove('card-flip-animate');
+                void cardElement.offsetWidth;
+                cardElement.classList.add('card-flip-animate');
+                setTimeout(() => {
+                    if (frostOverlay) frostOverlay.classList.toggle('hidden', !isFrozen);
+                }, 300);
+                setTimeout(() => {
+                    cardElement.classList.remove('card-flip-animate');
+                }, 600);
+            } else if (frostOverlay) {
+                frostOverlay.classList.toggle('hidden', !isFrozen);
+            }
+
             if (isFrozen) {
-                cardElement.classList.add('opacity-40', 'grayscale-[40%]');
                 toggleContainer.classList.remove('bg-gray-200');
                 toggleContainer.classList.add('bg-indigo-600');
                 toggleBall.classList.add('translate-x-3');
             } else {
-                cardElement.classList.remove('opacity-40', 'grayscale-[40%]');
                 toggleContainer.classList.remove('bg-indigo-600');
                 toggleContainer.classList.add('bg-gray-200');
                 toggleBall.classList.remove('translate-x-3');
@@ -6040,6 +6077,14 @@ document.addEventListener('DOMContentLoaded', () => {
   background: #e2e8f0;
   border-radius: 6px;
   animation: skeletonPulse 1.3s ease-in-out infinite;
+}
+@keyframes cardFlipSpin {
+  0% { transform: rotateY(0deg); }
+  50% { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+.card-flip-animate {
+  animation: cardFlipSpin 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>
 
