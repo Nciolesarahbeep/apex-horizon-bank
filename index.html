@@ -746,193 +746,18 @@
                         </div>
                     </div>
 
-                    <div class="flex flex-col space-y-2">
-                        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[145px] flex flex-col justify-between p-4">
-                            <div class="flex justify-between items-center w-full border-b border-slate-800 pb-1.5">
-                                <span class="text-[9px] font-mono tracking-widest text-slate-400 uppercase"><i class="fa-solid fa-rectangle-ad mr-1 text-emerald-400"></i> Member Portals</span>
-                                <div class="flex items-center space-x-2">
-                                    <button onclick="swapAdTemplate(-1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-left"></i></button>
-                                    <span id="adIndexIndicator" class="text-[10px] font-mono font-bold text-emerald-400">1/5</span>
-                                    <button onclick="swapAdTemplate(1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-right"></i></button>
-                                </div>
+                    <button onclick="triggerViewSwitch('offers')" class="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white p-3.5 flex items-center justify-between active:scale-[0.99] transition">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-rectangle-ad text-slate-950 text-sm"></i>
                             </div>
-
-                            <div class="flex-1 flex items-center py-2">
-                                <div id="adTemplate-1" class="w-full space-y-1 block cursor-pointer" onclick="toggleAdMenu(1)">
-                                    <span class="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Limited Offer</span>
-                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Apex Horizon Infinite Card <i class="fa-solid fa-circle-chevron-down text-emerald-400 text-[10px] animate-pulse"></i></h4>
-                                    <p class="text-[9px] text-gray-300 leading-tight">Earn unlimited 3% cash back on daily transactions. Zero annual fees.</p>
-                                </div>
-                                
-                                <div id="adTemplate-2" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(2)">
-                                    <span class="bg-amber-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Wealth Growth</span>
-                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">5.25% APY Certificate of Deposit <i class="fa-solid fa-circle-chevron-down text-amber-400 text-[10px] animate-pulse"></i></h4>
-                                    <p class="text-[9px] text-gray-300 leading-tight">Maximize short-term capital yields with zero market hazards.</p>
-                                </div>
-                                
-                                <div id="adTemplate-3" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(3)">
-                                    <span class="bg-sky-400 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Mortgages</span>
-                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Streamlined Home Refinancing <i class="fa-solid fa-circle-chevron-down text-sky-400 text-[10px] animate-pulse"></i></h4>
-                                    <p class="text-[9px] text-gray-300 leading-tight">Lower monthly obligations. Sync with custom underwriting tools.</p>
-                                </div>
-                                
-                                <div id="adTemplate-4" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(4)">
-                                    <span class="bg-purple-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Premier Services</span>
-                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Private Wealth Management <i class="fa-solid fa-circle-chevron-down text-purple-400 text-[10px] animate-pulse"></i></h4>
-                                    <p class="text-[9px] text-gray-300 leading-tight">Unlock specialized financial structures and custom advising tracks.</p>
-                                </div>
-                                
-                                <div id="adTemplate-5" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(5)">
-                                    <span class="bg-rose-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Business Lines</span>
-                                    <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Accelerated Corporate Funding <i class="fa-solid fa-circle-chevron-down text-rose-400 text-[10px] animate-pulse"></i></h4>
-                                    <p class="text-[9px] text-gray-300 leading-tight">Scale enterprise infrastructure pipelines instantly up to $250k.</p>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-center items-center space-x-1.5 pt-1">
-                                <button onclick="jumpToAdTemplate(1)" id="adDot-1" class="h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300"></button>
-                                <button onclick="jumpToAdTemplate(2)" id="adDot-2" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
-                                <button onclick="jumpToAdTemplate(3)" id="adDot-3" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
-                                <button onclick="jumpToAdTemplate(4)" id="adDot-4" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
-                                <button onclick="jumpToAdTemplate(5)" id="adDot-5" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <div class="text-left min-w-0">
+                                <p class="text-xs font-bold truncate">Offers &amp; Member Portals</p>
+                                <p class="text-[10px] text-slate-400">5 new offers available</p>
                             </div>
                         </div>
-
-                        <div id="adMenu-1" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('card')" class="fa-solid fa-credit-card text-emerald-500 mr-1 cursor-pointer"></i> Card Customizer Track</span>
-                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <button onclick="selectCardTier('signature')" id="tierBtn-signature" class="p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left">
-                                    <span class="block text-[10px] font-bold text-gray-900">Infinite Signature</span>
-                                    <span class="block text-[8px] text-gray-500">3% Cash back everywhere</span>
-                                </button>
-                                <button onclick="selectCardTier('elite')" id="tierBtn-elite" class="p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50">
-                                    <span class="block text-[10px] font-bold text-gray-900">Prestige Elite</span>
-                                    <span class="block text-[8px] text-gray-500">4x Points on travel/dining</span>
-                                </button>
-                            </div>
-                            <div class="bg-slate-50 p-2.5 rounded-lg space-y-1.5">
-                                <label class="flex items-center justify-between text-[10px] font-medium text-gray-600 cursor-pointer">
-                                    <span>Include Premium Protection Shield</span>
-                                    <input type="checkbox" id="cardShieldCheck" checked class="accent-emerald-600 rounded h-3.5 w-3.5">
-                                </label>
-                                <p class="text-[8px] text-gray-400 leading-normal">Adds biometric zero-liability coverage logs matching real-time insurance validation structures.</p>
-                            </div>
-                            <button onclick="executeAdAction('credit-card')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-emerald-600">
-                                Process Tokenized Card Creation
-                            </button>
-                        </div>
-
-                        <div id="adMenu-2" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('cd')" class="fa-solid fa-chart-line text-amber-500 mr-1 cursor-pointer"></i> CD Treasury Locks</span>
-                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
-                            </div>
-                            <div class="space-y-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Asset Lock Allocation ($)</label>
-                                    <input type="number" id="ad2PrincipalInput" value="25000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Yield Duration Structure</label>
-                                    <select id="ad2DurationSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                        <option value="12" selected>12 Months Guaranteed (5.25% APY)</option>
-                                        <option value="24">24 Months Multi-Compound (5.85% APY)</option>
-                                        <option value="36">36 Months Institutional (6.10% APY)</option>
-                                    </select>
-                                </div>
-                                <div class="bg-amber-50/50 border border-amber-200 rounded-lg p-2 flex justify-between items-center text-xs font-mono">
-                                    <span class="text-[10px] font-medium text-amber-800">Projected Interest Return:</span>
-                                    <span id="ad2YieldProjectionText" class="font-bold text-slate-950">$1,312.50</span>
-                                </div>
-                            </div>
-                            <button onclick="executeAdAction('cd-yield')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-amber-500 hover:text-slate-950">
-                                Lock High-Yield Capital Array
-                            </button>
-                        </div>
-
-                        <div id="adMenu-3" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('mortgage')" class="fa-solid fa-house-circle-check text-sky-500 mr-1 cursor-pointer"></i> Home Underwriting Portal</span>
-                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
-                            </div>
-                            <div class="space-y-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Estimated Home Valuation</label>
-                                    <input type="number" id="ad3HomeVal" value="450000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Down Payment</label>
-                                        <input type="number" id="ad3DownPayment" value="90000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Credit Score Tier</label>
-                                        <select id="ad3CreditScore" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                            <option selected>Excellent (740+)</option>
-                                            <option>Good (670-739)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <button onclick="executeAdAction('mortgage')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-sky-400 hover:text-slate-950">
-                                Query Live Amortization Tables
-                            </button>
-                        </div>
-
-                        <div id="adMenu-4" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('wealth')" class="fa-solid fa-crown text-purple-500 mr-1 cursor-pointer"></i> Asset Management Track</span>
-                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
-                            </div>
-                            <div class="space-y-2.5 text-xs">
-                                <p class="text-[10px] text-gray-600 leading-normal">Requires continuous validation of verifiable network assets exceeding $250,000 USD.</p>
-                                <div class="bg-purple-50 rounded-lg p-2.5 space-y-2 border border-purple-100">
-                                    <span class="block text-[9px] font-bold uppercase text-purple-900">Select Desired Advisory Channels:</span>
-                                    <div class="grid grid-cols-2 gap-2 text-[9px] font-medium text-gray-700">
-                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Tax Optimization</span></label>
-                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Trust Networks</span></label>
-                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Offshore Routing</span></label>
-                                        <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Alternative Alts</span></label>
-                                    </div>
-                                </div>
-                            </div>
-                            <button onclick="executeAdAction('wealth')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-purple-500">
-                                File Direct Asset Strategic Intake
-                            </button>
-                        </div>
-
-                        <div id="adMenu-5" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('business')" class="fa-solid fa-briefcase text-rose-500 mr-1 cursor-pointer"></i> Business Liquidity Node</span>
-                                <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
-                            </div>
-                            <div class="space-y-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Required Capital Runway ($)</label>
-                                    <input type="range" id="ad5CapitalRange" min="10000" max="250000" step="5000" value="50000" oninput="updateAd5RangeLabel(this.value)" class="w-full accent-rose-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
-                                    <div class="flex justify-between text-[10px] font-mono font-bold text-slate-800 mt-1">
-                                        <span>Min: $10k</span>
-                                        <span id="ad5RangeLabel" class="text-rose-600 bg-rose-50 px-1.5 rounded">$50,000</span>
-                                        <span>Max: $250k</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Corporate Structure Filing</label>
-                                    <select class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                        <option>Single Member LLC / Sole Prop</option>
-                                        <option>S-Corporation Multi-Node</option>
-                                        <option>C-Corporation Institutional</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <button onclick="executeAdAction('business')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-rose-500">
-                                Expand Capital Bridge Stream
-                            </button>
-                        </div>
-                    </div>
+                        <i class="fa-solid fa-chevron-right text-slate-500 text-xs shrink-0"></i>
+                    </button>
 
                     <div class="space-y-3">
                         <div onclick="triggerViewSwitch('checking')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
@@ -978,6 +803,214 @@
                             </button>
                         </div>
                     </div>
+                </section>
+
+                <section id="view-offers" class="hidden space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Offers &amp; Member Portals</h1>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[145px] flex flex-col justify-between p-4">
+                        <div class="flex justify-between items-center w-full border-b border-slate-800 pb-1.5">
+                            <span class="text-[9px] font-mono tracking-widest text-slate-400 uppercase"><i class="fa-solid fa-rectangle-ad mr-1 text-emerald-400"></i> Member Portals</span>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="swapAdTemplate(-1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-left"></i></button>
+                                <span id="adIndexIndicator" class="text-[10px] font-mono font-bold text-emerald-400">1/5</span>
+                                <button onclick="swapAdTemplate(1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 flex items-center py-2">
+                            <div id="adTemplate-1" class="w-full space-y-1 block cursor-pointer" onclick="toggleAdMenu(1)">
+                                <span class="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Limited Offer</span>
+                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Apex Horizon Infinite Card <i class="fa-solid fa-circle-chevron-down text-emerald-400 text-[10px] animate-pulse"></i></h4>
+                                <p class="text-[9px] text-gray-300 leading-tight">Earn unlimited 3% cash back on daily transactions. Zero annual fees.</p>
+                            </div>
+
+                            <div id="adTemplate-2" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(2)">
+                                <span class="bg-amber-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Wealth Growth</span>
+                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">5.25% APY Certificate of Deposit <i class="fa-solid fa-circle-chevron-down text-amber-400 text-[10px] animate-pulse"></i></h4>
+                                <p class="text-[9px] text-gray-300 leading-tight">Maximize short-term capital yields with zero market hazards.</p>
+                            </div>
+
+                            <div id="adTemplate-3" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(3)">
+                                <span class="bg-sky-400 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Mortgages</span>
+                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Streamlined Home Refinancing <i class="fa-solid fa-circle-chevron-down text-sky-400 text-[10px] animate-pulse"></i></h4>
+                                <p class="text-[9px] text-gray-300 leading-tight">Lower monthly obligations. Sync with custom underwriting tools.</p>
+                            </div>
+
+                            <div id="adTemplate-4" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(4)">
+                                <span class="bg-purple-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Premier Services</span>
+                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Private Wealth Management <i class="fa-solid fa-circle-chevron-down text-purple-400 text-[10px] animate-pulse"></i></h4>
+                                <p class="text-[9px] text-gray-300 leading-tight">Unlock specialized financial structures and custom advising tracks.</p>
+                            </div>
+
+                            <div id="adTemplate-5" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(5)">
+                                <span class="bg-rose-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Business Lines</span>
+                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Accelerated Corporate Funding <i class="fa-solid fa-circle-chevron-down text-rose-400 text-[10px] animate-pulse"></i></h4>
+                                <p class="text-[9px] text-gray-300 leading-tight">Scale enterprise infrastructure pipelines instantly up to $250k.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center items-center space-x-1.5 pt-1">
+                            <button onclick="jumpToAdTemplate(1)" id="adDot-1" class="h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300"></button>
+                            <button onclick="jumpToAdTemplate(2)" id="adDot-2" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button onclick="jumpToAdTemplate(3)" id="adDot-3" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button onclick="jumpToAdTemplate(4)" id="adDot-4" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button onclick="jumpToAdTemplate(5)" id="adDot-5" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                        </div>
+                    </div>
+
+                    <div id="adMenu-1" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('card')" class="fa-solid fa-credit-card text-emerald-500 mr-1 cursor-pointer"></i> Card Customizer Track</span>
+                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="selectCardTier('signature')" id="tierBtn-signature" class="p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left">
+                                <span class="block text-[10px] font-bold text-gray-900">Infinite Signature</span>
+                                <span class="block text-[8px] text-gray-500">3% Cash back everywhere</span>
+                            </button>
+                            <button onclick="selectCardTier('elite')" id="tierBtn-elite" class="p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50">
+                                <span class="block text-[10px] font-bold text-gray-900">Prestige Elite</span>
+                                <span class="block text-[8px] text-gray-500">4x Points on travel/dining</span>
+                            </button>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded-lg space-y-1.5">
+                            <label class="flex items-center justify-between text-[10px] font-medium text-gray-600 cursor-pointer">
+                                <span>Include Premium Protection Shield</span>
+                                <input type="checkbox" id="cardShieldCheck" checked class="accent-emerald-600 rounded h-3.5 w-3.5">
+                            </label>
+                            <p class="text-[8px] text-gray-400 leading-normal">Adds biometric zero-liability coverage logs matching real-time insurance validation structures.</p>
+                        </div>
+                        <button onclick="executeAdAction('credit-card')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-emerald-600">
+                            Process Tokenized Card Creation
+                        </button>
+                    </div>
+
+                    <div id="adMenu-2" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('cd')" class="fa-solid fa-chart-line text-amber-500 mr-1 cursor-pointer"></i> CD Treasury Locks</span>
+                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Asset Lock Allocation ($)</label>
+                                <input type="number" id="ad2PrincipalInput" value="25000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Yield Duration Structure</label>
+                                <select id="ad2DurationSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option value="12" selected>12 Months Guaranteed (5.25% APY)</option>
+                                    <option value="24">24 Months Multi-Compound (5.85% APY)</option>
+                                    <option value="36">36 Months Institutional (6.10% APY)</option>
+                                </select>
+                            </div>
+                            <div class="bg-amber-50/50 border border-amber-200 rounded-lg p-2 flex justify-between items-center text-xs font-mono">
+                                <span class="text-[10px] font-medium text-amber-800">Projected Interest Return:</span>
+                                <span id="ad2YieldProjectionText" class="font-bold text-slate-950">$1,312.50</span>
+                            </div>
+                        </div>
+                        <button onclick="executeAdAction('cd-yield')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-amber-500 hover:text-slate-950">
+                            Lock High-Yield Capital Array
+                        </button>
+                    </div>
+
+                    <div id="adMenu-3" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('mortgage')" class="fa-solid fa-house-circle-check text-sky-500 mr-1 cursor-pointer"></i> Home Underwriting Portal</span>
+                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Estimated Home Valuation</label>
+                                <input type="number" id="ad3HomeVal" value="450000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Down Payment</label>
+                                    <input type="number" id="ad3DownPayment" value="90000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Credit Score Tier</label>
+                                    <select id="ad3CreditScore" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                        <option selected>Excellent (740+)</option>
+                                        <option>Good (670-739)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="executeAdAction('mortgage')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-sky-400 hover:text-slate-950">
+                            Query Live Amortization Tables
+                        </button>
+                    </div>
+
+                    <div id="adMenu-4" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('wealth')" class="fa-solid fa-crown text-purple-500 mr-1 cursor-pointer"></i> Asset Management Track</span>
+                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                        <div class="space-y-2.5 text-xs">
+                            <p class="text-[10px] text-gray-600 leading-normal">Requires continuous validation of verifiable network assets exceeding $250,000 USD.</p>
+                            <div class="bg-purple-50 rounded-lg p-2.5 space-y-2 border border-purple-100">
+                                <span class="block text-[9px] font-bold uppercase text-purple-900">Select Desired Advisory Channels:</span>
+                                <div class="grid grid-cols-2 gap-2 text-[9px] font-medium text-gray-700">
+                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Tax Optimization</span></label>
+                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Trust Networks</span></label>
+                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Offshore Routing</span></label>
+                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Alternative Alts</span></label>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="executeAdAction('wealth')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-purple-500">
+                            File Direct Asset Strategic Intake
+                        </button>
+                    </div>
+
+                    <div id="adMenu-5" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('business')" class="fa-solid fa-briefcase text-rose-500 mr-1 cursor-pointer"></i> Business Liquidity Node</span>
+                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Required Capital Runway ($)</label>
+                                <input type="range" id="ad5CapitalRange" min="10000" max="250000" step="5000" value="50000" oninput="updateAd5RangeLabel(this.value)" class="w-full accent-rose-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
+                                <div class="flex justify-between text-[10px] font-mono font-bold text-slate-800 mt-1">
+                                    <span>Min: $10k</span>
+                                    <span id="ad5RangeLabel" class="text-rose-600 bg-rose-50 px-1.5 rounded">$50,000</span>
+                                    <span>Max: $250k</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Corporate Structure Filing</label>
+                                <select class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                    <option>Single Member LLC / Sole Prop</option>
+                                    <option>S-Corporation Multi-Node</option>
+                                    <option>C-Corporation Institutional</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="executeAdAction('business')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-rose-500">
+                            Expand Capital Bridge Stream
+                        </button>
+                    </div>
+                </section>
+
+                <section id="view-savings-summary" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Savings Module Records</h1>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                        <p class="text-xs text-gray-600 leading-relaxed">Detailed asset logs under active multi-tier automated compounding protocols.</p>
+                        <div class="p-3 bg-slate-900 text-white font-mono text-xs rounded-lg flex justify-between">
+                            <span>Vault Node:</span> <span class="text-emerald-400">HYS-CORE-854</span>
+                        </div>
+                        <button onclick="triggerViewSwitch('savings-analytics')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold py-2 rounded-lg transition">View Yield Analytics</button>
+                        <button onclick="triggerViewSwitch('savings-withdraw')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded-lg transition">Withdraw to Checking</button>
+                    </div>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
                         <div class="flex items-center space-x-2">
@@ -1004,21 +1037,6 @@
                             <div class="flex justify-between"><span class="text-slate-400">Accumulated Profit (24M):</span><span id="fdInterestVal" class="text-emerald-400 font-bold">$0.00</span></div>
                             <div class="flex justify-between border-t border-slate-800 pt-1"><span class="text-slate-400">Total Vault Portfolio:</span><span id="fdTotalVal" class="text-white font-bold">$33,450.00</span></div>
                         </div>
-                    </div>
-                </section>
-
-                <section id="view-savings-summary" class="hidden space-y-4 animate-fade-in">
-                    <div class="flex items-center space-x-2">
-                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
-                        <h1 class="text-md font-bold text-gray-900">Savings Module Records</h1>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
-                        <p class="text-xs text-gray-600 leading-relaxed">Detailed asset logs under active multi-tier automated compounding protocols.</p>
-                        <div class="p-3 bg-slate-900 text-white font-mono text-xs rounded-lg flex justify-between">
-                            <span>Vault Node:</span> <span class="text-emerald-400">HYS-CORE-854</span>
-                        </div>
-                        <button onclick="triggerViewSwitch('savings-analytics')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold py-2 rounded-lg transition">View Yield Analytics</button>
-                        <button onclick="triggerViewSwitch('savings-withdraw')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded-lg transition">Withdraw to Checking</button>
                     </div>
                 </section>
 
@@ -2083,7 +2101,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
