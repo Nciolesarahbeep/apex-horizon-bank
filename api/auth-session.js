@@ -1,6 +1,9 @@
 const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
-const { normalizeEmail, signToken, setSessionCookie, clearSessionCookie } = require('../lib/auth');
+const {
+  normalizeEmail, signToken, setSessionCookie, clearSessionCookie,
+  createSession, revokeSessionByJti, decodeTokenUnsafe, parseCookies, COOKIE_NAME,
+} = require('../lib/auth');
 const { logSignInActivity } = require('../lib/loginActivity');
 
 
@@ -15,13 +18,27 @@ module.exports = async function handler(req, res) {
   const { action } = req.body || {};
 
   if (action === 'logout') {
+    try {
+      const cookies = parseCookies(req);
+      const token = cookies[COOKIE_NAME];
+      if (token) {
+        const decoded = decodeTokenUnsafe(token);
+        if (decoded && decoded.jti && decoded.userId) {
+          await revokeSessionByJti(decoded.jti, decoded.userId);
+        }
+      }
+    } catch (err) {
+      // Never block logout on a revocation hiccup — the cookie is cleared regardless.
+      console.error('Session revoke on logout error (non-fatal):', err);
+    }
+
     clearSessionCookie(res);
     return res.status(200).json({ success: true });
   }
 
   if (action === 'login') {
     try {
-      const { email, password, rememberDevice } = req.body || {};
+      const { email, password } = req.body || {};
 
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required.' });
@@ -73,15 +90,13 @@ module.exports = async function handler(req, res) {
         RETURNING last_login_at
       `;
 
-      const token = signToken({ userId: user.id, email: user.email });
-      // Default to true if the field is missing entirely, so older clients
-      // that don't send it yet keep the previous "always remembered" behavior.
-           setSessionCookie(res, token, rememberDevice !== false);
+      const jti = await createSession(user.id, req);
+      const token = signToken({ userId: user.id, email: user.email, jti });
+      setSessionCookie(res, token);
 
       await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password' });
 
       return res.status(200).json({
-
         user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
       });
     } catch (err) {
