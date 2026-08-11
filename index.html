@@ -2091,6 +2091,9 @@ if (activeLoanBalanceEl) {
                 if (targetViewId === 'credit') {
                     loadCreditCardData();
                 }
+                if (targetViewId === 'settings-linked-devices') {
+                    renderLinkedDevices();
+                }
             }, 1500); 
         }
 
@@ -4748,12 +4751,6 @@ updateHeaderUserEmail(currentUserEmail);
         let biometricEnabled = true;
         let txnConfirmEnabled = true;
 
-        let linkedDevices = [
-            { id: 'dev-1', name: 'iPhone 15 Pro', sub: 'This Device', removable: false },
-            { id: 'dev-2', name: 'MacBook Air', sub: 'Last active 2 days ago', removable: true },
-            { id: 'dev-3', name: 'iPad Mini', sub: 'Last active 1 week ago', removable: true }
-        ];
-
         const availableLanguages = [
             { code: 'en', label: 'English' },
             { code: 'es', label: 'Español' },
@@ -4999,36 +4996,69 @@ updateHeaderUserEmail(currentUserEmail);
             alert(`Display language set to ${label}.`);
         }
 
-        function renderLinkedDevices() {
+        async function renderLinkedDevices() {
             const container = document.getElementById('linkedDevicesContainer');
             if (!container) return;
-            container.innerHTML = '';
+            container.innerHTML = skeletonRowsHtml(2);
 
-            linkedDevices.forEach(device => {
-                const row = document.createElement('div');
-                row.className = "p-3.5 flex items-center justify-between";
-                row.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-mobile-screen"></i></div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">${device.name}</p>
-                            <p class="text-[10px] text-gray-400">${device.sub}</p>
+            try {
+                const res = await fetch('/api/account-services?resource=sessions', { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to load sessions');
+                const data = await res.json();
+                const sessions = data.sessions || [];
+
+                container.innerHTML = '';
+
+                if (sessions.length === 0) {
+                    container.innerHTML = emptyStateHtml('fa-mobile-screen', 'No active sessions found', '');
+                    return;
+                }
+
+                sessions.forEach(s => {
+                    const lastSeen = new Date(s.lastSeenAt);
+                    const subText = s.isCurrent ? 'This Device' : `Last active ${lastSeen.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                    const row = document.createElement('div');
+                    row.className = "p-3.5 flex items-center justify-between";
+                    row.innerHTML = `
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-mobile-screen"></i></div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">${s.deviceName}</p>
+                                <p class="text-[10px] text-gray-400">${subText}${s.ipAddress ? ' · ' + s.ipAddress : ''}</p>
+                            </div>
                         </div>
-                    </div>
-                    ${device.removable ? `<button class="text-[10px] font-bold text-red-500 hover:text-red-600" onclick="removeLinkedDevice('${device.id}')">Remove</button>` : `<span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Active</span>`}
-                `;
-                container.appendChild(row);
-            });
+                        ${s.isCurrent
+                            ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded shrink-0">Active</span>`
+                            : `<button class="text-[10px] font-bold text-red-500 hover:text-red-600 shrink-0" onclick="removeLinkedDevice('${s.jti}', '${s.deviceName.replace(/'/g, "\\'")}')">Remove</button>`}
+                    `;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                console.error('Failed to load linked devices:', err);
+                container.innerHTML = emptyStateHtml('fa-triangle-exclamation', 'Could not load sessions', 'Please try again.');
+            }
         }
 
-        function removeLinkedDevice(id) {
-            const device = linkedDevices.find(d => d.id === id);
-            if (!device) return;
-            const confirmRemoval = confirm(`Remove "${device.name}" from your linked devices? It will need to be re-authorized to sign in again.`);
+        async function removeLinkedDevice(jti, deviceName) {
+            const confirmRemoval = confirm(`Sign "${deviceName}" out of your account? It will need to log in again to regain access.`);
             if (!confirmRemoval) return;
 
-            linkedDevices = linkedDevices.filter(d => d.id !== id);
-            renderLinkedDevices();
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'sessions', sessionAction: 'revoke', jti })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Could not remove this device. Please try again.');
+                    return;
+                }
+                renderLinkedDevices();
+            } catch (err) {
+                alert('Network error. Please try again.');
+            }
         }
 
         function initAppearanceMode() {
@@ -5045,7 +5075,6 @@ updateHeaderUserEmail(currentUserEmail);
         }
 
         renderLanguageList();
-        renderLinkedDevices();
         initAppearanceMode();
 
         if (window.matchMedia) {
