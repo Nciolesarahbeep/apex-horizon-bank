@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   // GET /api/transfer?lookupIdentifier=someone@example.com  OR  ?lookupIdentifier=1234567890
   if (req.method === 'GET') {
     try {
-      const session = getUserFromRequest(req);
+      const session = await getUserFromRequest(req);
       if (!session) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
@@ -85,7 +85,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const session = getUserFromRequest(req);
+    const session = await getUserFromRequest(req);
     if (!session) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -149,6 +149,8 @@ module.exports = async function handler(req, res) {
     let recipientInfo = null;
     let note;
     let noteIncoming;
+    let senderFullName;
+    let senderEmailForNotify;
 
     if (isP2P) {
       const cleanIdentifier = String(recipientIdentifier).trim();
@@ -219,8 +221,8 @@ module.exports = async function handler(req, res) {
       // so the recipient sees who paid them everywhere: transaction list,
       // receipt, and notification, not just one of those places.
       const senderRowsForNote = await sql`SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1`;
-      const senderFullName = senderRowsForNote[0]?.full_name || 'an Apex Horizon user';
-      const senderEmailForNotify = senderRowsForNote[0]?.email;
+      senderFullName = senderRowsForNote[0]?.full_name || 'an Apex Horizon user';
+      senderEmailForNotify = senderRowsForNote[0]?.email;
       const senderNameParts = senderFullName.trim().split(/\s+/);
       const senderFirstName = senderNameParts[0] || 'Apex';
       const senderLastInitial = senderNameParts.length > 1 ? senderNameParts[senderNameParts.length - 1][0] + '.' : '';
