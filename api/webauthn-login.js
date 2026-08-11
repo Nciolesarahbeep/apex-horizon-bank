@@ -1,6 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server');
-const { normalizeEmail, signToken, setSessionCookie } = require('../lib/auth');
+const { normalizeEmail, signToken, setSessionCookie, createSession } = require('../lib/auth');
 const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('../lib/webauthn');
 const { logSignInActivity } = require('../lib/loginActivity');
 
@@ -104,7 +104,10 @@ module.exports = async function handler(req, res) {
       }
       const user = userRows[0];
 
-      const token = signToken({ userId: user.id, email: user.email });
+      // Same session-tracking path as password login, so Face ID sign-ins
+      // show up in — and can be revoked from — Linked Devices too.
+      const jti = await createSession(user.id, req);
+      const token = signToken({ userId: user.id, email: user.email, jti });
       setSessionCookie(res, token);
       clearChallengeCookie(res);
 
