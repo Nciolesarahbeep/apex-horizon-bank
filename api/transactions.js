@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const session = getUserFromRequest(req);
+    const session = await getUserFromRequest(req);
     if (!session) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
