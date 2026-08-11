@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getUserFromRequest } = require('../lib/auth');
+const { getUserFromRequest, revokeSessionByJti } = require('../lib/auth');
 const { sendEmail } = require('../lib/email');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -37,7 +37,7 @@ async function createNotification(userId, title, message) {
 }
 
 module.exports = async function handler(req, res) {
-  const session = getUserFromRequest(req);
+  const session = await getUserFromRequest(req);
   if (!session) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -828,6 +828,61 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ---------- Sessions (linked devices) ----------
+  if (resource === 'sessions') {
+    if (req.method === 'GET') {
+      try {
+        const currentJti = session.jti || null;
+        const rows = await sql`
+          SELECT jti, device_name, ip_address, created_at, last_seen_at
+          FROM user_sessions
+          WHERE user_id = ${session.userId} AND revoked_at IS NULL
+          ORDER BY last_seen_at DESC
+        `;
+        const sessions = rows.map(r => ({
+          jti: r.jti,
+          deviceName: r.device_name || 'Unknown Device',
+          ipAddress: r.ip_address,
+          createdAt: r.created_at,
+          lastSeenAt: r.last_seen_at,
+          isCurrent: r.jti === currentJti,
+        }));
+        return res.status(200).json({ sessions });
+      } catch (err) {
+        console.error('List sessions error:', err);
+        return res.status(500).json({ error: 'Failed to fetch sessions.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { sessionAction, jti } = req.body || {};
+
+        if (sessionAction === 'revoke') {
+          if (!jti) return res.status(400).json({ error: 'jti is required' });
+          if (jti === session.jti) {
+            return res.status(400).json({ error: 'You cannot revoke the session you are currently using. Log out instead.' });
+          }
+          const revoked = await revokeSessionByJti(jti, session.userId);
+          if (!revoked) return res.status(404).json({ error: 'Session not found or already revoked.' });
+
+          await createNotification(
+            session.userId,
+            'Device Removed',
+            'A device was signed out of your account. If this wasn\'t you, please change your password immediately.'
+          );
+
+          return res.status(200).json({ success: true, message: 'Device signed out successfully.' });
+        }
+
+        return res.status(400).json({ error: 'Invalid sessionAction. Use "revoke".' });
+      } catch (err) {
+        console.error('Revoke session error:', err);
+        return res.status(500).json({ error: 'Failed to revoke session.' });
+      }
+    }
+  }
+
   // ---------- Passcode (in-app unlock code, separate from login password) ----------
   if (resource === 'passcode') {
     if (req.method !== 'POST') {
@@ -867,7 +922,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", or "loans".' });
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", or "loans".' });
 
 
 
