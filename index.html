@@ -5027,15 +5027,48 @@ updateHeaderUserEmail(currentUserEmail);
                                 <p class="text-[10px] text-gray-400">${subText}${s.ipAddress ? ' · ' + s.ipAddress : ''}</p>
                             </div>
                         </div>
-                        ${s.isCurrent
-                            ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded shrink-0">Active</span>`
-                            : `<button class="text-[10px] font-bold text-red-500 hover:text-red-600 shrink-0" onclick="removeLinkedDevice('${s.jti}', '${s.deviceName.replace(/'/g, "\\'")}')">Remove</button>`}
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button class="text-gray-400 hover:text-gray-600" onclick="renameLinkedDevice('${s.jti}', '${s.deviceName.replace(/'/g, "\\'")}')" title="Rename device">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            ${s.isCurrent
+                                ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Active</span>`
+                                : `<button class="text-[10px] font-bold text-red-500 hover:text-red-600" onclick="removeLinkedDevice('${s.jti}', '${s.deviceName.replace(/'/g, "\\'")}')">Remove</button>`}
+                        </div>
                     `;
                     container.appendChild(row);
                 });
             } catch (err) {
                 console.error('Failed to load linked devices:', err);
                 container.innerHTML = emptyStateHtml('fa-triangle-exclamation', 'Could not load sessions', 'Please try again.');
+            }
+        }
+
+        async function renameLinkedDevice(jti, currentName) {
+            const newName = prompt('Rename this device:', currentName);
+            if (newName === null) return;
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                alert('Device name cannot be empty.');
+                return;
+            }
+            if (trimmed === currentName) return;
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ resource: 'sessions', sessionAction: 'rename', jti, deviceName: trimmed })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Could not rename this device. Please try again.');
+                    return;
+                }
+                renderLinkedDevices();
+            } catch (err) {
+                alert('Network error. Please try again.');
             }
         }
 
