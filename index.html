@@ -5899,21 +5899,67 @@ document.addEventListener('DOMContentLoaded', () => {
   const answerBox = document.getElementById('ahb-help-answer');
   const backBtn = document.getElementById('ahb-help-back');
 
-  const ANSWERS = {
-    login: "If your password isn't working, double check for extra spaces or caps lock. Still stuck? Use \"Forgot?\" on the sign-in screen to reset it, or call us and we'll verify your identity over the phone.",
-    transfer: "Transfers between your own accounts post instantly. If one seems missing, check the Transactions tab first — it may just be pending. If it's been more than a few minutes, call us with the amount and time so we can trace it.",
-    card: "If your card is lost or stolen, call us right away so we can freeze it and issue a replacement. Don't wait for unusual charges to appear first.",
-    fraud: "If you see a transaction you don't recognize, don't dispute it yourself in the app — call us immediately so we can lock your account and start an investigation."
+  const TOPIC_CONTENT = {
+    login: {
+      text: "If your password isn't working, double check for extra spaces or caps lock. You can reset it right now below.",
+      actionLabel: "Reset Password",
+      action: function () {
+        card.classList.remove('ahb-open');
+        openForgotPasswordModal();
+      }
+    },
+    transfer: {
+      text: "Transfers between your own accounts post instantly. Check your recent activity below — it may just be pending.",
+      actionLabel: "View Recent Transactions",
+      action: function () {
+        card.classList.remove('ahb-open');
+        triggerViewSwitch('checking');
+      }
+    },
+    card: {
+      text: "If your card is lost or stolen, freeze it immediately below to stop new charges. You can unfreeze it anytime once it's found.",
+      actionLabel: "Freeze My Card Now",
+      action: function () {
+        card.classList.remove('ahb-open');
+        triggerViewSwitch('credit');
+        setTimeout(function () {
+          if (!cardIsFrozen) {
+            if (confirm('Freeze your Apex card right now? You can unfreeze it anytime.')) {
+              toggleCardFreezeState();
+            }
+          }
+        }, 1700);
+      }
+    },
+    fraud: {
+      text: "Find the transaction you don't recognize in your Ledger, swipe it left, and tap Dispute to report it directly to our team.",
+      actionLabel: "Go to My Transactions",
+      action: function () {
+        card.classList.remove('ahb-open');
+        triggerViewSwitch('checking');
+      }
+    }
   };
 
   topicsBox.addEventListener('click', function (e) {
     const btn = e.target.closest('button[data-topic]');
     if (!btn) return;
     const topic = btn.getAttribute('data-topic');
-    answerBox.textContent = ANSWERS[topic] || '';
+    const content = TOPIC_CONTENT[topic];
+    if (!content) return;
+
+    answerBox.innerHTML = `
+      <p>${content.text}</p>
+      ${content.actionLabel ? `<button id="ahb-topic-action" style="margin-top:10px; width:100%; background:#10b981; color:#05140f; font-weight:700; font-size:12px; padding:9px 12px; border-radius:8px; border:none; cursor:pointer;">${content.actionLabel}</button>` : ''}
+    `;
     answerBox.classList.add('ahb-visible');
     topicsBox.style.display = 'none';
     backBtn.classList.add('ahb-visible');
+
+    const actionBtn = document.getElementById('ahb-topic-action');
+    if (actionBtn && content.action) {
+      actionBtn.addEventListener('click', content.action);
+    }
   });
 
   backBtn.addEventListener('click', function () {
