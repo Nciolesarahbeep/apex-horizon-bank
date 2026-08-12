@@ -875,10 +875,26 @@ module.exports = async function handler(req, res) {
           return res.status(200).json({ success: true, message: 'Device signed out successfully.' });
         }
 
-        return res.status(400).json({ error: 'Invalid sessionAction. Use "revoke".' });
+        if (sessionAction === 'rename') {
+          const newName = String(req.body.deviceName || '').trim();
+          if (!jti) return res.status(400).json({ error: 'jti is required' });
+          if (!newName) return res.status(400).json({ error: 'Enter a name for this device.' });
+          if (newName.length > 40) return res.status(400).json({ error: 'Device name must be 40 characters or fewer.' });
+
+          const rows = await sql`
+            UPDATE user_sessions SET device_name = ${newName}
+            WHERE jti = ${jti} AND user_id = ${session.userId} AND revoked_at IS NULL
+            RETURNING jti
+          `;
+          if (rows.length === 0) return res.status(404).json({ error: 'Session not found.' });
+
+          return res.status(200).json({ success: true, message: 'Device renamed.', deviceName: newName });
+        }
+
+        return res.status(400).json({ error: 'Invalid sessionAction. Use "revoke" or "rename".' });
       } catch (err) {
-        console.error('Revoke session error:', err);
-        return res.status(500).json({ error: 'Failed to revoke session.' });
+        console.error('Session action error:', err);
+        return res.status(500).json({ error: 'Failed to update session.' });
       }
     }
   }
