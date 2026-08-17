@@ -1586,6 +1586,35 @@
                     </div>
                 </section>
 
+                <section id="view-statements" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Statements</h1>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="bg-slate-900 p-3 text-white text-[10px]">
+                            Download a PDF statement for any month — opening balance, every transaction, and closing balance.
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div id="statementErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Account</label>
+                                <select id="statementAccountType" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none">
+                                    <option value="checking">Primary Checking</option>
+                                    <option value="savings">High-Yield Savings</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Statement Month</label>
+                                <input type="month" id="statementMonthInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none">
+                            </div>
+                            <button onclick="downloadStatement()" id="statementDownloadBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-lg transition mt-1">
+                                <i class="fa-solid fa-file-pdf mr-1"></i> Download PDF Statement
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <section id="view-loans" class="hidden space-y-4">
                     <div class="flex items-center space-x-2">
                         <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
@@ -1698,6 +1727,19 @@
                             </div>
                             <button onclick="saveAccountEmail()" id="saveEmailBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg transition cursor-pointer">
                                 Save Changes
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Documents</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <button onclick="triggerViewSwitch('statements')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-file-pdf"></i></div>
+                                    <span class="text-sm font-medium text-gray-900">Statements</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
                             </button>
                         </div>
                     </div>
@@ -2094,6 +2136,15 @@ if (activeLoanBalanceEl) {
                 if (targetViewId === 'settings-linked-devices') {
                     renderLinkedDevices();
                 }
+                if (targetViewId === 'statements') {
+                    const input = document.getElementById('statementMonthInput');
+                    if (input) {
+                        const now = new Date();
+                        const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                        input.max = currentMonthValue;
+                        if (!input.value) input.value = currentMonthValue;
+                    }
+                }
             }, 1500); 
         }
 
@@ -2113,7 +2164,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -3288,6 +3339,63 @@ if (activeLoanBalanceEl) {
         function setAPYWithdrawPercent(pct) {
             const amount = (savingsBalanceValue * pct).toFixed(2);
             document.getElementById('apyWithdrawAmountInput').value = amount;
+        }
+
+        async function downloadStatement() {
+            const accountType = document.getElementById('statementAccountType').value;
+            const monthValue = document.getElementById('statementMonthInput').value;
+            const errorBanner = document.getElementById('statementErrorBanner');
+            errorBanner.classList.add('hidden');
+
+            if (!monthValue) {
+                errorBanner.textContent = 'Select a month.';
+                errorBanner.classList.remove('hidden');
+                return;
+            }
+
+            const [yearStr, monthStr] = monthValue.split('-');
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+
+            const btn = document.getElementById('statementDownloadBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Generating PDF...';
+
+            try {
+                const res = await fetch(`/api/account-services?resource=statement&accountType=${accountType}&month=${month}&year=${year}`, {
+                    credentials: 'include'
+                });
+
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+
+                if (!res.ok) {
+                    let msg = 'Could not generate statement. Please try again.';
+                    try {
+                        const data = await res.json();
+                        msg = data.error || msg;
+                    } catch (parseErr) {}
+                    errorBanner.textContent = msg;
+                    errorBanner.classList.remove('hidden');
+                    return;
+                }
+
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Apex-Horizon-${accountType}-statement-${yearStr}-${monthStr}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                errorBanner.textContent = 'Network error. Please try again.';
+                errorBanner.classList.remove('hidden');
+            }
         }
 
         async function submitDirectDeposit() {
