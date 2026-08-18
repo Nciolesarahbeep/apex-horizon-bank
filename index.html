@@ -2331,6 +2331,8 @@ if (activeLoanBalanceEl) {
         function showLoginScreen() {
             document.getElementById('dashboardApp').classList.add('hidden');
             document.getElementById('authScreen').classList.remove('hidden');
+            const helpWidget = document.getElementById('ahb-help-widget');
+            if (helpWidget) helpWidget.classList.add('hidden');
             if (idleLogoutTimer) {
                 clearTimeout(idleLogoutTimer);
                 idleLogoutTimer = null;
@@ -2344,6 +2346,8 @@ if (activeLoanBalanceEl) {
         function showDashboardScreen() {
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('dashboardApp').classList.remove('hidden');
+            const helpWidget = document.getElementById('ahb-help-widget');
+            if (helpWidget) helpWidget.classList.remove('hidden');
             resetIdleTimer();
             refreshUIBalances();
             renderActiveAdState();
@@ -5959,7 +5963,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 </style>
 
-<div id="ahb-help-widget">
+<div id="ahb-help-widget" class="hidden">
   <div id="ahb-help-card">
     <button id="ahb-help-close" aria-label="Close">&times;</button>
     <h4>Need a hand?</h4>
