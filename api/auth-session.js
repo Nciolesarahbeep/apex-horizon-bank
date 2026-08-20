@@ -5,6 +5,7 @@ const {
   createSession, revokeSessionByJti, decodeTokenUnsafe, parseCookies, COOKIE_NAME,
 } = require('../lib/auth');
 const { logSignInActivity } = require('../lib/loginActivity');
+const { getClientIp, checkLoginRateLimit, recordLoginAttempt, pruneOldAttempts } = require('../lib/rateLimit');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -37,6 +38,9 @@ module.exports = async function handler(req, res) {
   }
 
   if (action === 'login') {
+    const ip = getClientIp(req);
+    let normalizedEmail = null;
+
     try {
       const { email, password } = req.body || {};
 
@@ -44,7 +48,18 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Email and password are required.' });
       }
 
-      const normalizedEmail = normalizeEmail(email);
+      normalizedEmail = normalizeEmail(email);
+
+      // --- Rate limit check, before touching the password hash at all ---
+      const rateLimit = await checkLoginRateLimit(sql, { email: normalizedEmail, ip });
+      if (rateLimit.blocked) {
+        res.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+        const minutes = Math.ceil(rateLimit.retryAfterSeconds / 60);
+        return res.status(429).json({
+          error: `Too many failed login attempts. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        });
+      }
 
       const result = await sql`
         SELECT id, email, password_hash, full_name, is_active, approval_status, approval_reason
@@ -54,6 +69,7 @@ module.exports = async function handler(req, res) {
       `;
 
       if (result.length === 0) {
+        await recordLoginAttempt(sql, { email: normalizedEmail, ip, success: false });
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
@@ -61,6 +77,7 @@ module.exports = async function handler(req, res) {
       const passwordMatches = await bcrypt.compare(password, user.password_hash);
 
       if (!passwordMatches) {
+        await recordLoginAttempt(sql, { email: normalizedEmail, ip, success: false });
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
@@ -83,6 +100,15 @@ module.exports = async function handler(req, res) {
 
       if (!user.is_active) {
         return res.status(403).json({ error: 'This account has been disabled. Please contact support.' });
+      }
+
+      // Successful, legitimate login — clear the slate for this email/IP.
+      await recordLoginAttempt(sql, { email: normalizedEmail, ip, success: true });
+
+      // Cheap, non-blocking cleanup so login_attempts doesn't grow forever.
+      // Fired roughly 1 in 20 logins — never awaited, never blocks the response.
+      if (Math.random() < 0.05) {
+        pruneOldAttempts(sql).catch((err) => console.error('Prune login_attempts error (non-fatal):', err));
       }
 
       const updatedRows = await sql`
