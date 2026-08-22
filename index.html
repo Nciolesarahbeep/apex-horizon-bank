@@ -6616,5 +6616,159 @@ setInterval(pollForIncomingMoney, 8000);
 </script>
 
 
+<style>
+/* ===== Functional animation styles ===== */
+@keyframes ahb-shake-kf {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.ahb-shake { animation: ahb-shake-kf 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+@keyframes ahb-flash-green-kf {
+  0% { color: #10b981; }
+  100% { color: inherit; }
+}
+.ahb-flash-green { animation: ahb-flash-green-kf 0.9s ease-out; }
+
+@keyframes ahb-flash-red-kf {
+  0% { color: #ef4444; }
+  100% { color: inherit; }
+}
+.ahb-flash-red { animation: ahb-flash-red-kf 0.9s ease-out; }
+
+@keyframes ahb-bell-wiggle-kf {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-15deg); }
+  40% { transform: rotate(12deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(5deg); }
+}
+.ahb-bell-wiggle { animation: ahb-bell-wiggle-kf 0.6s ease-in-out; transform-origin: top center; display: inline-block; }
+
+@keyframes ahb-low-balance-pulse-kf {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+.ahb-low-balance-glow { animation: ahb-low-balance-pulse-kf 2s ease-in-out infinite; border-color: #ef4444 !important; }
+
+.ahb-ring-progress { transition: stroke-dashoffset 1s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ahb-shake, .ahb-flash-green, .ahb-flash-red, .ahb-bell-wiggle, .ahb-low-balance-glow { animation: none !important; }
+}
+</style>
+
+<script>
+// ===== Functional animations — wraps existing functions, no other files touched =====
+(function () {
+  // 1. Balance flash on change (green = increase, red = decrease)
+  var _origAnimateCountUp = window.animateCountUp;
+  window.animateCountUp = function (el, targetValue, durationMs, fromValue) {
+    var from = fromValue || 0;
+    var isIncrease = targetValue > from;
+    _origAnimateCountUp(el, targetValue, durationMs, fromValue);
+    if (el && Math.abs(targetValue - from) > 0.004) {
+      var flashClass = isIncrease ? 'ahb-flash-green' : 'ahb-flash-red';
+      el.classList.remove('ahb-flash-green', 'ahb-flash-red');
+      void el.offsetWidth;
+      el.classList.add(flashClass);
+      setTimeout(function () { el.classList.remove(flashClass); }, 900);
+    }
+  };
+
+  // 2. Notification bell wiggle on new toast
+  var _origToast = window.showNotificationToast;
+  window.showNotificationToast = function (title, message) {
+    _origToast(title, message);
+    var bell = document.querySelector('.fa-bell');
+    if (bell) {
+      bell.classList.remove('ahb-bell-wiggle');
+      void bell.offsetWidth;
+      bell.classList.add('ahb-bell-wiggle');
+    }
+  };
+
+  // 3. Loan repayment progress ring
+  var _origLoadMyLoans = window.loadMyLoans;
+  window.loadMyLoans = async function () {
+    await _origLoadMyLoans();
+    renderLoanProgressRing();
+  };
+
+  function renderLoanProgressRing() {
+    var container = document.getElementById('activeLoanContainer');
+    if (!container || !window.currentActiveLoan || currentActiveLoan.status !== 'active') return;
+
+    var principal = Number(currentActiveLoan.principal) || 1;
+    var remaining = Number(currentActiveLoan.remaining_balance != null ? currentActiveLoan.remaining_balance : currentActiveLoan.principal);
+    var paidPct = Math.max(0, Math.min(100, ((principal - remaining) / principal) * 100));
+    var circumference = 2 * Math.PI * 26;
+    var offset = circumference * (1 - paidPct / 100);
+
+    var ringWrap = document.createElement('div');
+    ringWrap.id = 'ahbLoanRingWrap';
+    ringWrap.className = 'flex items-center justify-center pt-2';
+    ringWrap.innerHTML =
+      '<div class="relative w-16 h-16">' +
+        '<svg class="w-16 h-16 -rotate-90" viewBox="0 0 60 60">' +
+          '<circle cx="30" cy="30" r="26" fill="none" stroke="#334155" stroke-width="5"></circle>' +
+          '<circle cx="30" cy="30" r="26" fill="none" stroke="#10b981" stroke-width="5" stroke-linecap="round" ' +
+            'stroke-dasharray="' + circumference + '" stroke-dashoffset="' + circumference + '" class="ahb-ring-progress"></circle>' +
+        '</svg>' +
+        '<span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">' + paidPct.toFixed(0) + '%</span>' +
+      '</div>' +
+      '<span class="text-[9px] text-slate-400 ml-2 uppercase font-bold">Paid Off</span>';
+
+    container.appendChild(ringWrap);
+    requestAnimationFrame(function () {
+      var circle = ringWrap.querySelector('.ahb-ring-progress');
+      if (circle) circle.style.strokeDashoffset = offset;
+    });
+  }
+
+  // 4. Form field shake on validation error — watches every *ErrorBanner element
+  var errorShakeObserver = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      var el = m.target;
+      if (!(el instanceof HTMLElement)) return;
+      if (!/error/i.test(el.id || '')) return;
+      if (!el.classList.contains('hidden')) {
+        el.classList.remove('ahb-shake');
+        void el.offsetWidth;
+        el.classList.add('ahb-shake');
+      }
+    });
+  });
+  errorShakeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+
+  // 5. Low balance warning glow
+  var LOW_BALANCE_THRESHOLD = 100;
+  var _origRefreshUIBalances = window.refreshUIBalances;
+  window.refreshUIBalances = function () {
+    _origRefreshUIBalances();
+    var isLow = window.rawBalanceValue < LOW_BALANCE_THRESHOLD;
+    document.querySelectorAll('.checkingBalanceLabel').forEach(function (el) {
+      var card = el.closest('.bg-white');
+      if (card) card.classList.toggle('ahb-low-balance-glow', isLow);
+    });
+  };
+
+  // 6. Freeze/unfreeze dims spend-related controls
+  var _origApplyFreeze = window.applyFreezeVisualState;
+  window.applyFreezeVisualState = function (isFrozen) {
+    _origApplyFreeze(isFrozen);
+    var payBtn = document.querySelector('button[onclick="makeCardPayment()"]');
+    var slider = document.getElementById('cardVelocitySlider');
+    [payBtn, slider].forEach(function (el) {
+      if (!el) return;
+      el.disabled = isFrozen;
+      el.classList.toggle('opacity-40', isFrozen);
+      el.classList.toggle('pointer-events-none', isFrozen);
+    });
+  };
+})();
+</script>
 </body>
 </html>
