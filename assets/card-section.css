@@ -1,0 +1,20 @@
+/* Card section styles — minimal custom rules that complement Tailwind used by the site. */
+:root{
+  --card-accent: #E8873B;
+}
+/* card tile */
+.card-tile {
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.card-tile:active{ transform: scale(.997); }
+.card-chip{
+  width:44px;height:28px;border-radius:4px;background:linear-gradient(90deg,#111827 0%,var(--card-accent) 100%);
+}
+.card-visual{
+  background: linear-gradient(135deg,#0f172a 0%, #334155 60%); border-radius:10px; color: #fff; padding:14px; min-width:220px;
+}
+.card-pill{ background: rgba(255,255,255,0.06); padding:6px 10px; border-radius:999px; font-size:11px; }
+/* simple modal helper */
+.card-modal-backdrop{ background: rgba(15,23,42,0.6); backdrop-filter: blur(6px); }
+/* small responsive tweaks */
+@media (max-width:480px){ .card-visual{ min-width:160px; padding:10px } }
