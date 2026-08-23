@@ -10,6 +10,9 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   .status-active { background:#dcfce7; color:#166534; }
   .status-disabled { background:#fee2e2; color:#991b1b; }
+  .restriction-none { background:#dcfce7; color:#166534; }
+  .restriction-transfers_only { background:#fef3c7; color:#92400e; }
+  .restriction-full { background:#fee2e2; color:#991b1b; }
 </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
@@ -67,12 +70,37 @@
           <th class="py-2 pr-2">Status</th>
           <th class="py-2 pr-2">Funds</th>
           <th class="py-2 pr-2">Toggle</th>
+          <th class="py-2 pr-2">Restrict</th>
           <th class="py-2">Logs</th>
         </tr>
       </thead>
       <tbody id="usersBody"></tbody>
     </table>
     <p id="usersEmpty" class="text-slate-400 text-sm py-4 hidden">No users found.</p>
+  </div>
+
+  <!-- Account restriction panel -->
+  <div id="restrictionPanel" class="bg-white rounded-xl shadow-sm p-4 mb-6 hidden">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-triangle-exclamation text-red-600 mr-1"></i>Account Restrictions — <span id="restrictionEmailLabel"></span></h2>
+      <button onclick="closeRestrictions()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="text-xs text-slate-500 mb-3">
+      <strong>None</strong> = normal access. <strong>Transfers Locked</strong> = blocks transfers/wires/payments only. <strong>Fully Locked</strong> = blocks everything (view-only), matching the "Account Issue — visit a branch" message shown to the customer.
+    </p>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">Account</th>
+          <th class="py-2 pr-2">Balance</th>
+          <th class="py-2 pr-2">Current Status</th>
+          <th class="py-2 pr-2">Set Status</th>
+          <th class="py-2">Apply</th>
+        </tr>
+      </thead>
+      <tbody id="restrictionBody"></tbody>
+    </table>
+    <p id="restrictionEmpty" class="text-slate-400 text-sm py-4 hidden">No accounts found for this user.</p>
   </div>
 
     <!-- Live sign-in activity -->
@@ -320,6 +348,11 @@ async function loadUsers() {
             ${u.is_active ? 'Disable' : 'Enable'}
           </button>
         </td>
+        <td class="py-2 pr-2">
+          <button onclick="loadAccountRestrictions('${u.email}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 rounded px-2 py-1">
+            <i class="fa-solid fa-lock mr-1"></i>Manage
+          </button>
+        </td>
         <td class="py-2">
           <button onclick="loadAudit('${u.email}')" class="text-indigo-600 hover:text-indigo-800 text-xs"><i class="fa-solid fa-clock-rotate-left"></i></button>
         </td>
@@ -355,6 +388,77 @@ async function toggleStatus(email) {
     const data = await api('toggleAccountStatus', { method: 'POST', body: { email } });
     showToast(`${email} is now ${data.isActive ? 'active' : 'disabled'}.`, false);
     loadUsers();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+// ---------- Account Restrictions ("Account Issue" lock) ----------
+
+const RESTRICTION_LABELS = { none: 'None', transfers_only: 'Transfers Locked', full: 'Fully Locked' };
+const ACCOUNT_TYPE_LABELS = { checking: 'Checking', savings: 'Savings', credit: 'Credit Card' };
+
+async function loadAccountRestrictions(email) {
+  try {
+    const { accounts } = await api('listAccounts', { params: { email } });
+    document.getElementById('restrictionEmailLabel').textContent = email;
+
+    const body = document.getElementById('restrictionBody');
+    const empty = document.getElementById('restrictionEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', accounts.length > 0);
+
+    accounts.forEach(a => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      const typeLabel = ACCOUNT_TYPE_LABELS[a.account_type] || a.account_type;
+      const currentLevel = a.restriction_level || 'none';
+      const selectId = `restrict-select-${a.id}`;
+
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${typeLabel}<br><span class="text-slate-400 text-xs">#${a.id}</span></td>
+        <td class="py-2 pr-2">${money(a.balance)}</td>
+        <td class="py-2 pr-2">
+          <span class="px-2 py-1 rounded-full text-xs font-medium restriction-${currentLevel}">${RESTRICTION_LABELS[currentLevel]}</span>
+        </td>
+        <td class="py-2 pr-2">
+          <select id="${selectId}" class="border border-slate-300 rounded px-2 py-1 text-xs">
+            <option value="none" ${currentLevel === 'none' ? 'selected' : ''}>None</option>
+            <option value="transfers_only" ${currentLevel === 'transfers_only' ? 'selected' : ''}>Transfers Locked</option>
+            <option value="full" ${currentLevel === 'full' ? 'selected' : ''}>Fully Locked</option>
+          </select>
+        </td>
+        <td class="py-2">
+          <button onclick="setAccountRestrictionAdmin(${a.id}, '${selectId}', '${email}')" class="bg-indigo-600 text-white rounded px-3 py-1 text-xs hover:bg-indigo-700">Apply</button>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+
+    document.getElementById('restrictionPanel').classList.remove('hidden');
+    document.getElementById('restrictionPanel').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function closeRestrictions() {
+  document.getElementById('restrictionPanel').classList.add('hidden');
+}
+
+async function setAccountRestrictionAdmin(accountId, selectId, email) {
+  const level = document.getElementById(selectId).value;
+  const label = RESTRICTION_LABELS[level];
+
+  const confirmMsg = level === 'none'
+    ? `Remove the restriction on account #${accountId}?`
+    : `Set account #${accountId} to "${label}"? The customer will see the Account Issue banner and be notified.`;
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const data = await api('setAccountRestriction', { method: 'POST', body: { accountId, level } });
+    showToast(data.message, false);
+    loadAccountRestrictions(email);
   } catch (e) {
     showToast(e.message, true);
   }
