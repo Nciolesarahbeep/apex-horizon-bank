@@ -6770,5 +6770,134 @@ setInterval(pollForIncomingMoney, 8000);
   };
 })();
 </script>
+<!-- ===== Apex Horizon Bank — Account Restriction ("Account Issue") UI ===== -->
+<style>
+.ahb-restriction-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.ahb-restriction-banner .ahb-rb-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b91c1c;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.ahb-restriction-banner .ahb-rb-body {
+  color: #7f1d1d;
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.ahb-restriction-banner .ahb-rb-steps {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #fecaca;
+  font-size: 11px;
+  color: #7f1d1d;
+}
+.ahb-restriction-banner .ahb-rb-steps strong { display: block; margin-bottom: 2px; }
+</style>
+
+<script>
+(function () {
+  const BANNER_INNER = `
+    <div class="ahb-rb-title"><i class="fa-solid fa-triangle-exclamation"></i> Account Issue</div>
+    <p class="ahb-rb-body" id="ahbRestrictionMessage">There is an issue on your account that requires in-person verification at a branch. You will not be able to make transfers, send payments, or access full account services until this issue is resolved.</p>
+    <div class="ahb-rb-steps"><strong>What you need to do:</strong> Please visit any of our branches with a valid ID to resolve this issue.</div>
+  `;
+
+  function injectRestrictionBanners() {
+    const summarySection = document.getElementById('view-summary');
+    const checkingSection = document.getElementById('view-checking');
+
+    if (summarySection && !document.getElementById('ahbRestrictionBannerSummary')) {
+      const div = document.createElement('div');
+      div.id = 'ahbRestrictionBannerSummary';
+      div.className = 'hidden ahb-restriction-banner';
+      div.innerHTML = BANNER_INNER;
+      const firstChild = summarySection.children[0] || null;
+      summarySection.insertBefore(div, firstChild ? firstChild.nextSibling : null);
+    }
+
+    if (checkingSection && !document.getElementById('ahbRestrictionBannerChecking')) {
+      const div = document.createElement('div');
+      div.id = 'ahbRestrictionBannerChecking';
+      div.className = 'hidden ahb-restriction-banner';
+      div.innerHTML = BANNER_INNER;
+      const firstChild = checkingSection.children[0] || null;
+      checkingSection.insertBefore(div, firstChild ? firstChild.nextSibling : null);
+    }
+  }
+
+  window.applyAccountRestrictionUI = function (level) {
+    const restricted = level && level !== 'none';
+    const isFull = level === 'full';
+
+    document.querySelectorAll('.ahb-restriction-banner').forEach(el => {
+      el.classList.toggle('hidden', !restricted);
+    });
+    const msgEls = document.querySelectorAll('#ahbRestrictionMessage');
+    msgEls.forEach(el => {
+      el.textContent = isFull
+        ? 'There is an issue on your account that requires in-person verification at a branch. You will not be able to make transfers, send payments, or access full account services until this issue is resolved.'
+        : 'There is an issue on your account that requires in-person verification at a branch. Transfers, wires, and payments are temporarily unavailable until this issue is resolved.';
+    });
+
+    // Money-movement controls — disabled under EITHER restriction level.
+    const transferSelectors = [
+      'footer button[onclick="triggerViewSwitch(\'wire\')"]',
+      '#view-summary button[onclick="triggerViewSwitch(\'send-menu\')"]'
+    ];
+    transferSelectors.forEach(sel => {
+      const btn = document.querySelector(sel);
+      if (!btn) return;
+      btn.disabled = restricted;
+      btn.classList.toggle('opacity-40', restricted);
+      btn.classList.toggle('pointer-events-none', restricted);
+    });
+
+    // Everything else — disabled ONLY under a full lock.
+    const fullLockSelectors = [
+      '#view-summary button[onclick="triggerViewSwitch(\'direct-deposit\')"]',
+      '#view-summary button[onclick="triggerViewSwitch(\'loans\')"]'
+    ];
+    fullLockSelectors.forEach(sel => {
+      const btn = document.querySelector(sel);
+      if (!btn) return;
+      btn.disabled = isFull;
+      btn.classList.toggle('opacity-40', isFull);
+      btn.classList.toggle('pointer-events-none', isFull);
+    });
+  };
+
+  // Wrap the existing account loader so restriction status refreshes every
+  // time balances do (login, pull-to-refresh, post-transfer, polling, etc).
+  const _origLoadRealAccountData = window.loadRealAccountData;
+  window.loadRealAccountData = async function () {
+    await _origLoadRealAccountData();
+    try {
+      const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        const checkingAcct = (data.accounts || []).find(a => a.account_type === 'checking');
+        window.applyAccountRestrictionUI(checkingAcct ? (checkingAcct.restriction_level || 'none') : 'none');
+      }
+    } catch (err) {
+      console.error('Restriction status check failed:', err);
+    }
+  };
+
+  injectRestrictionBanners();
+})();
+</script>
+<!-- ===== End Account Restriction UI ===== -->
 </body>
 </html>
