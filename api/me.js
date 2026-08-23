@@ -29,7 +29,7 @@ module.exports = async function handler(req, res) {
     }
 
     const accountsResult = await sql`
-      SELECT id, account_type, balance, account_number
+      SELECT id, account_type, balance, account_number, restriction_level, restricted_at
       FROM accounts
       WHERE user_id = ${user.id}
     `;
