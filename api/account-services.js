@@ -8,6 +8,15 @@ const PDFDocument = require('pdfkit');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+// Shared "Account Issue" lock response — only used for the 'full' restriction
+// level, since 'transfers_only' accounts should keep using these services.
+function restrictedResponse(res) {
+  return res.status(403).json({
+    error: 'There is an issue on this account that requires in-person verification at a branch. Please visit any of our branches with a valid ID to resolve this issue.',
+    accountRestricted: true,
+  });
+}
+
 function generateStatementPdf({ accountHolder, accountType, accountNumber, periodStart, periodEnd, openingBalance, closingBalance, lineItems }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
@@ -331,13 +340,17 @@ module.exports = async function handler(req, res) {
       }
 
       const account = await sql`
-        SELECT id FROM accounts
+        SELECT id, restriction_level FROM accounts
         WHERE user_id = ${session.userId} AND account_type = 'checking'
         LIMIT 1
       `;
 
       if (account.length === 0) {
         return res.status(400).json({ error: 'Checking account not found.' });
+      }
+
+      if (account[0].restriction_level === 'full') {
+        return restrictedResponse(res);
       }
 
       const traceNumber = 'AHB' + Math.random().toString().slice(2, 12);
@@ -438,7 +451,7 @@ module.exports = async function handler(req, res) {
     // Every user gets exactly one credit account, auto-provisioned on first touch.
     async function getOrCreateCardAccount(userId) {
       let accountRows = await sql`
-        SELECT id, balance FROM accounts
+        SELECT id, balance, restriction_level FROM accounts
         WHERE user_id = ${userId} AND account_type = 'credit'
         LIMIT 1
       `;
@@ -448,7 +461,7 @@ module.exports = async function handler(req, res) {
         const inserted = await sql`
           INSERT INTO accounts (user_id, account_type, balance, account_number)
           VALUES (${userId}, 'credit', 0, LPAD(FLOOR(RANDOM() * 10000000000)::TEXT, 10, '0'))
-          RETURNING id, balance
+          RETURNING id, balance, restriction_level
         `;
         account = inserted[0];
       } else {
@@ -500,6 +513,7 @@ module.exports = async function handler(req, res) {
           cardTier: details.card_tier,
           hasPin: !!details.pin_hash,
           transactions,
+          accountRestricted: account.restriction_level === 'full',
         });
       } catch (err) {
         console.error('Get credit card error:', err);
@@ -512,6 +526,9 @@ module.exports = async function handler(req, res) {
         const { cardAction } = req.body || {};
         const { account, details } = await getOrCreateCardAccount(session.userId);
 
+        // toggleFreeze/setVelocityLimit/setPin are account-management actions,
+        // not money movement — leave those working even under a full restriction
+        // so the customer can still protect themselves (e.g. freeze the card).
         if (cardAction === 'toggleFreeze') {
           const updated = await sql`
             UPDATE credit_card_details SET is_frozen = NOT is_frozen
@@ -557,6 +574,10 @@ module.exports = async function handler(req, res) {
         }
 
         if (cardAction === 'charge') {
+          if (account.restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
+
           const { amount, merchant } = req.body || {};
           const chargeAmount = Number(amount);
 
@@ -596,6 +617,10 @@ module.exports = async function handler(req, res) {
         }
 
         if (cardAction === 'makePayment') {
+          if (account.restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
+
           const { amount } = req.body || {};
           const paymentAmount = Number(amount);
 
@@ -604,7 +629,7 @@ module.exports = async function handler(req, res) {
           }
 
           const checkingRows = await sql`
-            SELECT id, balance FROM accounts
+            SELECT id, balance, restriction_level FROM accounts
             WHERE user_id = ${session.userId} AND account_type = 'checking'
             LIMIT 1
           `;
@@ -613,6 +638,9 @@ module.exports = async function handler(req, res) {
           }
           const checking = checkingRows[0];
 
+          if (checking.restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
           if (Number(checking.balance) < paymentAmount) {
             return res.status(400).json({ error: 'Insufficient funds in checking to make this payment.' });
           }
@@ -810,14 +838,17 @@ module.exports = async function handler(req, res) {
             });
           }
 
-          const { monthlyPayment, totalInterest, totalPaid } = calculateAmortization(principal, annualRate, termMonths);
-
           const checkingRows = await sql`
-            SELECT id FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1
+            SELECT id, restriction_level FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1
           `;
           if (checkingRows.length === 0) {
             return res.status(400).json({ error: 'No checking account found to attach this loan to.' });
           }
+          if (checkingRows[0].restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
+
+          const { monthlyPayment, totalInterest, totalPaid } = calculateAmortization(principal, annualRate, termMonths);
 
           const userRows = await sql`SELECT full_name FROM users WHERE id = ${session.userId} LIMIT 1`;
           const applicantName = userRows[0]?.full_name || null;
@@ -863,11 +894,14 @@ module.exports = async function handler(req, res) {
           }
 
           const checkingRows = await sql`
-            SELECT id, balance FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1
+            SELECT id, balance, restriction_level FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1
           `;
           if (checkingRows.length === 0) return res.status(404).json({ error: 'Checking account not found.' });
           const checking = checkingRows[0];
 
+          if (checking.restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
           if (Number(checking.balance) < amount) {
             return res.status(400).json({ error: 'Insufficient funds in checking to make this payment.' });
           }
