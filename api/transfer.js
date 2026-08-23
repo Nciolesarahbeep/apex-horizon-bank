@@ -133,7 +133,7 @@ module.exports = async function handler(req, res) {
 
     // Load the sender's source account (owned by the authenticated user)
     const fromRows = await sql`
-      SELECT id, balance FROM accounts
+      SELECT id, balance, restriction_level FROM accounts
       WHERE user_id = ${session.userId} AND account_type = ${fromAccountType}
       LIMIT 1
     `;
@@ -143,6 +143,17 @@ module.exports = async function handler(req, res) {
     }
 
     const fromAccount = fromRows[0];
+
+    // Account Issue lock — either restriction level blocks transfers/wires/payments,
+    // since that's exactly what this endpoint does. 'transfers_only' and 'full'
+    // both mean "no moving money out of this account."
+    if (fromAccount.restriction_level && fromAccount.restriction_level !== 'none') {
+      return res.status(403).json({
+        error: 'There is an issue on this account that requires in-person verification at a branch. Please visit any of our branches with a valid ID to resolve this issue.',
+        accountRestricted: true,
+        restrictionLevel: fromAccount.restriction_level,
+      });
+    }
 
     let toAccount;
     let recipientUserId = null;
