@@ -2,6 +2,8 @@ const { neon } = require('@neondatabase/serverless');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
+const RESTRICTION_LEVELS = ['none', 'transfers_only', 'full'];
+
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
@@ -44,6 +46,23 @@ module.exports = async function handler(req, res) {
             LIMIT 100
           `;
       return res.status(200).json({ users });
+    }
+
+    // ---------- listAccounts(email) — accounts for a single user, with restriction status ----------
+    if (action === 'listAccounts') {
+      const email = normalizeEmail(req.query.email);
+      if (!email) return res.status(400).json({ error: 'email is required' });
+
+      const userRows = await sql`SELECT id, email FROM users WHERE LOWER(email) = ${email} LIMIT 1`;
+      if (userRows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+      const accounts = await sql`
+        SELECT id, account_type, balance, restriction_level, restricted_at, restricted_by
+        FROM accounts
+        WHERE user_id = ${userRows[0].id}
+        ORDER BY (account_type = 'checking') DESC, id ASC
+      `;
+      return res.status(200).json({ email: userRows[0].email, accounts });
     }
 
     // ---------- recentTransactions (site-wide, last 50) ----------
@@ -488,8 +507,60 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, isActive: newStatus });
     }
 
+    // ---------- setAccountRestriction(accountId, level) ----------
+    // level: 'none' | 'transfers_only' | 'full'
+    // Mirrors the "Account Issue — in-person verification required" lock pattern.
+    if (action === 'setAccountRestriction') {
+      const accountId = Number(req.body.accountId);
+      const level = String(req.body.level || '').trim();
+
+      if (!accountId) return res.status(400).json({ error: 'accountId is required' });
+      if (!RESTRICTION_LEVELS.includes(level)) {
+        return res.status(400).json({ error: `level must be one of: ${RESTRICTION_LEVELS.join(', ')}` });
+      }
+
+      const accountRows = await sql`
+        SELECT a.id, a.account_type, a.restriction_level, u.id AS user_id, u.email
+        FROM accounts a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.id = ${accountId}
+        LIMIT 1
+      `;
+      if (accountRows.length === 0) return res.status(404).json({ error: 'Account not found' });
+      const account = accountRows[0];
+
+      await sql`
+        UPDATE accounts
+        SET restriction_level = ${level},
+            restricted_at = ${level === 'none' ? null : new Date().toISOString()},
+            restricted_by = ${level === 'none' ? null : 'admin'}
+        WHERE id = ${accountId}
+      `;
+
+      const label = { none: 'restriction removed', transfers_only: 'transfers/wires locked', full: 'fully locked — view only' }[level];
+
+      try {
+        const notifMessage = level === 'none'
+          ? `The hold on your ${account.account_type} account has been lifted. Full access has been restored.`
+          : `There is an issue on your ${account.account_type} account that requires in-person verification at a branch. Please visit any of our branches with a valid ID to resolve this issue.`;
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${account.user_id}, ${level === 'none' ? 'Account Restored' : 'Account Issue'}, ${notifMessage}, FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Account restriction notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('setAccountRestriction', ${account.email}, NULL, ${'Account #' + accountId + ' (' + account.account_type + '): ' + label}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, accountId, restrictionLevel: level, message: `Account #${accountId} — ${label}.` });
+    }
+
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", or "toggleAccountStatus".',
+      error: 'Invalid or missing action. Use "listUsers", "listAccounts", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", "toggleAccountStatus", or "setAccountRestriction".',
     });
   } catch (err) {
     console.error('Admin API error:', err);
