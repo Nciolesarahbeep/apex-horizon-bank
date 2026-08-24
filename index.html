@@ -6897,6 +6897,43 @@ setInterval(pollForIncomingMoney, 8000);
 
   injectRestrictionBanners();
 })();
+
+<!-- ===== Apex Horizon Bank — Reset Browser Zoom on Dashboard Refresh ===== -->
+<script>
+(function () {
+  // Forces Chrome to drop any pinch-zoom the person has applied, and scrolls
+  // back to the top — used whenever the dashboard refreshes its data.
+  function resetViewportZoomAndScroll() {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    const originalContent = viewport ? viewport.getAttribute('content') : null;
+
+    if (viewport) {
+      // Briefly forcing user-scalable=no makes mobile Chrome discard the
+      // current pinch-zoom level and repaint at 1.0 scale. Restoring the
+      // original content right after keeps pinch-zoom available normally —
+      // this only resets it, it doesn't disable zooming going forward.
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+      requestAnimationFrame(function () {
+        setTimeout(function () {
+          if (originalContent) viewport.setAttribute('content', originalContent);
+        }, 60);
+      });
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }
+
+  // Hook into every path that already refreshes dashboard data: initial
+  // login/session-restore, pull-to-refresh, and post-transaction reloads
+  // all funnel through loadRealAccountData.
+  const _origLoadRealAccountDataForZoom = window.loadRealAccountData;
+  window.loadRealAccountData = async function () {
+    resetViewportZoomAndScroll();
+    return _origLoadRealAccountDataForZoom();
+  };
+})();
+</script>
+<!-- ===== End Reset Browser Zoom ===== -->
 </script>
 <!-- ===== End Account Restriction UI ===== -->
 </body>
