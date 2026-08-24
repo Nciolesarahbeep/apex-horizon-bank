@@ -6936,5 +6936,59 @@ setInterval(pollForIncomingMoney, 8000);
 <!-- ===== End Reset Browser Zoom ===== -->
 </script>
 <!-- ===== End Account Restriction UI ===== -->
+    <!-- ===== Apex Horizon Bank — Tap-to-Zoom Effect (auto-returns to normal scale) ===== -->
+<style>
+#visualCreditCard {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+}
+#visualCreditCard.ahb-zoomed {
+  transform: scale(1.15);
+  z-index: 30;
+}
+@media (prefers-reduced-motion: reduce) {
+  #visualCreditCard { transition: none; }
+}
+</style>
+
+<script>
+(function () {
+  const ZOOM_HOLD_MS = 900; // how long it stays zoomed before snapping back
+
+  function attachTapToZoom() {
+    const card = document.getElementById('visualCreditCard');
+    if (!card || card.dataset.ahbZoomBound) return;
+    card.dataset.ahbZoomBound = 'true';
+
+    let zoomTimer = null;
+
+    card.addEventListener('click', function (e) {
+      // Don't hijack taps on the frost overlay's own controls, if any exist later.
+      card.classList.remove('ahb-zoomed');
+      void card.offsetWidth; // restart animation if tapped again mid-zoom
+      card.classList.add('ahb-zoomed');
+
+      if (zoomTimer) clearTimeout(zoomTimer);
+      zoomTimer = setTimeout(function () {
+        card.classList.remove('ahb-zoomed');
+      }, ZOOM_HOLD_MS);
+    });
+  }
+
+  // The credit view (and its card element) only exists once triggerViewSwitch('credit')
+  // has rendered it at least once, so bind on view switches too, not just on load.
+  const _origTriggerViewSwitch = window.triggerViewSwitch;
+  window.triggerViewSwitch = function (targetViewId) {
+    _origTriggerViewSwitch(targetViewId);
+    if (targetViewId === 'credit') {
+      setTimeout(attachTapToZoom, 1600); // after the bubble loader finishes
+    }
+  };
+
+  attachTapToZoom();
+})();
+</script>
+<!-- ===== End Tap-to-Zoom Effect ===== -->
+
 </body>
 </html>
