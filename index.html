@@ -6989,6 +6989,140 @@ setInterval(pollForIncomingMoney, 8000);
 })();
 </script>
 <!-- ===== End Tap-to-Zoom Effect ===== -->
+    <!-- ===== Apex Horizon Bank — Credit Card Realism Fixes ===== -->
+<script>
+(function () {
+  // 1. Real per-user CVV instead of hardcoded "842" for every account.
+  window.toggleCardCvvVisibility = function () {
+    cvvIsVisible = !cvvIsVisible;
+    const cvvLabel = document.getElementById('cardCvvLabel');
+    const toggleContainer = document.getElementById('cvvToggleNode');
+    const toggleBall = toggleContainer.querySelector('div');
+    const realCvv = (cardData && cardData.cvv) ? cardData.cvv : '•••';
+
+    if (cvvIsVisible) {
+      cvvLabel.innerText = realCvv;
+      toggleContainer.classList.remove('bg-gray-200');
+      toggleContainer.classList.add('bg-teal-500');
+      toggleBall.classList.add('translate-x-3');
+    } else {
+      cvvLabel.innerText = '•••';
+      toggleContainer.classList.remove('bg-teal-500');
+      toggleContainer.classList.add('bg-gray-200');
+      toggleBall.classList.remove('translate-x-3');
+    }
+  };
+
+  // 2. Honest PIN flow — real banks never re-show your existing PIN, only
+  // let you reset it. This replaces the old hardcoded "4301" everyone saw.
+  let cachedPlainPin = null;
+
+  window.toggleCardPinVisibility = async function () {
+    const pinLabel = document.getElementById('cardPinLabel');
+    const toggleContainer = document.getElementById('pinToggleNode');
+    const toggleBall = toggleContainer.querySelector('div');
+
+    if (pinIsVisible) {
+      pinIsVisible = false;
+      pinLabel.innerText = '••••';
+      toggleContainer.classList.remove('bg-emerald-500');
+      toggleContainer.classList.add('bg-gray-200');
+      toggleBall.classList.remove('translate-x-3');
+      return;
+    }
+
+    if (cachedPlainPin) {
+      pinIsVisible = true;
+      pinLabel.innerText = cachedPlainPin;
+      toggleContainer.classList.remove('bg-gray-200');
+      toggleContainer.classList.add('bg-emerald-500');
+      toggleBall.classList.add('translate-x-3');
+      return;
+    }
+
+    const hasPin = cardData && cardData.hasPin;
+    const promptMsg = hasPin
+      ? "For your security your existing PIN can't be shown again. Enter a new 4-6 digit PIN to reset it:"
+      : 'Set a 4-6 digit PIN for this card:';
+    const input = prompt(promptMsg, '');
+    if (input === null) return;
+    if (!/^\d{4,6}$/.test(input)) {
+      alert('PIN must be 4 to 6 digits.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/account-services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ resource: 'credit-card', cardAction: 'setPin', pin: input })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Could not set PIN.');
+        return;
+      }
+      cachedPlainPin = input;
+      if (cardData) cardData.hasPin = true;
+      pinIsVisible = true;
+      pinLabel.innerText = cachedPlainPin;
+      toggleContainer.classList.remove('bg-gray-200');
+      toggleContainer.classList.add('bg-emerald-500');
+      toggleBall.classList.add('translate-x-3');
+      refreshPinButtonLabel();
+    } catch (err) {
+      alert('Network error setting PIN. Please try again.');
+    }
+  };
+
+  function refreshPinButtonLabel() {
+    const btn = document.getElementById('cardPinBtn');
+    if (!btn) return;
+    const label = btn.querySelector('span');
+    if (label) label.innerText = (cardData && cardData.hasPin) ? 'Reset Card PIN' : 'Set Card PIN';
+  }
+
+  // 3. Real expiry date instead of a static "08/31" for every card.
+  function updateExpiryDisplay() {
+    const el = document.getElementById('cardExpiryLabel');
+    if (!el || !cardData || !cardData.expiryMonth || !cardData.expiryYear) return;
+    const mm = String(cardData.expiryMonth).padStart(2, '0');
+    const yy = String(cardData.expiryYear).slice(-2);
+    el.innerText = mm + '/' + yy;
+  }
+
+  // Hook both into the existing card data loader.
+  const _origLoadCreditCardData = window.loadCreditCardData;
+  window.loadCreditCardData = async function () {
+    await _origLoadCreditCardData();
+    updateExpiryDisplay();
+    refreshPinButtonLabel();
+  };
+
+  // 4. Pending Ledger tab was a single hardcoded fake charge that never
+  // changed. Nothing in this app is actually ever "pending" — every
+  // transaction posts immediately — so show an honest empty state instead.
+  function fixPendingTab() {
+    const pendingTab = document.getElementById('creditTab-pending');
+    if (!pendingTab) return;
+    pendingTab.innerHTML = emptyStateHtml(
+      'fa-clock',
+      'No pending charges',
+      "Card purchases post immediately on Apex Horizon — there's nothing sitting in pending right now."
+    );
+  }
+  fixPendingTab();
+
+  // 5. Retire the old mock transaction generator — real transactions now
+  // come from the API via renderCardTransactions, this was dead weight.
+  window.generateRandomCreditTransactions = function () {
+    /* removed: replaced by real transaction data from /api/account-services */
+  };
+})();
+</script>
+<!-- ===== End Credit Card Realism Fixes ===== -->
+
 
 </body>
 </html>
