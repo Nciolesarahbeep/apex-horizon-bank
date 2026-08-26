@@ -152,12 +152,44 @@
 
     <div id="appShellRoot" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative flex flex-col overflow-x-hidden">
 
-        <div id="bubbleLoader" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4">
-            <div class="relative w-20 h-20 flex items-center justify-center">
-                <div class="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping"></div>
-                <div class="relative rounded-full h-14 w-14 border-4 border-emerald-400 border-t-transparent animate-spin"></div>
+        <div id="bubbleLoader" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6">
+            <div class="w-full max-w-[280px] bg-white rounded-2xl shadow-2xl p-4 space-y-4 skeleton-shimmer-wrap">
+                <div class="flex items-center space-x-3">
+                    <div class="skeleton-bar h-9 w-9 rounded-full shrink-0"></div>
+                    <div class="flex-1 space-y-1.5">
+                        <div class="skeleton-bar h-2.5 w-2/5"></div>
+                        <div class="skeleton-bar h-2 w-3/5"></div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-100">
+                    <div class="skeleton-bar h-2 w-1/3"></div>
+                    <div class="skeleton-bar h-6 w-3/4"></div>
+                </div>
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 flex-1 min-w-0">
+                            <div class="skeleton-bar h-6 w-6 rounded-full shrink-0"></div>
+                            <div class="skeleton-bar h-2.5 flex-1"></div>
+                        </div>
+                        <div class="skeleton-bar h-2.5 w-10 ml-2 shrink-0"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 flex-1 min-w-0">
+                            <div class="skeleton-bar h-6 w-6 rounded-full shrink-0"></div>
+                            <div class="skeleton-bar h-2.5" style="width:70%"></div>
+                        </div>
+                        <div class="skeleton-bar h-2.5 w-10 ml-2 shrink-0"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 flex-1 min-w-0">
+                            <div class="skeleton-bar h-6 w-6 rounded-full shrink-0"></div>
+                            <div class="skeleton-bar h-2.5" style="width:50%"></div>
+                        </div>
+                        <div class="skeleton-bar h-2.5 w-10 ml-2 shrink-0"></div>
+                    </div>
+                </div>
             </div>
-            <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Syncing Core Ledger Nodes...</p>
+            <p class="text-white text-[10px] font-mono tracking-widest uppercase animate-pulse mt-4">Syncing Core Ledger Nodes...</p>
         </div>
 
         <div id="preQualLoader" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-xs z-[9999] flex flex-col items-center justify-center space-y-4">
@@ -3295,6 +3327,7 @@ if (activeLoanBalanceEl) {
             const banner = document.getElementById('successBanner');
             banner.classList.remove('-translate-y-full');
             banner.classList.add('translate-y-4');
+            fireConfetti(45);
 
             event.target.reset();
 
@@ -6342,6 +6375,25 @@ document.addEventListener('DOMContentLoaded', () => {
   border-radius: 6px;
   animation: skeletonPulse 1.3s ease-in-out infinite;
 }
+.skeleton-shimmer-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(232,135,59,0.16), transparent);
+  animation: skeletonShimmerSweep 1.6s ease-in-out infinite;
+}
+@keyframes skeletonShimmerSweep {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer-wrap::after { animation: none; }
+  .skeleton-bar { animation: none; }
+}
 @keyframes cardFlipSpin {
   0% { transform: rotateY(0deg); }
   50% { transform: rotateY(90deg); }
@@ -6437,8 +6489,14 @@ function showMoneyPopSuccess(opts) {
   card.classList.add('ahb-pop-in');
   iconWrap.classList.add('ahb-pulse-ring');
 
-  if (isReceived && typeof opts.amountValue === 'number' && opts.amountValue >= CONFETTI_THRESHOLD) {
-    fireConfetti();
+  if (isReceived) {
+    if (typeof opts.amountValue === 'number' && opts.amountValue >= CONFETTI_THRESHOLD) {
+      fireConfetti();
+    }
+  } else {
+    // Every successful outbound transfer gets a small celebratory burst —
+    // large incoming deposits still get the bigger threshold-gated one above.
+    fireConfetti(40);
   }
 
   moneyPopViewReceiptHandler = opts.onViewReceipt || null;
