@@ -2194,6 +2194,17 @@ if (activeLoanBalanceEl) {
             refreshLiveCalculations();
         }
 
+        // Real apps don't take the same time to load every screen — heavier views
+        // (that actually fetch data) get a slightly longer, still-randomized delay
+        // than simple static ones, so the loading time feels networked, not fake.
+        function realisticLoaderDelay(targetViewId) {
+            const heavyViews = ['loans', 'credit', 'statements', 'spending-insights', 'settings-linked-devices', 'savings-analytics'];
+            const isHeavy = heavyViews.includes(targetViewId);
+            const base = isHeavy ? 1100 : 650;
+            const jitter = isHeavy ? 900 : 750;
+            return base + Math.floor(Math.random() * jitter);
+        }
+
         function triggerViewSwitch(targetViewId) {
             if (viewHistory[viewHistory.length - 1] !== targetViewId) {
                 viewHistory.push(targetViewId);
@@ -2224,7 +2235,7 @@ if (activeLoanBalanceEl) {
                         if (!input.value) input.value = currentMonthValue;
                     }
                 }
-            }, 1500); 
+            }, realisticLoaderDelay(targetViewId)); 
         }
 
         function navigateBackward() {
@@ -2238,7 +2249,7 @@ if (activeLoanBalanceEl) {
                 setTimeout(() => {
                     loader.classList.add('hidden');
                     switchView(targetPreviousView);
-                }, 1500); 
+                }, realisticLoaderDelay(targetPreviousView)); 
             }
         }
 
