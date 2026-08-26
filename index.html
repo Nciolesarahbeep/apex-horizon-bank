@@ -34,6 +34,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 
     <style>
+        /* iOS Safari auto-zooms the whole page on focus of any input under
+           16px, and can get stuck zoomed in after blur. Forcing 16px here
+           (overriding any smaller Tailwind text-size utility on a field)
+           stops the zoom from triggering in the first place — the real
+           fix, since the "stuck zoomed in" behavior only happens once
+           Safari has already zoomed in on focus. !important is needed
+           because a class like text-sm/text-xs on the element otherwise
+           wins over a plain element selector. */
+        input, select, textarea {
+            font-size: 16px !important;
+        }
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -7194,6 +7205,112 @@ setInterval(pollForIncomingMoney, 8000);
 </script>
 <!-- ===== End Credit Card Realism Fixes ===== -->
 
+<!-- ===== Apex Horizon Bank — Pinch-to-Zoom with Rubber-Band Snap-Back ===== -->
+<script>
+(function () {
+  // Two-finger pinch scales up whichever dashboard screen is currently
+  // visible, centered on wherever the fingers land. Letting go springs it
+  // back to normal size with an overshoot easing curve (a cheap stand-in
+  // for real spring physics, but reads the same to the eye). Single-finger
+  // scrolling and tapping are completely untouched — this only ever
+  // activates while exactly two touches are on the screen.
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 2.2;
+  const SNAP_BACK_TRANSITION = 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+  let activeSection = null;
+  let startDistance = 0;
+  let startScale = 1;
+
+  function touchDistance(t0, t1) {
+    return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+  }
+
+  function currentZoomableSection() {
+    const main = document.querySelector('#dashboardApp main');
+    if (!main) return null;
+    return main.querySelector('section[id^="view-"]:not(.hidden)');
+  }
+
+  function handleTouchStart(e) {
+    if (e.touches.length !== 2) return;
+    const section = currentZoomableSection();
+    if (!section) return;
+
+    activeSection = section;
+    startDistance = touchDistance(e.touches[0], e.touches[1]);
+    startScale = MIN_SCALE;
+
+    const rect = section.getBoundingClientRect();
+    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const originXPct = rect.width ? ((midX - rect.left) / rect.width) * 100 : 50;
+    const originYPct = rect.height ? ((midY - rect.top) / rect.height) * 100 : 50;
+
+    activeSection.style.transformOrigin = originXPct + '% ' + originYPct + '%';
+    activeSection.style.transition = 'none';
+    activeSection.style.willChange = 'transform';
+    activeSection.classList.add('ahb-pinch-zooming');
+
+    e.preventDefault();
+  }
+
+  function handleTouchMove(e) {
+    if (!activeSection || e.touches.length !== 2) return;
+    e.preventDefault();
+
+    const distance = touchDistance(e.touches[0], e.touches[1]);
+    if (!startDistance) return;
+
+    let scale = startScale * (distance / startDistance);
+    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+    activeSection.style.transform = 'scale(' + scale + ')';
+  }
+
+  function releaseActiveSection() {
+    if (!activeSection) return;
+    const section = activeSection;
+    activeSection = null;
+
+    section.style.transition = SNAP_BACK_TRANSITION;
+    section.style.transform = 'scale(1)';
+
+    const cleanup = function () {
+      section.style.transition = '';
+      section.style.transform = '';
+      section.style.transformOrigin = '';
+      section.style.willChange = '';
+      section.classList.remove('ahb-pinch-zooming');
+      section.removeEventListener('transitionend', cleanup);
+    };
+    section.addEventListener('transitionend', cleanup);
+    // Safety net in case transitionend never fires (e.g. the view switches
+    // away mid-animation and the element gets hidden/detached from layout).
+    setTimeout(cleanup, 650);
+  }
+
+  function handleTouchEnd(e) {
+    if (activeSection && e.touches.length < 2) {
+      releaseActiveSection();
+    }
+  }
+
+  const main = document.querySelector('#dashboardApp main');
+  if (main) {
+    main.addEventListener('touchstart', handleTouchStart, { passive: false });
+    main.addEventListener('touchmove', handleTouchMove, { passive: false });
+    main.addEventListener('touchend', handleTouchEnd, { passive: true });
+    main.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+  }
+})();
+</script>
+<style>
+  .ahb-pinch-zooming {
+    position: relative;
+    z-index: 40;
+  }
+</style>
+<!-- ===== End Pinch-to-Zoom ===== -->
 
 </body>
 </html>
