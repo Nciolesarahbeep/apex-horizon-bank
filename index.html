@@ -901,10 +901,11 @@
                         <h1 class="text-md font-bold text-gray-900">Offers &amp; Member Portals</h1>
                     </div>
 
-                    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[145px] flex flex-col justify-between p-4">
+                    <div id="adCarouselCard" class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[145px] flex flex-col justify-between p-4">
                         <div class="flex justify-between items-center w-full border-b border-slate-800 pb-1.5">
-                            <span class="text-[9px] font-mono tracking-widest text-slate-400 uppercase"><i class="fa-solid fa-rectangle-ad mr-1 text-emerald-400"></i> Member Portals</span>
+                            <span class="text-[9px] font-mono tracking-widest text-slate-400 uppercase"><i class="fa-solid fa-rectangle-ad mr-1 text-emerald-400"></i> Sponsored &middot; Member Portals</span>
                             <div class="flex items-center space-x-2">
+                                <button onclick="event.stopPropagation(); dismissCurrentAd()" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] text-slate-400 hover:bg-slate-700 hover:text-white active:scale-95 transition" title="Not interested in this offer"><i class="fa-solid fa-xmark"></i></button>
                                 <button onclick="swapAdTemplate(-1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-left"></i></button>
                                 <span id="adIndexIndicator" class="text-[10px] font-mono font-bold text-emerald-400">1/5</span>
                                 <button onclick="swapAdTemplate(1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-right"></i></button>
@@ -950,6 +951,8 @@
                             <button onclick="jumpToAdTemplate(4)" id="adDot-4" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
                             <button onclick="jumpToAdTemplate(5)" id="adDot-5" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
                         </div>
+
+                        <div id="adDisclosureFooter" class="text-center text-[8px] text-slate-500 font-mono leading-relaxed pt-1.5 mt-1 border-t border-slate-800/70"></div>
                     </div>
 
                     <div id="adMenu-1" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
@@ -2097,6 +2100,74 @@
         
         let currentAdIndex = 1; 
         const totalRealAds = 5;
+        const dismissedAdIndices = new Set();
+        let adCarouselOriginalHTML = null;
+
+        // Real bank promo units carry per-offer fine print and an expiry —
+        // hoursUntilExpiry is picked once at load so the countdown feels
+        // alive without needing a backend to track it.
+        const AD_META = {
+            1: { disclosure: "Variable APR 18.99%\u201327.99% based on creditworthiness. Subject to credit approval.", hoursUntilExpiry: 68 },
+            2: { disclosure: "APY accurate as of today and subject to change without notice. Early withdrawal penalties may apply.", hoursUntilExpiry: 30 },
+            3: { disclosure: "Rate shown assumes excellent credit and is subject to underwriting and property appraisal.", hoursUntilExpiry: 140 },
+            4: { disclosure: "Advisory services offered through Apex Horizon Wealth Partners. Minimum asset requirements apply.", hoursUntilExpiry: 300 },
+            5: { disclosure: "Business financing subject to underwriting review. Not all applicants will qualify.", hoursUntilExpiry: 12 }
+        };
+        (function initAdExpiries() {
+            const now = Date.now();
+            for (const key in AD_META) {
+                AD_META[key].expiresAt = now + AD_META[key].hoursUntilExpiry * 3600 * 1000;
+            }
+            // Snapshot the pristine carousel markup now, before any dismiss
+            // interaction can mutate it, so "Show offers again" restores the
+            // original state rather than whatever was left after the last dismiss.
+            const card = document.getElementById('adCarouselCard');
+            if (card) adCarouselOriginalHTML = card.innerHTML;
+        })();
+
+        // Dismissed-offer state is scoped per logged-in account (not just per
+        // browser) so two people sharing a device don't inherit each other's
+        // dismissals. currentUserEmail isn't populated yet at page load — it's
+        // only known after /api/me resolves — so this is deliberately read
+        // lazily on first visit to the Offers view, not at script-load time.
+        let dismissedAdsSyncedForUser = false;
+
+        function adDismissStorageKey() {
+            const userKey = (typeof currentUserEmail !== 'undefined' && currentUserEmail) ? currentUserEmail : 'guest';
+            return `ahb_dismissed_offers_${userKey}`;
+        }
+
+        function loadDismissedAdsFromStorage() {
+            try {
+                const raw = localStorage.getItem(adDismissStorageKey());
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(i => { if (Number.isInteger(i)) dismissedAdIndices.add(i); });
+                }
+            } catch (err) {
+                console.error('Failed to read dismissed offers from storage:', err);
+            }
+        }
+
+        function saveDismissedAdsToStorage() {
+            try {
+                localStorage.setItem(adDismissStorageKey(), JSON.stringify(Array.from(dismissedAdIndices)));
+            } catch (err) {
+                console.error('Failed to save dismissed offers to storage:', err);
+            }
+        }
+
+        function syncDismissedAdsForOffersView() {
+            if (dismissedAdsSyncedForUser) return;
+            dismissedAdsSyncedForUser = true;
+            loadDismissedAdsFromStorage();
+            if (dismissedAdIndices.size >= totalRealAds) {
+                showAllOffersDismissedState();
+            } else if (dismissedAdIndices.size > 0) {
+                currentAdIndex = nextAvailableAdIndex(0, 1);
+            }
+        }
 
         let viewHistory = ['summary'];
 
@@ -2244,6 +2315,12 @@ if (activeLoanBalanceEl) {
                         const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                         input.max = currentMonthValue;
                         if (!input.value) input.value = currentMonthValue;
+                    }
+                }
+                if (targetViewId === 'offers' && document.getElementById('adDisclosureFooter')) {
+                    syncDismissedAdsForOffersView();
+                    if (document.getElementById('adDisclosureFooter')) {
+                        renderActiveAdState();
                     }
                 }
             }, realisticLoaderDelay(targetViewId)); 
@@ -2797,14 +2874,45 @@ if (activeLoanBalanceEl) {
             document.getElementById('cardVelocityLimitText').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
         }
 
+        function formatAdCountdown(ms) {
+            if (ms <= 0) return "Expired";
+            const totalMinutes = Math.floor(ms / 60000);
+            const days = Math.floor(totalMinutes / 1440);
+            const hours = Math.floor((totalMinutes % 1440) / 60);
+            const minutes = totalMinutes % 60;
+            if (days > 0) return `${days}d ${hours}h`;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
+        }
+
+        function updateAdDisclosureFooter() {
+            const footer = document.getElementById('adDisclosureFooter');
+            const meta = AD_META[currentAdIndex];
+            if (!footer || !meta) return;
+            const remaining = meta.expiresAt - Date.now();
+            footer.innerHTML = `<span class="text-emerald-400 font-semibold">Expires in ${formatAdCountdown(remaining)}</span> &middot; ${meta.disclosure}`;
+        }
+
+        function nextAvailableAdIndex(start, direction) {
+            let idx = start;
+            for (let attempts = 0; attempts < totalRealAds; attempts++) {
+                idx += direction;
+                if (idx > totalRealAds) idx = 1;
+                if (idx < 1) idx = totalRealAds;
+                if (!dismissedAdIndices.has(idx)) return idx;
+            }
+            return null;
+        }
+
         function swapAdTemplate(direction) {
-            currentAdIndex += direction;
-            if (currentAdIndex > totalRealAds) currentAdIndex = 1;
-            if (currentAdIndex < 1) currentAdIndex = totalRealAds;
+            const next = nextAvailableAdIndex(currentAdIndex, direction);
+            if (next === null) return;
+            currentAdIndex = next;
             renderActiveAdState();
         }
 
         function jumpToAdTemplate(index) {
+            if (dismissedAdIndices.has(index)) return;
             currentAdIndex = index;
             renderActiveAdState();
         }
@@ -2819,14 +2927,55 @@ if (activeLoanBalanceEl) {
                 if (i === currentAdIndex) {
                     template.classList.remove('hidden');
                     template.classList.add('block');
-                    dot.className = "h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300";
+                    if (dot) dot.className = "h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300";
                 } else {
                     template.classList.add('hidden');
                     template.classList.remove('block');
-                    dot.className = "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300";
+                    if (dot) dot.className = dismissedAdIndices.has(i)
+                        ? "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300 hidden"
+                        : "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300";
                 }
             }
+            updateAdDisclosureFooter();
             closeAllAdMenus();
+        }
+
+        function dismissCurrentAd() {
+            dismissedAdIndices.add(currentAdIndex);
+            saveDismissedAdsToStorage();
+            const dot = document.getElementById(`adDot-${currentAdIndex}`);
+            if (dot) dot.classList.add('hidden');
+
+            if (dismissedAdIndices.size >= totalRealAds) {
+                showAllOffersDismissedState();
+                return;
+            }
+            const next = nextAvailableAdIndex(currentAdIndex, 1);
+            currentAdIndex = next;
+            renderActiveAdState();
+        }
+
+        function showAllOffersDismissedState() {
+            const card = document.getElementById('adCarouselCard');
+            if (!card) return;
+            card.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-center py-4 space-y-2">
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-xl"></i>
+                    <p class="text-xs font-bold">You're all caught up</p>
+                    <p class="text-[10px] text-slate-400">No new offers to show right now.</p>
+                    <button onclick="restoreAllAds()" class="text-[10px] font-mono text-emerald-400 hover:text-emerald-300 underline underline-offset-2 mt-1">Show offers again</button>
+                </div>
+            `;
+        }
+
+        function restoreAllAds() {
+            const card = document.getElementById('adCarouselCard');
+            if (!card || adCarouselOriginalHTML === null) return;
+            card.innerHTML = adCarouselOriginalHTML;
+            dismissedAdIndices.clear();
+            saveDismissedAdsToStorage();
+            currentAdIndex = 1;
+            renderActiveAdState();
         }
 
         function toggleAdMenu(index) {
@@ -3685,6 +3834,14 @@ function updateHeaderClock() {
     });
 }
 setInterval(updateHeaderClock, 1000);
+
+setInterval(() => {
+    const offersView = document.getElementById('view-offers');
+    const footer = document.getElementById('adDisclosureFooter');
+    if (offersView && !offersView.classList.contains('hidden') && footer) {
+        updateAdDisclosureFooter();
+    }
+}, 60000);
 updateHeaderClock();
 
 function updateHeaderUserName(fullName) {
