@@ -833,11 +833,8 @@
 
                 <section id="view-summary" class="space-y-4">
                     <div class="flex items-center space-x-3">
-                        <button onclick="document.getElementById('profilePhotoInput').click()" class="relative shrink-0" title="Change profile picture">
+                        <button onclick="triggerViewSwitch('profile')" class="relative shrink-0" title="View profile">
                             <div id="welcomeAvatar" class="w-11 h-11 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm overflow-hidden">&mdash;</div>
-                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-slate-900 rounded-full flex items-center justify-center border border-white">
-                                <i class="fa-solid fa-camera text-white text-[7px]"></i>
-                            </span>
                         </button>
                         <div>
                             <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
@@ -906,6 +903,14 @@
                             <button onclick="triggerViewSwitch('settings')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
                                 <i class="fa-solid fa-user-gear text-lg text-slate-600 mb-1"></i>
                                 <span class="text-xs font-semibold">Settings</span>
+                            </button>
+                            <button onclick="triggerViewSwitch('locations')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-location-dot text-lg text-emerald-500 mb-1"></i>
+                                <span class="text-xs font-semibold">Locations</span>
+                            </button>
+                            <button onclick="triggerViewSwitch('check-deposit')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-money-check-dollar text-lg text-slate-600 mb-1"></i>
+                                <span class="text-xs font-semibold">Deposit Check</span>
                             </button>
                         </div>
                     </div>
@@ -1262,6 +1267,86 @@
                     <p id="maSaveConfirmation" class="hidden text-center text-[10px] text-emerald-600 font-semibold">
                         <i class="fa-solid fa-circle-check"></i> Changes saved
                     </p>
+                </section>
+
+                <section id="view-locations" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Branches &amp; ATMs</h1>
+                    </div>
+
+                    <div id="locationsStatusBanner" class="bg-white rounded-xl border border-gray-200 p-4 text-center space-y-2">
+                        <i class="fa-solid fa-location-crosshairs text-emerald-500 text-lg"></i>
+                        <p class="text-xs text-gray-500">Finding locations near you...</p>
+                        <button onclick="requestUserLocationForBranches()" id="locationsRetryBtn" class="hidden text-[10px] font-mono text-emerald-600 underline underline-offset-2">Try Again</button>
+                    </div>
+
+                    <div id="locationsListContainer" class="space-y-3"></div>
+                </section>
+
+                <section id="view-check-deposit" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Deposit a Check</h1>
+                    </div>
+
+                    <div id="checkDepositForm" class="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Front of Check</label>
+                                <button onclick="document.getElementById('checkFrontInput').click()" class="w-full aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-400 flex flex-col items-center justify-center overflow-hidden transition" id="checkFrontPreviewBtn">
+                                    <i class="fa-solid fa-camera text-gray-300 text-xl mb-1"></i>
+                                    <span class="text-[9px] text-gray-400">Tap to capture</span>
+                                </button>
+                                <input type="file" id="checkFrontInput" accept="image/*" capture="environment" class="hidden" onchange="handleCheckPhotoSelected(event, 'front')">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Back of Check</label>
+                                <button onclick="document.getElementById('checkBackInput').click()" class="w-full aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-400 flex flex-col items-center justify-center overflow-hidden transition" id="checkBackPreviewBtn">
+                                    <i class="fa-solid fa-camera text-gray-300 text-xl mb-1"></i>
+                                    <span class="text-[9px] text-gray-400">Tap to capture</span>
+                                </button>
+                                <input type="file" id="checkBackInput" accept="image/*" capture="environment" class="hidden" onchange="handleCheckPhotoSelected(event, 'back')">
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-400 text-center">Endorse the back with "For Mobile Deposit Only" before photographing.</p>
+
+                        <div>
+                            <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Deposit Amount</label>
+                            <div class="relative">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                                <input type="number" id="checkDepositAmount" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-6 pr-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Deposit To</label>
+                            <select id="checkDepositAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                                <option value="checking">Primary Checking</option>
+                                <option value="savings">High-Yield Savings</option>
+                            </select>
+                        </div>
+
+                        <button onclick="submitCheckDeposit()" id="checkDepositSubmitBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2.5 rounded-lg transition cursor-pointer">
+                            Submit for Deposit
+                        </button>
+                        <p id="checkDepositError" class="hidden text-center text-[10px] text-red-500 font-semibold"></p>
+                    </div>
+
+                    <div id="checkDepositSuccess" class="hidden bg-white rounded-xl border border-gray-200 p-6 text-center space-y-2">
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-2xl"></i>
+                        <p class="text-sm font-bold text-gray-900">Deposit Submitted</p>
+                        <p class="text-xs text-gray-500" id="checkDepositSuccessAmount"></p>
+                        <p class="text-[10px] text-gray-400">Funds are typically available within 1 business day after review.</p>
+                        <button onclick="resetCheckDepositForm()" class="mt-2 text-[10px] font-mono text-emerald-600 underline underline-offset-2">Deposit Another Check</button>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Recent Mobile Deposits</h3>
+                        <div id="checkDepositHistoryContainer" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-3.5 text-xs text-gray-400 text-center">No mobile deposits yet.</p>
+                        </div>
+                    </div>
                 </section>
 
                 <section id="view-savings-summary" class="hidden space-y-4 animate-fade-in">
@@ -2453,7 +2538,7 @@ if (activeLoanBalanceEl) {
         // (that actually fetch data) get a slightly longer, still-randomized delay
         // than simple static ones, so the loading time feels networked, not fake.
         function realisticLoaderDelay(targetViewId) {
-            const heavyViews = ['loans', 'credit', 'statements', 'spending-insights', 'settings-linked-devices', 'savings-analytics', 'manage-account'];
+            const heavyViews = ['loans', 'credit', 'statements', 'spending-insights', 'settings-linked-devices', 'savings-analytics', 'manage-account', 'locations'];
             const isHeavy = heavyViews.includes(targetViewId);
             const base = isHeavy ? 1100 : 650;
             const jitter = isHeavy ? 900 : 750;
@@ -2502,6 +2587,13 @@ if (activeLoanBalanceEl) {
                 if (targetViewId === 'manage-account') {
                     loadManageAccountInfo();
                 }
+                if (targetViewId === 'locations') {
+                    requestUserLocationForBranches();
+                }
+                if (targetViewId === 'check-deposit') {
+                    resetCheckDepositForm();
+                    renderCheckDepositHistory();
+                }
             }, realisticLoaderDelay(targetViewId)); 
         }
 
@@ -2521,7 +2613,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -4245,6 +4337,270 @@ function openProfilePhotoViewer() {
 function closeProfilePhotoViewer() {
     const overlay = document.getElementById('profilePhotoViewerOverlay');
     if (overlay) overlay.classList.add('hidden');
+}
+
+// ===== Branch & ATM Locator =====
+// Real GPS-based distance sorting against a fixed set of branch/ATM
+// coordinates — no external maps API needed for the distance math itself,
+// just the haversine formula. "Directions" hands off to the phone's own
+// maps app via a universal Google Maps link.
+const AHB_BRANCH_LOCATIONS = [
+    { name: 'Apex Horizon \u2014 Downtown Austin', type: 'Branch', address: '412 Congress Ave, Austin, TX 78701', hours: 'Mon\u2013Fri 9am\u20135pm, Sat 9am\u20131pm', lat: 30.2672, lng: -97.7431 },
+    { name: 'Apex Horizon \u2014 South Lamar ATM', type: 'ATM', address: '1500 S Lamar Blvd, Austin, TX 78704', hours: '24 Hours', lat: 30.2534, lng: -97.7681 },
+    { name: 'Apex Horizon \u2014 The Domain Branch', type: 'Branch', address: '11506 Century Oaks Ter, Austin, TX 78758', hours: 'Mon\u2013Fri 9am\u20136pm, Sat 10am\u20132pm', lat: 30.4021, lng: -97.7241 },
+    { name: 'Apex Horizon \u2014 East Cesar Chavez ATM', type: 'ATM', address: '1618 E Cesar Chavez St, Austin, TX 78702', hours: '24 Hours', lat: 30.2586, lng: -97.7267 },
+    { name: 'Apex Horizon \u2014 Round Rock Branch', type: 'Branch', address: '201 University Blvd, Round Rock, TX 78681', hours: 'Mon\u2013Fri 9am\u20135pm', lat: 30.5083, lng: -97.6789 },
+    { name: 'Apex Horizon \u2014 Westlake ATM', type: 'ATM', address: '701 S Capital of Texas Hwy, Austin, TX 78746', hours: '24 Hours', lat: 30.2830, lng: -97.8110 }
+];
+
+function haversineMiles(lat1, lng1, lat2, lng2) {
+    const toRad = deg => deg * Math.PI / 180;
+    const R = 3958.8;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function requestUserLocationForBranches() {
+    const banner = document.getElementById('locationsStatusBanner');
+    const retryBtn = document.getElementById('locationsRetryBtn');
+    const listContainer = document.getElementById('locationsListContainer');
+    if (!banner || !listContainer) return;
+
+    banner.classList.remove('hidden');
+    const bannerText = banner.querySelector('p');
+    const bannerIcon = banner.querySelector('i');
+    if (bannerText) bannerText.innerText = 'Finding locations near you...';
+    if (bannerIcon) bannerIcon.className = 'fa-solid fa-location-crosshairs text-emerald-500 text-lg';
+    if (retryBtn) retryBtn.classList.add('hidden');
+    listContainer.innerHTML = '';
+
+    if (!navigator.geolocation) {
+        if (bannerText) bannerText.innerText = 'Location services aren\u2019t available in this browser \u2014 showing all locations.';
+        if (bannerIcon) bannerIcon.className = 'fa-solid fa-location-crosshairs text-gray-400 text-lg';
+        renderLocationsList(null);
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            renderLocationsList({ lat: position.coords.latitude, lng: position.coords.longitude });
+        },
+        (err) => {
+            console.error('Geolocation error:', err);
+            if (bannerText) bannerText.innerText = 'Couldn\u2019t access your location \u2014 showing all locations instead.';
+            if (bannerIcon) bannerIcon.className = 'fa-solid fa-location-crosshairs text-gray-400 text-lg';
+            if (retryBtn) retryBtn.classList.remove('hidden');
+            renderLocationsList(null);
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+}
+
+function renderLocationsList(userCoords) {
+    const banner = document.getElementById('locationsStatusBanner');
+    const listContainer = document.getElementById('locationsListContainer');
+    if (!listContainer) return;
+
+    const locations = AHB_BRANCH_LOCATIONS.map(loc => ({ ...loc }));
+
+    if (userCoords) {
+        locations.forEach(loc => {
+            loc.distance = haversineMiles(userCoords.lat, userCoords.lng, loc.lat, loc.lng);
+        });
+        locations.sort((a, b) => a.distance - b.distance);
+        if (banner) banner.classList.add('hidden');
+    }
+
+    listContainer.innerHTML = locations.map(loc => `
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="flex items-start justify-between">
+                <div class="flex items-start space-x-3">
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${loc.type === 'Branch' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}">
+                        <i class="fa-solid ${loc.type === 'Branch' ? 'fa-building-columns' : 'fa-money-bill-transfer'} text-sm"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-900">${loc.name}</p>
+                        <p class="text-[10px] text-gray-500">${loc.address}</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">${loc.hours}</p>
+                    </div>
+                </div>
+                ${loc.distance !== undefined ? `<span class="text-[10px] font-mono font-bold text-emerald-600 whitespace-nowrap ml-2">${loc.distance.toFixed(1)} mi</span>` : ''}
+            </div>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank" rel="noopener" class="mt-3 flex items-center justify-center space-x-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-semibold py-2 rounded-lg transition">
+                <i class="fa-solid fa-diamond-turn-right"></i><span>Directions</span>
+            </a>
+        </div>
+    `).join('');
+}
+
+// ===== Mobile Check Deposit =====
+// Front/back photo capture reuses the same resize-then-store pattern as the
+// profile photo feature. There's no backend endpoint yet to actually credit
+// an account from a deposited check, so this records submissions as a
+// locally-tracked, per-account pending history (visible and persistent)
+// rather than silently faking a real balance change.
+let checkDepositPhotos = { front: null, back: null };
+
+function checkDepositStorageKey() {
+    const userKey = (typeof currentUserEmail !== 'undefined' && currentUserEmail) ? currentUserEmail : 'guest';
+    return `ahb_check_deposits_${userKey}`;
+}
+
+function handleCheckPhotoSelected(event, side) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        alert('Please choose an image file.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function () {
+            const MAX_W = 400;
+            const scale = Math.min(1, MAX_W / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+            checkDepositPhotos[side] = dataUrl;
+            const btn = document.getElementById(side === 'front' ? 'checkFrontPreviewBtn' : 'checkBackPreviewBtn');
+            if (btn) btn.innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover" alt="Check ${side}">`;
+        };
+        img.onerror = function () {
+            alert("That file couldn't be read as an image. Please try another photo.");
+        };
+        img.src = e.target.result;
+    };
+    reader.onerror = function () {
+        alert('Something went wrong reading that file. Please try again.');
+    };
+    reader.readAsDataURL(file);
+}
+
+function submitCheckDeposit() {
+    const errorEl = document.getElementById('checkDepositError');
+    if (errorEl) errorEl.classList.add('hidden');
+
+    if (!checkDepositPhotos.front || !checkDepositPhotos.back) {
+        if (errorEl) { errorEl.innerText = 'Please capture both the front and back of the check.'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+
+    const amountInput = document.getElementById('checkDepositAmount');
+    const amount = amountInput ? parseFloat(amountInput.value) : NaN;
+    if (!amount || amount <= 0) {
+        if (errorEl) { errorEl.innerText = 'Please enter a valid deposit amount.'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+
+    const accountSelect = document.getElementById('checkDepositAccount');
+    const accountType = accountSelect ? accountSelect.value : 'checking';
+
+    const submitBtn = document.getElementById('checkDepositSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Submitting...';
+    }
+
+    setTimeout(() => {
+        const record = {
+            id: 'MD' + Date.now(),
+            amount: amount,
+            account: accountType,
+            submittedAt: new Date().toISOString(),
+            status: 'Pending Review'
+        };
+
+        let history = [];
+        try {
+            const raw = localStorage.getItem(checkDepositStorageKey());
+            if (raw) history = JSON.parse(raw);
+        } catch (err) {
+            console.error('Failed to read check deposit history:', err);
+        }
+        history.unshift(record);
+        try {
+            localStorage.setItem(checkDepositStorageKey(), JSON.stringify(history));
+        } catch (err) {
+            console.error('Failed to save check deposit:', err);
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Submit for Deposit';
+        }
+
+        const formEl = document.getElementById('checkDepositForm');
+        const successEl = document.getElementById('checkDepositSuccess');
+        const successAmountEl = document.getElementById('checkDepositSuccessAmount');
+        if (formEl) formEl.classList.add('hidden');
+        if (successAmountEl) successAmountEl.innerText = `$${amount.toFixed(2)} to ${accountType === 'checking' ? 'Primary Checking' : 'High-Yield Savings'}`;
+        if (successEl) successEl.classList.remove('hidden');
+
+        if (typeof fireConfetti === 'function') fireConfetti(35);
+
+        renderCheckDepositHistory();
+    }, 1400);
+}
+
+function resetCheckDepositForm() {
+    checkDepositPhotos = { front: null, back: null };
+    const placeholderHtml = '<i class="fa-solid fa-camera text-gray-300 text-xl mb-1"></i><span class="text-[9px] text-gray-400">Tap to capture</span>';
+    const frontBtn = document.getElementById('checkFrontPreviewBtn');
+    const backBtn = document.getElementById('checkBackPreviewBtn');
+    if (frontBtn) frontBtn.innerHTML = placeholderHtml;
+    if (backBtn) backBtn.innerHTML = placeholderHtml;
+
+    const amountInput = document.getElementById('checkDepositAmount');
+    if (amountInput) amountInput.value = '';
+
+    const errorEl = document.getElementById('checkDepositError');
+    if (errorEl) errorEl.classList.add('hidden');
+
+    const formEl = document.getElementById('checkDepositForm');
+    const successEl = document.getElementById('checkDepositSuccess');
+    if (formEl) formEl.classList.remove('hidden');
+    if (successEl) successEl.classList.add('hidden');
+}
+
+function renderCheckDepositHistory() {
+    const container = document.getElementById('checkDepositHistoryContainer');
+    if (!container) return;
+
+    let history = [];
+    try {
+        const raw = localStorage.getItem(checkDepositStorageKey());
+        if (raw) history = JSON.parse(raw);
+    } catch (err) {
+        console.error('Failed to load check deposit history:', err);
+    }
+
+    if (history.length === 0) {
+        container.innerHTML = '<p class="p-3.5 text-xs text-gray-400 text-center">No mobile deposits yet.</p>';
+        return;
+    }
+
+    container.innerHTML = history.map(record => {
+        const dateStr = new Date(record.submittedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+        const accountLabel = record.account === 'checking' ? 'Primary Checking' : 'High-Yield Savings';
+        return `
+            <div class="flex items-center justify-between p-3.5">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">$${record.amount.toFixed(2)}</p>
+                    <p class="text-[10px] text-gray-400">${accountLabel} &middot; ${dateStr}</p>
+                </div>
+                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-100 text-amber-700">${record.status}</span>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderProfileView() {
