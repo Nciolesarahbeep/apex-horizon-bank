@@ -90,11 +90,12 @@ module.exports = async function handler(req, res) {
     const checkingAccountNumber = await generateUniqueAccountNumber();
     const savingsAccountNumber = await generateUniqueAccountNumber();
 
+    // New accounts start empty — no seed/demo balance is credited on signup.
     await sql`
       INSERT INTO accounts (user_id, account_type, balance, account_number, apy_rate, interest_accrued_at)
       VALUES
-        (${user.id}, 'checking', 5000.00, ${checkingAccountNumber}, 0, NULL),
-        (${user.id}, 'savings', 12500.00, ${savingsAccountNumber}, 0.0450, NOW())
+        (${user.id}, 'checking', 0.00, ${checkingAccountNumber}, 0, NULL),
+        (${user.id}, 'savings', 0.00, ${savingsAccountNumber}, 0.0450, NOW())
     `;
 
     await sendEmail({
