@@ -206,6 +206,13 @@
             <p class="text-white text-[10px] font-mono tracking-widest uppercase animate-pulse mt-4">Syncing Core Ledger Nodes...</p>
         </div>
 
+        <div id="profilePhotoViewerOverlay" class="hidden fixed inset-0 bg-black z-[100000] flex items-center justify-center" onclick="closeProfilePhotoViewer()">
+            <button onclick="closeProfilePhotoViewer()" class="absolute top-5 right-5 w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-lg transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <img id="profilePhotoViewerImage" src="" alt="Profile photo" class="w-72 h-72 max-w-[80vw] max-h-[80vw] rounded-full object-cover shadow-2xl">
+        </div>
+
         <div id="preQualLoader" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-xs z-[9999] flex flex-col items-center justify-center space-y-4">
             <div class="relative w-16 h-16">
                 <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
@@ -826,7 +833,12 @@
 
                 <section id="view-summary" class="space-y-4">
                     <div class="flex items-center space-x-3">
-                        <div id="welcomeAvatar" class="w-11 h-11 shrink-0 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm">—</div>
+                        <button onclick="document.getElementById('profilePhotoInput').click()" class="relative shrink-0" title="Change profile picture">
+                            <div id="welcomeAvatar" class="w-11 h-11 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm overflow-hidden">&mdash;</div>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-slate-900 rounded-full flex items-center justify-center border border-white">
+                                <i class="fa-solid fa-camera text-white text-[7px]"></i>
+                            </span>
+                        </button>
                         <div>
                             <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
                             <p class="text-[10px] text-gray-500">Session started: <span id="sessionStartTimeLabel">—</span></p>
@@ -1103,7 +1115,7 @@
 
                     <div class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col items-center text-center space-y-2">
                         <div class="relative">
-                            <div id="profileAvatarCircle" class="w-16 h-16 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-bold overflow-hidden">?</div>
+                            <div id="profileAvatarCircle" onclick="openProfilePhotoViewer()" class="w-16 h-16 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-bold overflow-hidden cursor-pointer">?</div>
                             <button onclick="document.getElementById('profilePhotoInput').click()" class="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 rounded-full flex items-center justify-center border-2 border-white shadow-sm transition" title="Change profile picture">
                                 <i class="fa-solid fa-camera text-slate-900 text-[10px]"></i>
                             </button>
@@ -1148,7 +1160,7 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
-                        <button onclick="triggerViewSwitch('settings')" class="p-3 bg-white hover:bg-gray-50 rounded-xl text-center border border-gray-200 flex flex-col items-center justify-center transition">
+                        <button onclick="triggerViewSwitch('manage-account')" class="p-3 bg-white hover:bg-gray-50 rounded-xl text-center border border-gray-200 flex flex-col items-center justify-center transition">
                             <i class="fa-solid fa-user-gear text-lg text-slate-600 mb-1"></i>
                             <span class="text-xs font-semibold">Manage Account</span>
                         </button>
@@ -1157,6 +1169,99 @@
                             <span class="text-xs font-semibold text-red-600">Sign Out</span>
                         </button>
                     </div>
+                </section>
+
+                <section id="view-manage-account" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Manage Account</h1>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Identity</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Legal Name</label>
+                                <input type="text" id="maLegalName" disabled class="w-full bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-500">
+                                <p class="text-[9px] text-gray-400 mt-1">To change your legal name, visit a branch with valid ID.</p>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Date of Birth</label>
+                                <input type="date" id="maDob" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Social Security Number</label>
+                                <input type="text" id="maSsn" disabled value="•••-••-••••" class="w-full bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 font-mono">
+                                <p class="text-[9px] text-gray-400 mt-1">Contact support to update your SSN on file.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Contact</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Phone Number</label>
+                                <input type="tel" id="maPhone" placeholder="(555) 555-5555" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Street Address</label>
+                                <input type="text" id="maStreet" placeholder="123 Market Street" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-1">
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">City</label>
+                                    <input type="text" id="maCity" placeholder="Austin" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">State</label>
+                                    <select id="maState" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                                        <option value="">--</option>
+                                        <option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">ZIP</label>
+                                    <input type="text" id="maZip" inputmode="numeric" maxlength="5" placeholder="73301" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Financial Profile</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Employment Status</label>
+                                <select id="maEmployment" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                                    <option value="">Select one</option>
+                                    <option>Employed</option>
+                                    <option>Self-Employed</option>
+                                    <option>Unemployed</option>
+                                    <option>Student</option>
+                                    <option>Retired</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Annual Income</label>
+                                <select id="maIncome" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500">
+                                    <option value="">Select a range</option>
+                                    <option value="0-25000">Under $25,000</option>
+                                    <option value="25000-50000">$25,000 &ndash; $50,000</option>
+                                    <option value="50000-100000">$50,000 &ndash; $100,000</option>
+                                    <option value="100000-250000">$100,000 &ndash; $250,000</option>
+                                    <option value="250000+">$250,000+</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="saveManageAccountInfo()" id="maSaveBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2.5 rounded-lg transition cursor-pointer">
+                        Save Changes
+                    </button>
+                    <p id="maSaveConfirmation" class="hidden text-center text-[10px] text-emerald-600 font-semibold">
+                        <i class="fa-solid fa-circle-check"></i> Changes saved
+                    </p>
                 </section>
 
                 <section id="view-savings-summary" class="hidden space-y-4 animate-fade-in">
@@ -2348,7 +2453,7 @@ if (activeLoanBalanceEl) {
         // (that actually fetch data) get a slightly longer, still-randomized delay
         // than simple static ones, so the loading time feels networked, not fake.
         function realisticLoaderDelay(targetViewId) {
-            const heavyViews = ['loans', 'credit', 'statements', 'spending-insights', 'settings-linked-devices', 'savings-analytics'];
+            const heavyViews = ['loans', 'credit', 'statements', 'spending-insights', 'settings-linked-devices', 'savings-analytics', 'manage-account'];
             const isHeavy = heavyViews.includes(targetViewId);
             const base = isHeavy ? 1100 : 650;
             const jitter = isHeavy ? 900 : 750;
@@ -2394,6 +2499,9 @@ if (activeLoanBalanceEl) {
                 if (targetViewId === 'profile') {
                     renderProfileView();
                 }
+                if (targetViewId === 'manage-account') {
+                    loadManageAccountInfo();
+                }
             }, realisticLoaderDelay(targetViewId)); 
         }
 
@@ -2413,7 +2521,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -4057,6 +4165,86 @@ function removeProfilePhoto() {
         console.error('Failed to remove stored profile photo:', err);
     }
     applyAvatarInitials();
+}
+
+// "Manage Account" personal-info fields are stored per-account, client-side
+// — same limitation as the profile photo, since there's no backend endpoint
+// yet to persist these server-side. They survive reloads in this browser
+// but won't follow the account to another device until that's built.
+function manageAccountStorageKey() {
+    const userKey = (typeof currentUserEmail !== 'undefined' && currentUserEmail) ? currentUserEmail : 'guest';
+    return `ahb_manage_account_${userKey}`;
+}
+
+function loadManageAccountInfo() {
+    const legalNameEl = document.getElementById('maLegalName');
+    if (legalNameEl) legalNameEl.value = currentUserFullName || '';
+
+    const confirmationEl = document.getElementById('maSaveConfirmation');
+    if (confirmationEl) confirmationEl.classList.add('hidden');
+
+    let saved = {};
+    try {
+        const raw = localStorage.getItem(manageAccountStorageKey());
+        if (raw) saved = JSON.parse(raw);
+    } catch (err) {
+        console.error('Failed to load manage-account info:', err);
+    }
+
+    const fields = ['maDob', 'maPhone', 'maStreet', 'maCity', 'maState', 'maZip', 'maEmployment', 'maIncome'];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && saved[id] !== undefined) el.value = saved[id];
+    });
+}
+
+function saveManageAccountInfo() {
+    const fields = ['maDob', 'maPhone', 'maStreet', 'maCity', 'maState', 'maZip', 'maEmployment', 'maIncome'];
+    const data = {};
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) data[id] = el.value;
+    });
+
+    try {
+        localStorage.setItem(manageAccountStorageKey(), JSON.stringify(data));
+    } catch (err) {
+        console.error('Failed to save manage-account info:', err);
+        alert('Could not save your changes. Please try again.');
+        return;
+    }
+
+    const confirmationEl = document.getElementById('maSaveConfirmation');
+    if (confirmationEl) {
+        confirmationEl.classList.remove('hidden');
+        setTimeout(() => confirmationEl.classList.add('hidden'), 3000);
+    }
+}
+
+// Instagram-style full-screen photo viewer: tap the avatar in the Profile
+// screen to see it large on a black backdrop; tap anywhere (backdrop, the
+// photo itself, or the X) to dismiss. Only opens if there's an actual photo
+// set — nothing to view when the avatar is just showing initials.
+function openProfilePhotoViewer() {
+    const circle = document.getElementById('profileAvatarCircle');
+    const avatarImg = circle ? circle.querySelector('img') : null;
+    if (!avatarImg) return;
+
+    const viewerImg = document.getElementById('profilePhotoViewerImage');
+    const overlay = document.getElementById('profilePhotoViewerOverlay');
+    if (!viewerImg || !overlay) return;
+
+    viewerImg.src = avatarImg.src;
+    viewerImg.classList.remove('ahb-photo-viewer-pop');
+    void viewerImg.offsetWidth; // restart the pop-in animation on every open
+    viewerImg.classList.add('ahb-photo-viewer-pop');
+
+    overlay.classList.remove('hidden');
+}
+
+function closeProfilePhotoViewer() {
+    const overlay = document.getElementById('profilePhotoViewerOverlay');
+    if (overlay) overlay.classList.add('hidden');
 }
 
 function renderProfileView() {
@@ -6810,6 +6998,16 @@ document.addEventListener('DOMContentLoaded', () => {
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer-wrap::after { animation: none; }
   .skeleton-bar { animation: none; }
+}
+@keyframes ahbPhotoViewerPopIn {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.ahb-photo-viewer-pop {
+  animation: ahbPhotoViewerPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ahb-photo-viewer-pop { animation: none; }
 }
 @keyframes cardFlipSpin {
   0% { transform: rotateY(0deg); }
