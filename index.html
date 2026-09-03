@@ -2806,19 +2806,8 @@ if (activeLoanBalanceEl) {
         async function restoreSessionOnLoad() {
             const splash = document.getElementById('sessionCheckSplash');
 
-            try {
-                const res = await withMinDelay(fetch('/api/me', { credentials: 'include', cache: 'no-store' }), 1000);
-                if (res.ok) {
-                    await loadRealAccountDataWithRetry();
-                    splash.classList.add('hidden');
-                    showDashboardScreen();
-                    checkForEmailChangeTokenInUrl();
-                    return;
-                }
-            } catch (err) {
-                console.error('Session restore check failed:', err);
-            }
-
+            // Always require a fresh login — never auto-restore from a
+            // lingering session cookie, regardless of browser.
             try {
                 await withMinDelay(
                     fetch('/api/auth-session', {
@@ -4149,11 +4138,6 @@ function updateHeaderUserEmail(email) {
 // people sharing a device don't inherit each other's picture. They're
 // resized/compressed client-side before saving since localStorage has a
 // small quota and raw phone-camera photos can be several MB.
-function profilePhotoStorageKey() {
-    const userKey = (typeof currentUserEmail !== 'undefined' && currentUserEmail) ? currentUserEmail : 'guest';
-    return `ahb_profile_photo_${userKey}`;
-}
-
 function applyAvatarPhoto(dataUrl) {
     const circle = document.getElementById('profileAvatarCircle');
     if (circle) circle.innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover" alt="Profile photo">`;
@@ -4187,15 +4171,17 @@ function applyAvatarInitials() {
     if (removeBtn) removeBtn.classList.add('hidden');
 }
 
-function loadStoredProfilePhoto() {
+async function fetchAndApplyProfilePhoto() {
     try {
-        const stored = localStorage.getItem(profilePhotoStorageKey());
-        if (stored) {
-            applyAvatarPhoto(stored);
+        const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (data.user && data.user.profilePhoto) {
+            applyAvatarPhoto(data.user.profilePhoto);
             return true;
         }
     } catch (err) {
-        console.error('Failed to load stored profile photo:', err);
+        console.error('Failed to load profile photo:', err);
     }
     return false;
 }
@@ -4213,7 +4199,7 @@ function handleProfilePhotoSelected(event) {
     const reader = new FileReader();
     reader.onload = function (e) {
         const img = new Image();
-        img.onload = function () {
+        img.onload = async function () {
             // Cover-fit crop to a fixed square, then compress — keeps the
             // stored size small and predictable regardless of the source photo.
             const SIZE = 240;
@@ -4231,10 +4217,20 @@ function handleProfilePhotoSelected(event) {
 
             const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             try {
-                localStorage.setItem(profilePhotoStorageKey(), dataUrl);
+                const res = await fetch('/api/profile-photo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ photoDataUrl: dataUrl })
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    alert(errData.error || 'Could not save that photo.');
+                    return;
+                }
             } catch (err) {
                 console.error('Failed to save profile photo:', err);
-                alert('Could not save that photo — it may be too large for this browser to store.');
+                alert('Network error saving photo. Please try again.');
                 return;
             }
             applyAvatarPhoto(dataUrl);
@@ -4250,11 +4246,11 @@ function handleProfilePhotoSelected(event) {
     reader.readAsDataURL(file);
 }
 
-function removeProfilePhoto() {
+async function removeProfilePhoto() {
     try {
-        localStorage.removeItem(profilePhotoStorageKey());
+        await fetch('/api/profile-photo', { method: 'DELETE', credentials: 'include' });
     } catch (err) {
-        console.error('Failed to remove stored profile photo:', err);
+        console.error('Failed to remove profile photo:', err);
     }
     applyAvatarInitials();
 }
@@ -4614,10 +4610,10 @@ function renderProfileView() {
     if (nameEl) nameEl.innerText = currentUserFullName || 'Account Holder';
     if (emailEl) emailEl.innerText = currentUserEmail || '\u2014';
 
-    // Initials are the fallback; loadStoredProfilePhoto() overrides with an
+    // Initials are the fallback; fetchAndApplyProfilePhoto() overrides with an
     // actual photo if the account has one saved.
     applyAvatarInitials();
-    loadStoredProfilePhoto();
+    fetchAndApplyProfilePhoto();
 
     if (checkingEl && typeof maskAccountNumber === 'function') checkingEl.innerText = maskAccountNumber(myCheckingAccountNumber);
     if (savingsEl && typeof maskAccountNumber === 'function') savingsEl.innerText = maskAccountNumber(mySavingsAccountNumber);
@@ -4664,7 +4660,7 @@ function renderProfileView() {
             currentUserEmail = data.user.email || null;
 updateHeaderUserName(currentUserFullName);
 updateHeaderUserEmail(currentUserEmail);
-loadStoredProfilePhoto();
+fetchAndApplyProfilePhoto();
 
             const lastLoginAt = data.user.last_login_at || data.user.lastLoginAt || null;
             const sessionLabelEl = document.getElementById('sessionStartTimeLabel');
