@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
     }
 
     const userResult = await sql`
-      SELECT id, email, full_name, last_login_at, is_active FROM users WHERE id = ${session.userId} LIMIT 1
+      SELECT id, email, full_name, last_login_at, is_active, profile_photo FROM users WHERE id = ${session.userId} LIMIT 1
     `;
     if (userResult.length === 0) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -35,7 +35,13 @@ module.exports = async function handler(req, res) {
     `;
 
     return res.status(200).json({
-      user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: user.last_login_at },
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        lastLoginAt: user.last_login_at,
+        profilePhoto: user.profile_photo,
+      },
       accounts: accountsResult,
     });
   } catch (err) {
