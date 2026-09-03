@@ -137,7 +137,7 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const resource = req.method === 'GET' ? req.query.resource : (req.body || {}).resource;
+  const resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
 
   // ---------- KYC ----------
   if (resource === 'kyc') {
@@ -1105,6 +1105,38 @@ module.exports = async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to update session.' });
       }
     }
+  }
+  // ---------- Profile Photo ----------
+  if (resource === 'profile-photo') {
+    if (req.method === 'POST') {
+      try {
+        const { photoDataUrl } = req.body || {};
+        if (!photoDataUrl || typeof photoDataUrl !== 'string' || !photoDataUrl.startsWith('data:image/')) {
+          return res.status(400).json({ error: 'Invalid photo data.' });
+        }
+        if (photoDataUrl.length > 400 * 1024) {
+          return res.status(400).json({ error: 'Photo is too large.' });
+        }
+        await sql`UPDATE users SET profile_photo = ${photoDataUrl} WHERE id = ${session.userId}`;
+        return res.status(200).json({ success: true, profilePhoto: photoDataUrl });
+      } catch (err) {
+        console.error('Profile photo save error:', err);
+        return res.status(500).json({ error: 'Could not save photo.' });
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        await sql`UPDATE users SET profile_photo = NULL WHERE id = ${session.userId}`;
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        console.error('Profile photo delete error:', err);
+        return res.status(500).json({ error: 'Could not remove photo.' });
+      }
+    }
+
+    res.setHeader('Allow', 'POST, DELETE');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // ---------- Passcode (in-app unlock code, separate from login password) ----------
