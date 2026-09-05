@@ -132,12 +132,86 @@ async function createNotification(userId, title, message) {
 }
 
 module.exports = async function handler(req, res) {
+  const resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
+
+  // ---------- Recurring Transfer Processor (cron-triggered, no user session) ----------
+  if (resource === 'process-recurring') {
+    const authHeader = req.headers.authorization;
+    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    function computeNextRunDate(currentDate, frequency) {
+      const d = new Date(currentDate);
+      if (frequency === 'weekly') d.setDate(d.getDate() + 7);
+      else if (frequency === 'biweekly') d.setDate(d.getDate() + 14);
+      else d.setMonth(d.getMonth() + 1);
+      return d.toISOString().slice(0, 10);
+    }
+
+    try {
+      const dueTransfers = await sql`
+        SELECT * FROM recurring_transfers
+        WHERE status = 'active' AND next_run_date <= CURRENT_DATE
+      `;
+
+      let processed = 0, failed = 0;
+
+      for (const rt of dueTransfers) {
+        try {
+          const fromRows = await sql`SELECT id, balance, restriction_level FROM accounts WHERE id = ${rt.from_account_id} LIMIT 1`;
+          if (fromRows.length === 0) throw new Error('Source account not found');
+          const fromAccount = fromRows[0];
+
+          if (fromAccount.restriction_level === 'full') throw new Error('Account restricted');
+          if (Number(fromAccount.balance) < Number(rt.amount)) throw new Error('Insufficient funds');
+
+          let toAccountId = rt.to_account_id;
+          if (rt.destination_type === 'account_number') {
+            const toRows = await sql`SELECT id FROM accounts WHERE account_number = ${rt.to_account_number} LIMIT 1`;
+            if (toRows.length === 0) throw new Error('Recipient account not found');
+            toAccountId = toRows[0].id;
+          }
+
+          await sql`UPDATE accounts SET balance = balance - ${rt.amount} WHERE id = ${fromAccount.id}`;
+          await sql`UPDATE accounts SET balance = balance + ${rt.amount} WHERE id = ${toAccountId}`;
+
+          await sql`INSERT INTO transactions (account_id, type, amount, description, created_at) VALUES (${fromAccount.id}, 'transfer_out', ${rt.amount}, ${rt.description || 'Recurring Transfer'}, NOW())`;
+          await sql`INSERT INTO transactions (account_id, type, amount, description, created_at) VALUES (${toAccountId}, 'transfer_in', ${rt.amount}, ${rt.description || 'Recurring Transfer'}, NOW())`;
+
+          const nextDate = computeNextRunDate(rt.next_run_date, rt.frequency);
+          await sql`UPDATE recurring_transfers SET next_run_date = ${nextDate}, consecutive_failures = 0, last_run_at = NOW() WHERE id = ${rt.id}`;
+
+          await createNotification(rt.user_id, 'Recurring Transfer Sent', `Your recurring transfer of $${Number(rt.amount).toFixed(2)} (${rt.description || 'Scheduled Transfer'}) was sent successfully.`);
+          processed++;
+        } catch (innerErr) {
+          failed++;
+          const newFailures = (rt.consecutive_failures || 0) + 1;
+          const shouldPause = newFailures >= 3;
+
+          await sql`UPDATE recurring_transfers SET consecutive_failures = ${newFailures}, status = ${shouldPause ? 'paused' : 'active'} WHERE id = ${rt.id}`;
+
+          await createNotification(
+            rt.user_id,
+            shouldPause ? 'Recurring Transfer Paused' : 'Recurring Transfer Failed',
+            shouldPause
+              ? `Your recurring transfer of $${Number(rt.amount).toFixed(2)} has failed 3 times and was paused. Please review it.`
+              : `Your recurring transfer of $${Number(rt.amount).toFixed(2)} failed: ${innerErr.message}. We'll try again next cycle.`
+          );
+        }
+      }
+
+      return res.status(200).json({ success: true, processed, failed });
+    } catch (err) {
+      console.error('Process recurring transfers error:', err);
+      return res.status(500).json({ error: 'Failed to process recurring transfers.' });
+    }
+  }
+
   const session = await getUserFromRequest(req);
   if (!session) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-
-  const resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
 
   // ---------- KYC ----------
   if (resource === 'kyc') {
@@ -1106,38 +1180,6 @@ module.exports = async function handler(req, res) {
       }
     }
   }
-  // ---------- Profile Photo ----------
-  if (resource === 'profile-photo') {
-    if (req.method === 'POST') {
-      try {
-        const { photoDataUrl } = req.body || {};
-        if (!photoDataUrl || typeof photoDataUrl !== 'string' || !photoDataUrl.startsWith('data:image/')) {
-          return res.status(400).json({ error: 'Invalid photo data.' });
-        }
-        if (photoDataUrl.length > 400 * 1024) {
-          return res.status(400).json({ error: 'Photo is too large.' });
-        }
-        await sql`UPDATE users SET profile_photo = ${photoDataUrl} WHERE id = ${session.userId}`;
-        return res.status(200).json({ success: true, profilePhoto: photoDataUrl });
-      } catch (err) {
-        console.error('Profile photo save error:', err);
-        return res.status(500).json({ error: 'Could not save photo.' });
-      }
-    }
-
-    if (req.method === 'DELETE') {
-      try {
-        await sql`UPDATE users SET profile_photo = NULL WHERE id = ${session.userId}`;
-        return res.status(200).json({ success: true });
-      } catch (err) {
-        console.error('Profile photo delete error:', err);
-        return res.status(500).json({ error: 'Could not remove photo.' });
-      }
-    }
-
-    res.setHeader('Allow', 'POST, DELETE');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
 
   // ---------- Passcode (in-app unlock code, separate from login password) ----------
   if (resource === 'passcode') {
@@ -1178,7 +1220,91 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", or "loans".' });
+  // ---------- Recurring Transfers (user-facing CRUD) ----------
+  if (resource === 'recurring-transfers') {
+    if (req.method === 'GET') {
+      try {
+        const rows = await sql`
+          SELECT id, from_account_id, destination_type, to_account_id, to_account_number, to_account_label,
+                 amount, frequency, next_run_date, description, status, consecutive_failures, created_at
+          FROM recurring_transfers
+          WHERE user_id = ${session.userId}
+          ORDER BY created_at DESC
+        `;
+        return res.status(200).json({ recurringTransfers: rows });
+      } catch (err) {
+        console.error('Get recurring transfers error:', err);
+        return res.status(500).json({ error: 'Failed to fetch recurring transfers.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { recurAction } = req.body || {};
+
+        if (recurAction === 'create') {
+          const { fromAccountId, destinationType, toAccountId, toAccountNumber, toAccountLabel, amount, frequency, startDate, description } = req.body || {};
+
+          const amt = Number(amount);
+          if (!Number.isFinite(amt) || amt <= 0) return res.status(400).json({ error: 'Enter a valid amount.' });
+          if (!['weekly', 'biweekly', 'monthly'].includes(frequency)) return res.status(400).json({ error: 'Frequency must be weekly, biweekly, or monthly.' });
+          if (!['own_account', 'account_number'].includes(destinationType)) return res.status(400).json({ error: 'Invalid destination type.' });
+
+          const fromRows = await sql`SELECT id FROM accounts WHERE id = ${fromAccountId} AND user_id = ${session.userId} LIMIT 1`;
+          if (fromRows.length === 0) return res.status(400).json({ error: 'Source account not found.' });
+
+          if (destinationType === 'own_account') {
+            const toRows = await sql`SELECT id FROM accounts WHERE id = ${toAccountId} AND user_id = ${session.userId} LIMIT 1`;
+            if (toRows.length === 0) return res.status(400).json({ error: 'Destination account not found.' });
+          } else {
+            if (!toAccountNumber || !String(toAccountNumber).trim()) return res.status(400).json({ error: 'Recipient account number is required.' });
+            const toRows = await sql`SELECT id FROM accounts WHERE account_number = ${toAccountNumber} LIMIT 1`;
+            if (toRows.length === 0) return res.status(400).json({ error: 'No account found with that account number.' });
+          }
+
+          const nextRunDate = startDate || new Date().toISOString().slice(0, 10);
+
+          const inserted = await sql`
+            INSERT INTO recurring_transfers (
+              user_id, from_account_id, destination_type, to_account_id, to_account_number, to_account_label,
+              amount, frequency, next_run_date, description, status
+            )
+            VALUES (
+              ${session.userId}, ${fromAccountId}, ${destinationType}, ${destinationType === 'own_account' ? toAccountId : null},
+              ${destinationType === 'account_number' ? toAccountNumber : null}, ${toAccountLabel || null},
+              ${amt}, ${frequency}, ${nextRunDate}, ${description || 'Recurring Transfer'}, 'active'
+            )
+            RETURNING id, next_run_date, status
+          `;
+
+          return res.status(201).json({ success: true, recurringTransfer: inserted[0], message: 'Recurring transfer scheduled.' });
+        }
+
+        if (['pause', 'resume', 'cancel'].includes(recurAction)) {
+          const { recurringTransferId } = req.body || {};
+          if (!recurringTransferId) return res.status(400).json({ error: 'recurringTransferId is required.' });
+
+          const newStatus = recurAction === 'pause' ? 'paused' : recurAction === 'resume' ? 'active' : 'cancelled';
+
+          const updated = await sql`
+            UPDATE recurring_transfers SET status = ${newStatus}, consecutive_failures = 0
+            WHERE id = ${recurringTransferId} AND user_id = ${session.userId}
+            RETURNING id, status
+          `;
+          if (updated.length === 0) return res.status(404).json({ error: 'Recurring transfer not found.' });
+
+          return res.status(200).json({ success: true, status: updated[0].status });
+        }
+
+        return res.status(400).json({ error: 'Invalid recurAction. Use "create", "pause", "resume", or "cancel".' });
+      } catch (err) {
+        console.error('Recurring transfer action error:', err);
+        return res.status(500).json({ error: 'Failed to process recurring transfer action.' });
+      }
+    }
+  }
+
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", or "recurring-transfers".' });
 
 
 
