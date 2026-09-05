@@ -600,9 +600,6 @@ module.exports = async function handler(req, res) {
         const { cardAction } = req.body || {};
         const { account, details } = await getOrCreateCardAccount(session.userId);
 
-        // toggleFreeze/setVelocityLimit/setPin are account-management actions,
-        // not money movement — leave those working even under a full restriction
-        // so the customer can still protect themselves (e.g. freeze the card).
         if (cardAction === 'toggleFreeze') {
           const updated = await sql`
             UPDATE credit_card_details SET is_frozen = NOT is_frozen
@@ -1063,8 +1060,6 @@ module.exports = async function handler(req, res) {
         return OUTGOING_TYPES.includes(type) ? -abs : abs;
       };
 
-      // Roll the live current balance back to what it was at the end of the
-      // statement period, by undoing everything that happened after it.
       const afterRows = await sql`
         SELECT type, amount FROM transactions
         WHERE account_id = ${account.id} AND created_at >= ${periodEndExclusive.toISOString()}
@@ -1304,7 +1299,40 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", or "recurring-transfers".' });
+  // ---------- Profile Photo ----------
+  if (resource === 'profile-photo') {
+    if (req.method === 'POST') {
+      try {
+        const { photoDataUrl } = req.body || {};
+        if (!photoDataUrl || typeof photoDataUrl !== 'string' || !photoDataUrl.startsWith('data:image/')) {
+          return res.status(400).json({ error: 'Invalid photo data.' });
+        }
+        if (photoDataUrl.length > 400 * 1024) {
+          return res.status(400).json({ error: 'Photo is too large.' });
+        }
+        await sql`UPDATE users SET profile_photo = ${photoDataUrl} WHERE id = ${session.userId}`;
+        return res.status(200).json({ success: true, profilePhoto: photoDataUrl });
+      } catch (err) {
+        console.error('Profile photo save error:', err);
+        return res.status(500).json({ error: 'Could not save photo.' });
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        await sql`UPDATE users SET profile_photo = NULL WHERE id = ${session.userId}`;
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        console.error('Profile photo delete error:', err);
+        return res.status(500).json({ error: 'Could not remove photo.' });
+      }
+    }
+
+    res.setHeader('Allow', 'POST, DELETE');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", or "profile-photo".' });
 
 
 
