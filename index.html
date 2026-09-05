@@ -4531,11 +4531,11 @@ function handleProfilePhotoSelected(event) {
 
             const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             try {
-                const res = await fetch('/api/profile-photo', {
+                const res = await fetch('/api/account-services', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ photoDataUrl: dataUrl })
+                    body: JSON.stringify({ resource: 'profile-photo', photoDataUrl: dataUrl })
                 });
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}));
@@ -4562,7 +4562,7 @@ function handleProfilePhotoSelected(event) {
 
 async function removeProfilePhoto() {
     try {
-        await fetch('/api/profile-photo', { method: 'DELETE', credentials: 'include' });
+        await fetch('/api/account-services?resource=profile-photo', { method: 'DELETE', credentials: 'include' });
     } catch (err) {
         console.error('Failed to remove profile photo:', err);
     }
