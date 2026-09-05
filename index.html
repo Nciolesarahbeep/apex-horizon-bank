@@ -323,6 +323,317 @@
                 </div>
             </div>
         </div>
+
+<div id="recurringTransfersModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+            <button onclick="closeRecurringTransfersModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
+            <h3 id="recurringTransfersModalTitle" class="text-sm font-bold text-gray-900">Recurring Transfers</h3>
+            <button onclick="showRecurringTransferCreateForm()" id="recurringTransfersAddBtn" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-plus"></i></button>
+        </div>
+
+        <div id="recurringTransfersListView" class="overflow-y-auto">
+            <div id="recurringTransfersListContent" class="divide-y divide-gray-100">
+                <div class="px-5 py-10 text-center text-sm text-gray-400">
+                    <i class="fa-solid fa-spinner fa-spin mb-2 text-lg block"></i>
+                    Loading...
+                </div>
+            </div>
+        </div>
+
+        <div id="recurringTransfersFormView" class="hidden overflow-y-auto">
+            <form id="recurringTransferForm" onsubmit="submitCreateRecurringTransfer(event)" class="px-5 py-4 space-y-4">
+
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">From Account</label>
+                    <select id="rtFromAccount" required class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm"></select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">Send To</label>
+                    <div class="flex gap-2 mb-2">
+                        <button type="button" id="rtDestOwnBtn" onclick="setRecurringDestType('own_account')" class="flex-1 py-2 rounded-lg text-xs font-semibold border border-emerald-600 bg-emerald-600 text-white">My Accounts</button>
+                        <button type="button" id="rtDestNumberBtn" onclick="setRecurringDestType('account_number')" class="flex-1 py-2 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600">Account Number</button>
+                    </div>
+                    <select id="rtToAccount" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm"></select>
+                    <input id="rtToAccountNumber" type="text" placeholder="Recipient account number" class="hidden w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">Amount</label>
+                    <input id="rtAmount" type="number" step="0.01" min="0.01" required placeholder="0.00" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">Frequency</label>
+                    <select id="rtFrequency" required class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Every 2 Weeks</option>
+                        <option value="monthly" selected>Monthly</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">Start Date</label>
+                    <input id="rtStartDate" type="date" required class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">Description (optional)</label>
+                    <input id="rtDescription" type="text" placeholder="e.g. Savings top-up" maxlength="255" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                </div>
+
+                <p id="rtFormError" class="hidden text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2"></p>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="showRecurringTransferListView()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" id="rtSubmitBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm">Schedule</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let recurringTransferAccounts = [];
+let recurringDestType = 'own_account';
+
+function openRecurringTransfersModal() {
+    document.getElementById('recurringTransfersModal').classList.remove('hidden');
+    showRecurringTransferListView();
+}
+
+function closeRecurringTransfersModal() {
+    document.getElementById('recurringTransfersModal').classList.add('hidden');
+}
+
+function showRecurringTransferListView() {
+    document.getElementById('recurringTransfersListView').classList.remove('hidden');
+    document.getElementById('recurringTransfersFormView').classList.add('hidden');
+    document.getElementById('recurringTransfersModalTitle').textContent = 'Recurring Transfers';
+    document.getElementById('recurringTransfersAddBtn').classList.remove('hidden');
+    loadRecurringTransfersList();
+}
+
+async function showRecurringTransferCreateForm() {
+    document.getElementById('recurringTransfersListView').classList.add('hidden');
+    document.getElementById('recurringTransfersFormView').classList.remove('hidden');
+    document.getElementById('recurringTransfersModalTitle').textContent = 'Schedule a Transfer';
+    document.getElementById('recurringTransfersAddBtn').classList.add('hidden');
+    document.getElementById('rtFormError').classList.add('hidden');
+    document.getElementById('recurringTransferForm').reset();
+    setRecurringDestType('own_account');
+
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('rtStartDate').min = today;
+    document.getElementById('rtStartDate').value = today;
+
+    await loadAccountsForRecurringForm();
+}
+
+function setRecurringDestType(type) {
+    recurringDestType = type;
+    const ownBtn = document.getElementById('rtDestOwnBtn');
+    const numBtn = document.getElementById('rtDestNumberBtn');
+    const toAccountSelect = document.getElementById('rtToAccount');
+    const toAccountNumberInput = document.getElementById('rtToAccountNumber');
+
+    if (type === 'own_account') {
+        ownBtn.className = 'flex-1 py-2 rounded-lg text-xs font-semibold border border-emerald-600 bg-emerald-600 text-white';
+        numBtn.className = 'flex-1 py-2 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600';
+        toAccountSelect.classList.remove('hidden');
+        toAccountNumberInput.classList.add('hidden');
+    } else {
+        numBtn.className = 'flex-1 py-2 rounded-lg text-xs font-semibold border border-emerald-600 bg-emerald-600 text-white';
+        ownBtn.className = 'flex-1 py-2 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600';
+        toAccountSelect.classList.add('hidden');
+        toAccountNumberInput.classList.remove('hidden');
+    }
+}
+
+function accountDisplayLabel(acc) {
+    const typeLabel = acc.account_type === 'checking' ? 'Checking'
+        : acc.account_type === 'savings' ? 'High-Yield Savings'
+        : acc.account_type === 'credit' ? 'Credit Card'
+        : acc.account_type;
+    const lastFour = acc.account_number ? String(acc.account_number).slice(-4) : '----';
+    return `${typeLabel} •••• ${lastFour}`;
+}
+
+async function loadAccountsForRecurringForm() {
+    try {
+        const res = await fetch('/api/me', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        recurringTransferAccounts = (data.accounts || []).filter(a => a.account_type !== 'credit');
+
+        const fromSelect = document.getElementById('rtFromAccount');
+        const toSelect = document.getElementById('rtToAccount');
+        fromSelect.innerHTML = '';
+        toSelect.innerHTML = '';
+
+        recurringTransferAccounts.forEach(acc => {
+            const opt1 = document.createElement('option');
+            opt1.value = acc.id;
+            opt1.textContent = accountDisplayLabel(acc);
+            fromSelect.appendChild(opt1);
+
+            const opt2 = document.createElement('option');
+            opt2.value = acc.id;
+            opt2.textContent = accountDisplayLabel(acc);
+            toSelect.appendChild(opt2);
+        });
+    } catch (err) {
+        console.error('Failed to load accounts for recurring transfer form:', err);
+    }
+}
+
+async function loadRecurringTransfersList() {
+    const container = document.getElementById('recurringTransfersListContent');
+    container.innerHTML = `
+        <div class="px-5 py-10 text-center text-sm text-gray-400">
+            <i class="fa-solid fa-spinner fa-spin mb-2 text-lg block"></i>
+            Loading...
+        </div>`;
+
+    try {
+        const res = await fetch('/api/account-services?resource=recurring-transfers', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        const items = data.recurringTransfers || [];
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="px-5 py-10 text-center">
+                    <i class="fa-solid fa-repeat text-3xl text-gray-300 mb-3"></i>
+                    <p class="text-sm text-gray-500">No recurring transfers yet.</p>
+                    <p class="text-xs text-gray-400 mt-1">Tap the + above to schedule one.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = items.map(renderRecurringTransferItem).join('');
+    } catch (err) {
+        console.error('Failed to load recurring transfers:', err);
+        container.innerHTML = `<div class="px-5 py-8 text-center text-sm text-red-500">Couldn't load your recurring transfers. Pull to refresh.</div>`;
+    }
+}
+
+function renderRecurringTransferItem(rt) {
+    const money = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const freqLabel = rt.frequency === 'weekly' ? 'Weekly' : rt.frequency === 'biweekly' ? 'Every 2 Weeks' : 'Monthly';
+    const nextRun = new Date(rt.next_run_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const destLabel = rt.destination_type === 'account_number'
+        ? (rt.to_account_label || `Account •••• ${String(rt.to_account_number || '').slice(-4)}`)
+        : 'Your Account';
+
+    const statusBadge = rt.status === 'active'
+        ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">ACTIVE</span>`
+        : rt.status === 'paused'
+        ? `<span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">PAUSED</span>`
+        : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">CANCELLED</span>`;
+
+    let actionButtons = '';
+    if (rt.status === 'active') {
+        actionButtons = `
+            <button onclick="updateRecurringTransferStatus(${rt.id}, 'pause')" class="text-xs font-semibold text-amber-600">Pause</button>
+            <button onclick="updateRecurringTransferStatus(${rt.id}, 'cancel')" class="text-xs font-semibold text-red-600 ml-3">Cancel</button>`;
+    } else if (rt.status === 'paused') {
+        actionButtons = `
+            <button onclick="updateRecurringTransferStatus(${rt.id}, 'resume')" class="text-xs font-semibold text-emerald-600">Resume</button>
+            <button onclick="updateRecurringTransferStatus(${rt.id}, 'cancel')" class="text-xs font-semibold text-red-600 ml-3">Cancel</button>`;
+    }
+
+    return `
+        <div class="px-5 py-3.5">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-bold text-gray-900">${money(rt.amount)} <span class="font-normal text-gray-400">${freqLabel}</span></p>
+                    <p class="text-xs text-gray-500 mt-0.5">To ${destLabel}</p>
+                    <p class="text-xs text-gray-400">Next: ${nextRun}${rt.description ? ' · ' + rt.description : ''}</p>
+                </div>
+                ${statusBadge}
+            </div>
+            ${actionButtons ? `<div class="mt-2">${actionButtons}</div>` : ''}
+        </div>`;
+}
+
+async function updateRecurringTransferStatus(id, action) {
+    const labels = { pause: 'pause', resume: 'resume', cancel: 'cancel' };
+    if (action === 'cancel' && !confirm('Cancel this recurring transfer? This cannot be undone.')) return;
+
+    try {
+        const res = await fetch('/api/account-services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ resource: 'recurring-transfers', recurAction: action, recurringTransferId: id })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert(data.error || `Could not ${labels[action]} this transfer.`);
+            return;
+        }
+        loadRecurringTransfersList();
+    } catch (err) {
+        console.error('Update recurring transfer error:', err);
+        alert('Network error. Please try again.');
+    }
+}
+
+async function submitCreateRecurringTransfer(event) {
+    event.preventDefault();
+    const errorEl = document.getElementById('rtFormError');
+    errorEl.classList.add('hidden');
+
+    const submitBtn = document.getElementById('rtSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Scheduling...';
+
+    const payload = {
+        resource: 'recurring-transfers',
+        recurAction: 'create',
+        fromAccountId: Number(document.getElementById('rtFromAccount').value),
+        destinationType: recurringDestType,
+        amount: document.getElementById('rtAmount').value,
+        frequency: document.getElementById('rtFrequency').value,
+        startDate: document.getElementById('rtStartDate').value,
+        description: document.getElementById('rtDescription').value.trim(),
+    };
+
+    if (recurringDestType === 'own_account') {
+        payload.toAccountId = Number(document.getElementById('rtToAccount').value);
+    } else {
+        payload.toAccountNumber = document.getElementById('rtToAccountNumber').value.trim();
+    }
+
+    try {
+        const res = await fetch('/api/account-services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorEl.textContent = data.error || 'Could not schedule this transfer.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        showRecurringTransferListView();
+    } catch (err) {
+        console.error('Create recurring transfer error:', err);
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.classList.remove('hidden');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Schedule';
+    }
+}
+</script>
+
 <div id="kycModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
@@ -836,11 +1147,14 @@
                         <button onclick="triggerViewSwitch('profile')" class="relative shrink-0" title="View profile">
                             <div id="welcomeAvatar" class="w-11 h-11 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm overflow-hidden">&mdash;</div>
                         </button>
-                        <div>
+                        <div class="flex-1">
                             <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
                             <p class="text-[10px] text-gray-500">Session started: <span id="sessionStartTimeLabel">—</span></p>
                             <p class="text-[9px] text-gray-400">Updated <span id="dataFreshnessLabel">just now</span></p>
                         </div>
+                        <button onclick="openRecurringTransfersModal()" title="Recurring Transfers" class="shrink-0 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                            <i class="fa-solid fa-repeat text-sm"></i>
+                        </button>
                     </div>
 
                     <button onclick="triggerViewSwitch('offers')" class="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white p-3.5 flex items-center justify-between active:scale-[0.99] transition">
