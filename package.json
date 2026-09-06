@@ -6,6 +6,6 @@
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.2",
     "@simplewebauthn/server": "^7.4.0",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.20.2"
   }
 }
