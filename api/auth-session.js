@@ -6,6 +6,7 @@ const {
 } = require('../lib/auth');
 const { logSignInActivity } = require('../lib/loginActivity');
 const { getClientIp, checkLoginRateLimit, recordLoginAttempt, pruneOldAttempts } = require('../lib/rateLimit');
+const { flagNewDeviceLogin } = require('../lib/fraud');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -121,6 +122,10 @@ module.exports = async function handler(req, res) {
       setSessionCookie(res, token);
 
       await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password' });
+
+      // ---------- Fraud check: flag logins from a never-seen-before device ----------
+      // Best-effort, never blocks or fails the login itself.
+      await flagNewDeviceLogin({ userId: user.id, req });
 
       return res.status(200).json({
         user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
