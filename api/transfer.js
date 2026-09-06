@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest } = require('../lib/auth');
 const { sendEmail, moneySentEmailHtml, moneyReceivedEmailHtml } = require('../lib/email');
+const { flagLargeTransfer } = require('../lib/fraud');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -287,6 +288,15 @@ module.exports = async function handler(req, res) {
       RETURNING id, created_at
     `;
     const outboundTransactionId = outboundTxnRows[0].id;
+
+    // ---------- Fraud check: flag unusually large transfers ----------
+    // Best-effort, never blocks or fails the transfer itself.
+    await flagLargeTransfer({
+      userId: session.userId,
+      amount: transferAmount,
+      transactionId: outboundTransactionId,
+      transferType: isWire ? 'wire' : (isP2P ? 'P2P' : 'internal'),
+    });
 
     let updatedTo = null;
     let inboundTransactionId = null;
