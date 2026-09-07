@@ -13,6 +13,9 @@
   .restriction-none { background:#dcfce7; color:#166534; }
   .restriction-transfers_only { background:#fef3c7; color:#92400e; }
   .restriction-full { background:#fee2e2; color:#991b1b; }
+  .severity-high { background:#fee2e2; color:#991b1b; }
+  .severity-medium { background:#fef3c7; color:#92400e; }
+  .severity-low { background:#e0e7ff; color:#3730a3; }
 </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
@@ -209,6 +212,28 @@
     <p id="disputesEmpty" class="text-slate-400 text-sm py-4 hidden">No open disputes.</p>
   </div>
 
+  <!-- Fraud / suspicious activity flags -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-shield-halved text-red-600 mr-1"></i>Fraud / Suspicious Activity Flags</h2>
+      <button onclick="loadFraudFlags()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">User</th>
+          <th class="py-2 pr-2">Type</th>
+          <th class="py-2 pr-2">Severity</th>
+          <th class="py-2 pr-2">Details</th>
+          <th class="py-2 pr-2">Flagged</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="fraudFlagsBody"></tbody>
+    </table>
+    <p id="fraudFlagsEmpty" class="text-slate-400 text-sm py-4 hidden">No open fraud flags.</p>
+  </div>
+
   <div id="auditPanel" class="bg-white rounded-xl shadow-sm p-4 mb-6 hidden">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-800">Audit Logs — <span id="auditEmailLabel"></span></h2>
@@ -290,6 +315,7 @@ async function unlock() {
     loadPendingAccounts();
     loadPendingKyc();
     loadDisputes();
+    loadFraudFlags();
     if (activityPollTimer) clearInterval(activityPollTimer);
     activityPollTimer = setInterval(loadLoginActivity, 7000);
 
@@ -709,6 +735,47 @@ async function rejectDisputeAdmin(disputeId) {
     const data = await api('rejectDispute', { method: 'POST', body: { disputeId, resolution } });
     showToast(data.message, false);
     loadDisputes();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function formatFlagType(t) {
+  const map = { large_transfer: 'Large Transfer', new_device_login: 'New Device Login' };
+  return map[t] || t;
+}
+
+async function loadFraudFlags() {
+  try {
+    const { flags } = await api('listFraudFlags');
+    const body = document.getElementById('fraudFlagsBody');
+    const empty = document.getElementById('fraudFlagsEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', flags.length > 0);
+    flags.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${f.user_full_name || '—'}<br><span class="text-slate-400 text-xs">${f.user_email}</span></td>
+        <td class="py-2 pr-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">${formatFlagType(f.flag_type)}</span></td>
+        <td class="py-2 pr-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium severity-${f.severity}">${f.severity}</span></td>
+        <td class="py-2 pr-2 max-w-[220px]">${f.details || '—'}</td>
+        <td class="py-2 pr-2">${when(f.created_at)}</td>
+        <td class="py-2"><button onclick="resolveFraudFlagAdmin(${f.id})" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Dismiss</button></td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function resolveFraudFlagAdmin(flagId) {
+  if (!confirm('Dismiss this fraud flag as reviewed?')) return;
+  try {
+    const data = await api('resolveFraudFlag', { method: 'POST', body: { flagId } });
+    showToast(data.message, false);
+    loadFraudFlags();
   } catch (e) {
     showToast(e.message, true);
   }
