@@ -1,0 +1,90 @@
+const { neon } = require('@neondatabase/serverless');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const { sendEmail } = require('./email');
+
+const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+
+const OTP_TTL_MINUTES = 10;
+const MAX_ATTEMPTS = 5;
+
+function loginOtpEmailHtml(code) {
+  return `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+      <div style="font-size: 12px; font-weight: bold; letter-spacing: 0.05em; text-transform: uppercase; color: #10b981; margin-bottom: 16px;">Apex Horizon Bank</div>
+      <h2 style="color:#0f172a; font-size: 18px;">Confirm This Sign-In</h2>
+      <p>We noticed a sign-in attempt from a device we haven't seen before. Enter this code to continue:</p>
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:20px; margin:20px 0; text-align:center;">
+        <p style="margin:0; font-size:32px; font-weight:bold; letter-spacing:0.15em; color:#0f172a;">${code}</p>
+      </div>
+      <p style="color:#666; font-size:12px;">This code expires in ${OTP_TTL_MINUTES} minutes. If you didn't try to sign in, you can safely ignore this email — access remains blocked without this code.</p>
+    </div>
+  `;
+}
+
+// Generates a 6-digit code, stores its hash alongside a random pending token
+// (the token is what the client holds onto between login and verification —
+// never the code itself), emails the code, and returns the pending token.
+async function generateAndSendLoginOtp({ userId, email, fingerprint }) {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = await bcrypt.hash(code, 10);
+  const pendingToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+
+  await sql`
+    INSERT INTO login_otp_codes (user_id, code_hash, pending_token, device_fingerprint, expires_at)
+    VALUES (${userId}, ${codeHash}, ${pendingToken}, ${fingerprint}, ${expiresAt.toISOString()})
+  `;
+
+  await sendEmail({
+    to: email,
+    subject: 'Your Apex Horizon Bank verification code',
+    html: loginOtpEmailHtml(code),
+  });
+
+  return pendingToken;
+}
+
+// Verifies a submitted code against a pending token. Returns
+// { success: true, userId, fingerprint } or { success: false, error }.
+async function verifyLoginOtp({ pendingToken, code }) {
+  if (!pendingToken || !code) {
+    return { success: false, error: 'Verification code and token are required.' };
+  }
+
+  const rows = await sql`
+    SELECT id, user_id, code_hash, device_fingerprint, expires_at, used, attempts
+    FROM login_otp_codes
+    WHERE pending_token = ${pendingToken}
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
+    return { success: false, error: 'This verification session is invalid. Please sign in again.' };
+  }
+
+  const row = rows[0];
+
+  if (row.used) {
+    return { success: false, error: 'This code has already been used. Please sign in again.' };
+  }
+  if (new Date(row.expires_at) < new Date()) {
+    return { success: false, error: 'This code has expired. Please sign in again to request a new one.' };
+  }
+  if (row.attempts >= MAX_ATTEMPTS) {
+    return { success: false, error: 'Too many incorrect attempts. Please sign in again to request a new code.' };
+  }
+
+  const matches = await bcrypt.compare(String(code).trim(), row.code_hash);
+
+  if (!matches) {
+    await sql`UPDATE login_otp_codes SET attempts = attempts + 1 WHERE id = ${row.id}`;
+    return { success: false, error: 'Incorrect code. Please try again.' };
+  }
+
+  await sql`UPDATE login_otp_codes SET used = TRUE WHERE id = ${row.id}`;
+
+  return { success: true, userId: row.user_id, fingerprint: row.device_fingerprint };
+}
+
+module.exports = { generateAndSendLoginOtp, verifyLoginOtp };
