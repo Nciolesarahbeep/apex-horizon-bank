@@ -8669,5 +8669,444 @@ setInterval(pollForIncomingMoney, 8000);
 </style>
 <!-- ===== End Pinch-to-Zoom ===== -->
 
+<script>
+/* ===================== REAL CREDIT CARD FEATURE ===================== */
+/* Paste this whole block right before </body>. It redefines the card
+   functions declared earlier in the file, so it must load AFTER the
+   main inline <script> — placing it near the end of <body> guarantees
+   that. No other edits needed; existing onclick="" attributes already
+   reference these same function names. */
+
+let creditCardState = null; // last GET /credit-card payload, cached for tab rendering
+
+function ccMoney(n) {
+  return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function ccDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ---------- One-time UI relabeling (no HTML edits required) ----------
+function ccRelabelButtonsOnce() {
+  if (window.__ccRelabelled) return;
+  window.__ccRelabelled = true;
+
+  const pinBtn = document.getElementById('cardPinBtn');
+  if (pinBtn) {
+    const label = pinBtn.querySelector('span.text-\\[11px\\]');
+    if (label) label.textContent = 'Set / Change PIN';
+    const icon = pinBtn.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-key text-emerald-500 text-xs';
+    // This is a settings action, not a live status toggle — hide the on/off pill.
+    const toggle = document.getElementById('pinToggleNode');
+    if (toggle) toggle.classList.add('hidden');
+    pinBtn.setAttribute('onclick', 'openSetCardPinModal()');
+  }
+
+  const cvvBtn = document.getElementById('cardCvvBtn');
+  if (cvvBtn) {
+    const label = cvvBtn.querySelector('span.text-\\[11px\\]');
+    if (label) label.textContent = 'Simulate a Purchase';
+    const icon = cvvBtn.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-cart-shopping text-teal-500 text-xs';
+    const toggle = document.getElementById('cvvToggleNode');
+    if (toggle) toggle.classList.add('hidden');
+    cvvBtn.setAttribute('onclick', 'openSimulatePurchaseModal()');
+  }
+}
+
+// ---------- Small restricted-account banner (inserted once, toggled) ----------
+function ccEnsureRestrictedBanner() {
+  let banner = document.getElementById('ccRestrictedBanner');
+  if (banner) return banner;
+  banner = document.createElement('div');
+  banner.id = 'ccRestrictedBanner';
+  banner.className = 'hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2 mb-2';
+  banner.textContent = 'There is an issue on this account that requires in-person verification at a branch.';
+  const card = document.getElementById('view-credit');
+  if (card && card.firstChild) card.insertBefore(banner, card.firstChild);
+  return banner;
+}
+
+// ---------- Load real data from the backend ----------
+async function loadCreditCardData() {
+  ccRelabelButtonsOnce();
+  const banner = ccEnsureRestrictedBanner();
+
+  try {
+    const [cardRes, meRes] = await Promise.all([
+      fetch('/api/account-services?resource=credit-card', { credentials: 'include', cache: 'no-store' }),
+      fetch('/api/me', { credentials: 'include', cache: 'no-store' }).catch(() => null),
+    ]);
+
+    if (!cardRes.ok) {
+      console.error('Failed to load credit card data');
+      return;
+    }
+    const data = await cardRes.json();
+    creditCardState = data;
+
+    // Cardholder name (best-effort — falls back silently if /api/me shape differs)
+    try {
+      if (meRes && meRes.ok) {
+        const me = await meRes.json();
+        const name = me.fullName || me.full_name || (me.user && (me.user.fullName || me.user.full_name));
+        if (name) document.getElementById('cardHolderName').innerText = name;
+      }
+    } catch (_) {}
+
+    document.getElementById('cardLastFourLabel').innerText = data.lastFour || '----';
+    document.getElementById('cardCurrentBalanceLabel').innerText = ccMoney(data.balance);
+    document.getElementById('cardAvailableCreditLabel').innerText = ccMoney(data.availableCredit);
+
+    // Velocity slider + label reflect the real persisted limit
+    const slider = document.getElementById('cardVelocitySlider');
+    if (slider) slider.value = data.velocityLimit;
+    updateCardVelocitySliderLabel(data.velocityLimit);
+
+    // Freeze state
+    applyFreezeUI(data.isFrozen);
+
+    // Restricted-account banner + disable money-moving actions
+    if (banner) banner.classList.toggle('hidden', !data.accountRestricted);
+    const freezeBtn = document.getElementById('cardFreezeBtn');
+    if (freezeBtn) freezeBtn.disabled = !!data.accountRestricted;
+
+    // PIN button label: Set vs Change
+    const pinBtn = document.getElementById('cardPinBtn');
+    if (pinBtn) {
+      const label = pinBtn.querySelector('span');
+      if (label) label.textContent = data.hasPin ? 'Change PIN' : 'Set PIN';
+    }
+
+    renderCreditTransactions(data.transactions || []);
+  } catch (err) {
+    console.error('Load credit card data error:', err);
+  }
+}
+
+function applyFreezeUI(isFrozen) {
+  cardIsFrozen = !!isFrozen;
+  const overlay = document.getElementById('cardFrostOverlay');
+  if (overlay) overlay.classList.toggle('hidden', !isFrozen);
+
+  const toggleContainer = document.getElementById('freezeToggleNode');
+  if (toggleContainer) {
+    const ball = toggleContainer.querySelector('div');
+    if (isFrozen) {
+      toggleContainer.classList.remove('bg-gray-200');
+      toggleContainer.classList.add('bg-indigo-500');
+      if (ball) ball.classList.add('translate-x-3');
+    } else {
+      toggleContainer.classList.remove('bg-indigo-500');
+      toggleContainer.classList.add('bg-gray-200');
+      if (ball) ball.classList.remove('translate-x-3');
+    }
+  }
+}
+
+// ---------- Freeze / unfreeze (real, persisted) ----------
+async function toggleCardFreezeState() {
+  const btn = document.getElementById('cardFreezeBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/account-services', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ resource: 'credit-card', cardAction: 'toggleFreeze' }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not update freeze status.');
+      return;
+    }
+    applyFreezeUI(data.isFrozen);
+  } catch (err) {
+    console.error('Toggle freeze error:', err);
+    alert('Network error. Please try again.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ---------- Velocity limit (drag = cosmetic, release = persisted) ----------
+function updateCardVelocitySliderLabel(val) {
+  const label = document.getElementById('cardVelocityLimitText');
+  if (label) label.innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+}
+
+async function saveCardVelocityLimit(val) {
+  try {
+    const res = await fetch('/api/account-services', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ resource: 'credit-card', cardAction: 'setVelocityLimit', velocityLimit: Number(val) }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not update transaction limit.');
+      await loadCreditCardData(); // snap slider back to the real persisted value
+      return;
+    }
+    updateCardVelocitySliderLabel(data.velocityLimit);
+  } catch (err) {
+    console.error('Save velocity limit error:', err);
+    await loadCreditCardData();
+  }
+}
+
+// ---------- Cleared / Pending tabs, driven by real transactions ----------
+function renderCreditTransactionRow(t) {
+  const isCharge = t.type === 'credit_purchase';
+  const dateStr = ccDate(t.created_at);
+  const amountClass = isCharge ? 'text-gray-900' : 'text-emerald-600';
+  const sign = isCharge ? '' : '+';
+  return `
+    <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center">
+      <div class="min-w-0 pr-2">
+        <h4 class="text-xs font-bold text-gray-900 truncate">${t.description || (isCharge ? 'Card Purchase' : 'Payment')}</h4>
+        <p class="text-[9px] text-gray-400 font-mono">${dateStr}</p>
+      </div>
+      <span class="text-xs font-bold font-mono ${amountClass} shrink-0">${sign}${ccMoney(Math.abs(t.amount))}</span>
+    </div>`;
+}
+
+function renderCreditTransactions(transactions) {
+  const clearedEl = document.getElementById('creditTab-cleared');
+  const pendingEl = document.getElementById('creditTab-pending');
+  if (!clearedEl) return;
+
+  if (transactions.length === 0) {
+    clearedEl.innerHTML = `
+      <div class="text-center py-8 px-4">
+        <i class="fa-solid fa-receipt text-gray-300 text-2xl mb-2"></i>
+        <p class="text-sm font-bold text-gray-700">No card activity yet</p>
+        <p class="text-xs text-gray-400 mt-1">Purchases and payments will show up here.</p>
+      </div>`;
+  } else {
+    clearedEl.innerHTML = transactions.map(renderCreditTransactionRow).join('');
+  }
+
+  // This app settles every transaction immediately server-side — there is
+  // no real async settlement window, so "pending" is honestly always empty
+  // rather than showing fabricated placeholder rows.
+  if (pendingEl) {
+    pendingEl.innerHTML = `
+      <div class="text-center py-8 px-4">
+        <i class="fa-regular fa-clock text-gray-300 text-2xl mb-2"></i>
+        <p class="text-sm font-bold text-gray-700">Nothing pending</p>
+        <p class="text-xs text-gray-400 mt-1">Transactions post immediately on this account.</p>
+      </div>`;
+  }
+}
+
+function switchCreditTab(tabKey) {
+  const clearedTab = document.getElementById('creditTab-cleared');
+  const pendingTab = document.getElementById('creditTab-pending');
+  const clearedBtn = document.getElementById('tabBtn-cleared');
+  const pendingBtn = document.getElementById('tabBtn-pending');
+
+  if (tabKey === 'cleared') {
+    clearedTab.classList.remove('hidden');
+    pendingTab.classList.add('hidden');
+    clearedBtn.classList.add('border-slate-900', 'text-slate-900');
+    clearedBtn.classList.remove('border-transparent', 'text-gray-400');
+    pendingBtn.classList.remove('border-slate-900', 'text-slate-900');
+    pendingBtn.classList.add('border-transparent', 'text-gray-400');
+  } else {
+    pendingTab.classList.remove('hidden');
+    clearedTab.classList.add('hidden');
+    pendingBtn.classList.add('border-slate-900', 'text-slate-900');
+    pendingBtn.classList.remove('border-transparent', 'text-gray-400');
+    clearedBtn.classList.remove('border-slate-900', 'text-slate-900');
+    clearedBtn.classList.add('border-transparent', 'text-gray-400');
+  }
+}
+
+/* ===================== Shared tiny modal shell ===================== */
+function ccBuildModal(id, titleHtml, bodyHtml, submitLabel, onSubmit) {
+  let existing = document.getElementById(id);
+  if (existing) existing.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = id;
+  wrap.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+  wrap.innerHTML = `
+    <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <button data-cc-close class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
+        <h3 class="text-sm font-bold text-gray-900">${titleHtml}</h3>
+        <div class="w-6"></div>
+      </div>
+      <div class="p-5 space-y-3">
+        <div data-cc-error class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
+        ${bodyHtml}
+        <button data-cc-submit class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs mt-1">${submitLabel}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(wrap);
+  wrap.querySelector('[data-cc-close]').onclick = () => wrap.remove();
+
+  const submitBtn = wrap.querySelector('[data-cc-submit]');
+  const errorEl = wrap.querySelector('[data-cc-error]');
+  submitBtn.onclick = async () => {
+    errorEl.classList.add('hidden');
+    submitBtn.disabled = true;
+    const originalText = submitBtn.innerText;
+    submitBtn.innerText = 'Processing...';
+    try {
+      await onSubmit(wrap, (msg) => {
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+      });
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = originalText;
+    }
+  };
+
+  return wrap;
+}
+
+/* ---------- Set / Change PIN ---------- */
+function openSetCardPinModal() {
+  const isChange = creditCardState && creditCardState.hasPin;
+  ccBuildModal(
+    'ccPinModal',
+    isChange ? 'Change PIN' : 'Set PIN',
+    `
+      <p class="text-xs text-gray-500">Choose a 4-6 digit PIN. This never gets shown back to you or anyone else — that's by design.</p>
+      <div>
+        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">New PIN</label>
+        <input type="password" inputmode="numeric" maxlength="6" id="ccPinInput" placeholder="••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-center text-lg font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+    `,
+    isChange ? 'Update PIN' : 'Set PIN',
+    async (modal, showError) => {
+      const pin = modal.querySelector('#ccPinInput').value.trim();
+      if (!/^\d{4,6}$/.test(pin)) {
+        showError('PIN must be 4-6 digits.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/account-services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ resource: 'credit-card', cardAction: 'setPin', pin }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showError(data.error || 'Could not update PIN.');
+          return;
+        }
+        modal.remove();
+        await loadCreditCardData();
+      } catch (err) {
+        showError('Network error. Please try again.');
+      }
+    }
+  );
+}
+
+/* ---------- Make a Payment (checking -> card, real transfer) ---------- */
+function makeCardPayment() {
+  const owed = creditCardState ? Number(creditCardState.balance) : 0;
+  ccBuildModal(
+    'ccPaymentModal',
+    'Make a Payment',
+    `
+      <p class="text-xs text-gray-500">Pays down your card balance from Primary Checking.</p>
+      <div class="bg-slate-50 rounded-lg px-3 py-2 text-xs text-gray-600 flex justify-between">
+        <span>Current card balance</span><span class="font-bold font-mono text-gray-900">${ccMoney(owed)}</span>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Payment Amount</label>
+        <input type="number" step="0.01" min="0.01" id="ccPaymentAmount" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+    `,
+    'Pay from Checking',
+    async (modal, showError) => {
+      const amount = Number(modal.querySelector('#ccPaymentAmount').value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showError('Enter a valid payment amount.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/account-services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ resource: 'credit-card', cardAction: 'makePayment', amount }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showError(data.error || 'Could not process payment.');
+          return;
+        }
+        modal.remove();
+        await loadCreditCardData();
+        if (typeof refreshUIBalances === 'function') refreshUIBalances();
+      } catch (err) {
+        showError('Network error. Please try again.');
+      }
+    }
+  );
+}
+
+/* ---------- Simulate a Purchase (real charge against the card) ---------- */
+function openSimulatePurchaseModal() {
+  const available = creditCardState ? Number(creditCardState.availableCredit) : 0;
+  const limit = creditCardState ? Number(creditCardState.velocityLimit) : 0;
+  ccBuildModal(
+    'ccPurchaseModal',
+    'Simulate a Purchase',
+    `
+      <p class="text-xs text-gray-500">Demo-only: charges your card as if a real purchase happened, so you can see the balance and available credit move.</p>
+      <div class="bg-slate-50 rounded-lg px-3 py-2 text-xs text-gray-600 flex justify-between">
+        <span>Available credit</span><span class="font-bold font-mono text-gray-900">${ccMoney(available)}</span>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Merchant</label>
+        <input type="text" id="ccPurchaseMerchant" placeholder="e.g. Coffee Shop" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Amount (limit ${ccMoney(limit)})</label>
+        <input type="number" step="0.01" min="0.01" id="ccPurchaseAmount" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+    `,
+    'Charge Card',
+    async (modal, showError) => {
+      const merchant = modal.querySelector('#ccPurchaseMerchant').value.trim();
+      const amount = Number(modal.querySelector('#ccPurchaseAmount').value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showError('Enter a valid amount.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/account-services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ resource: 'credit-card', cardAction: 'charge', amount, merchant: merchant || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showError(data.error || 'Could not process this charge.');
+          return;
+        }
+        modal.remove();
+        await loadCreditCardData();
+      } catch (err) {
+        showError('Network error. Please try again.');
+      }
+    }
+  );
+}
+</script>
 </body>
 </html>
