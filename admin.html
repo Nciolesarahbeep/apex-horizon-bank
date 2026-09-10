@@ -254,7 +254,7 @@
   </div>
 
   <!-- Transactions table -->
-  <div class="bg-white rounded-xl shadow-sm p-4 overflow-x-auto">
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-800">Last 50 Transactions (site-wide)</h2>
       <button onclick="loadTransactions()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
@@ -271,6 +271,40 @@
       </thead>
       <tbody id="txnsBody"></tbody>
     </table>
+  </div>
+
+  <!-- Seed transaction history -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+    <h2 class="font-semibold text-slate-800 mb-3"><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-1"></i>Seed Transaction History</h2>
+    <p class="text-xs text-slate-500 mb-3">
+      Generates realistic backdated transactions (with receipts) for a chosen account — recurring paychecks, rent, utilities, subscriptions, plus randomized groceries/dining/gas/shopping/travel activity. The batch always nets to zero, so the account's current balance is not affected.
+    </p>
+    <div class="flex flex-wrap gap-2 mb-3">
+      <input id="seedEmailInput" type="text" placeholder="user@example.com"
+        class="flex-1 min-w-[160px] border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        onkeydown="if(event.key==='Enter') loadSeedAccounts()">
+      <button onclick="loadSeedAccounts()" class="bg-indigo-600 text-white px-4 rounded-lg text-sm hover:bg-indigo-700">Load Accounts</button>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-3">
+      <select id="seedAccountSelect" disabled class="flex-1 min-w-[160px] border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <option value="">Load a user's accounts first…</option>
+      </select>
+      <select id="seedYears" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <option value="1">1 year back</option>
+        <option value="2">2 years back</option>
+        <option value="3" selected>3 years back</option>
+      </select>
+      <select id="seedDensity" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <option value="light">Light activity</option>
+        <option value="normal" selected>Normal activity</option>
+        <option value="heavy">Heavy activity</option>
+      </select>
+    </div>
+    <button id="seedGenerateBtn" onclick="generateSeedHistory()" disabled
+      class="w-full bg-emerald-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
+      Generate History
+    </button>
+    <p id="seedStatus" class="text-sm mt-3"></p>
   </div>
 </div>
 
@@ -826,6 +860,73 @@ async function loadTransactions() {
     });
   } catch (e) {
     showToast(e.message, true);
+  }
+}
+
+// ---------- Seed Transaction History ----------
+
+async function loadSeedAccounts() {
+  const email = document.getElementById('seedEmailInput').value.trim();
+  const select = document.getElementById('seedAccountSelect');
+  const genBtn = document.getElementById('seedGenerateBtn');
+  const statusEl = document.getElementById('seedStatus');
+
+  if (!email) { showToast('Enter a user email first.', true); return; }
+
+  select.disabled = true;
+  select.innerHTML = '<option value="">Loading…</option>';
+  genBtn.disabled = true;
+
+  try {
+    const { accounts, email: confirmedEmail } = await api('listAccounts', { params: { email } });
+    if (!accounts.length) {
+      select.innerHTML = '<option value="">No accounts found for this user</option>';
+      statusEl.className = 'text-sm mt-3 text-red-600';
+      statusEl.textContent = 'No accounts found for this user.';
+      return;
+    }
+    select.innerHTML = accounts.map(a =>
+      `<option value="${a.id}">#${a.id} — ${ACCOUNT_TYPE_LABELS[a.account_type] || a.account_type} — ${money(a.balance)}</option>`
+    ).join('');
+    select.disabled = false;
+    genBtn.disabled = false;
+    statusEl.className = 'text-sm mt-3 text-emerald-700';
+    statusEl.textContent = `Loaded ${accounts.length} account(s) for ${confirmedEmail}.`;
+  } catch (e) {
+    select.innerHTML = '<option value="">Load a user\'s accounts first…</option>';
+    showToast(e.message, true);
+  }
+}
+
+async function generateSeedHistory() {
+  const accountId = document.getElementById('seedAccountSelect').value;
+  const yearsBack = Number(document.getElementById('seedYears').value);
+  const density = document.getElementById('seedDensity').value;
+  const statusEl = document.getElementById('seedStatus');
+  const genBtn = document.getElementById('seedGenerateBtn');
+
+  if (!accountId) { showToast('Pick an account first.', true); return; }
+
+  genBtn.disabled = true;
+  genBtn.textContent = 'Generating…';
+  statusEl.className = 'text-sm mt-3 text-slate-500';
+  statusEl.textContent = 'Generating history — this can take a few seconds…';
+
+  try {
+    const data = await api('seedTransactionHistory', {
+      method: 'POST',
+      body: { accountId: Number(accountId), yearsBack, density },
+    });
+    statusEl.className = 'text-sm mt-3 text-emerald-700';
+    statusEl.textContent = data.message || `Seeded ${data.count} transactions.`;
+    loadTransactions();
+    loadUsers();
+  } catch (e) {
+    statusEl.className = 'text-sm mt-3 text-red-600';
+    statusEl.textContent = e.message;
+  } finally {
+    genBtn.disabled = false;
+    genBtn.textContent = 'Generate History';
   }
 }
 </script>
