@@ -241,6 +241,50 @@ function generateAccountHistory({ accountType, yearsBack, density }) {
     cursor.setMonth(cursor.getMonth() + 1);
   }
 
+  // ---- Guarantee at least 50 transactions regardless of range/density ----
+  const MIN_TRANSACTIONS = 50;
+  while (rows.length < MIN_TRANSACTIONS) {
+    const cat = pick(WEIGHTED_POOL);
+    const date = new Date(start.getTime() + Math.random() * (now.getTime() - start.getTime()));
+    const merchant = pick(cat.merchants);
+
+    let receipt, amount;
+    if (cat.itemized) {
+      receipt = buildItemizedReceipt({ merchant, items: cat.items, cardLast4 });
+      amount = receipt.total;
+    } else {
+      amount = randomFloat(cat.min, cat.max);
+      receipt = buildSimpleReceipt({ merchant, total: amount, paymentMethod: `•••• ${cardLast4}`, category: cat.category });
+    }
+    addRow('debit', amount, `${merchant} — ${cat.category}`, date, receipt);
+  }
+
+  // ---- Guarantee at least 50 transactions total ----
+  // Short date ranges combined with "light" density can otherwise fall
+  // short of 50, so keep adding randomized, receipted transactions
+  // (same pools as discretionary spending) until the floor is met.
+  const MIN_TRANSACTIONS = 50;
+  const rangeMs = Math.max(1, now - start);
+  let topUpGuard = 0;
+  while (rows.length < MIN_TRANSACTIONS && topUpGuard < 2000) {
+    topUpGuard++;
+    const cat = pick(WEIGHTED_POOL);
+    const date = new Date(start.getTime() + Math.random() * rangeMs);
+    date.setHours(randomInt(6, 22), randomInt(0, 59));
+    if (date > now) continue;
+    const merchant = pick(cat.merchants);
+
+    let receipt, amount;
+    if (cat.itemized) {
+      receipt = buildItemizedReceipt({ merchant, items: cat.items, cardLast4 });
+      amount = receipt.total;
+    } else {
+      amount = randomFloat(cat.min, cat.max);
+      receipt = buildSimpleReceipt({ merchant, total: amount, paymentMethod: `•••• ${cardLast4}`, category: cat.category });
+    }
+    addRow('debit', amount, `${merchant} — ${cat.category}`, date, receipt);
+  }
+
   // ---- Net-zero balancing entry so the account's current balance is unaffected ----
   const net = rows.reduce((sum, r) => sum + (r.type === 'credit' ? r.amount : -r.amount), 0);
   if (Math.abs(net) > 0.01) {
