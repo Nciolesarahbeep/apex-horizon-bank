@@ -241,24 +241,6 @@ function generateAccountHistory({ accountType, yearsBack, density }) {
     cursor.setMonth(cursor.getMonth() + 1);
   }
 
-  // ---- Guarantee at least 50 transactions regardless of range/density ----
-  const MIN_TRANSACTIONS = 50;
-  while (rows.length < MIN_TRANSACTIONS) {
-    const cat = pick(WEIGHTED_POOL);
-    const date = new Date(start.getTime() + Math.random() * (now.getTime() - start.getTime()));
-    const merchant = pick(cat.merchants);
-
-    let receipt, amount;
-    if (cat.itemized) {
-      receipt = buildItemizedReceipt({ merchant, items: cat.items, cardLast4 });
-      amount = receipt.total;
-    } else {
-      amount = randomFloat(cat.min, cat.max);
-      receipt = buildSimpleReceipt({ merchant, total: amount, paymentMethod: `•••• ${cardLast4}`, category: cat.category });
-    }
-    addRow('debit', amount, `${merchant} — ${cat.category}`, date, receipt);
-  }
-
   // ---- Guarantee at least 50 transactions total ----
   // Short date ranges combined with "light" density can otherwise fall
   // short of 50, so keep adding randomized, receipted transactions
