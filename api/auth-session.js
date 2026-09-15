@@ -6,8 +6,7 @@ const {
 } = require('../lib/auth');
 const { logSignInActivity } = require('../lib/loginActivity');
 const { getClientIp, checkLoginRateLimit, recordLoginAttempt, pruneOldAttempts } = require('../lib/rateLimit');
-const { flagNewDeviceLogin, isKnownDevice, recordKnownDevice } = require('../lib/fraud');
-const { generateAndSendLoginOtp, verifyLoginOtp } = require('../lib/otp');
+const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -37,45 +36,6 @@ module.exports = async function handler(req, res) {
 
     clearSessionCookie(res);
     return res.status(200).json({ success: true });
-  }
-
-  if (action === 'verify-login-otp') {
-    try {
-      const { pendingToken, code } = req.body || {};
-      const result = await verifyLoginOtp({ pendingToken, code });
-
-      if (!result.success) {
-        return res.status(400).json({ error: result.error });
-      }
-
-      const userRows = await sql`
-        SELECT id, email, full_name, is_active FROM users WHERE id = ${result.userId} LIMIT 1
-      `;
-      if (userRows.length === 0 || !userRows[0].is_active) {
-        return res.status(403).json({ error: 'This account is not available. Please contact support.' });
-      }
-      const user = userRows[0];
-
-      await recordKnownDevice({ userId: user.id, req });
-
-      const updatedRows = await sql`
-        UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}
-        RETURNING last_login_at
-      `;
-
-      const jti = await createSession(user.id, req);
-      const token = signToken({ userId: user.id, email: user.email, jti });
-      setSessionCookie(res, token);
-
-      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password' });
-
-      return res.status(200).json({
-        user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
-      });
-    } catch (err) {
-      console.error('OTP verification error:', err);
-      return res.status(500).json({ error: 'Something went wrong verifying your code. Please try again.' });
-    }
   }
 
   if (action === 'login') {
@@ -152,21 +112,9 @@ module.exports = async function handler(req, res) {
         pruneOldAttempts(sql).catch((err) => console.error('Prune login_attempts error (non-fatal):', err));
       }
 
-      // ---------- Fraud check: gate never-seen-before devices behind an email OTP ----------
-      const { known, fingerprint, isFirstDeviceEver } = await isKnownDevice({ userId: user.id, req });
-
-      if (!known && !isFirstDeviceEver) {
-        await flagNewDeviceLogin({ userId: user.id, req, fingerprint });
-        const pendingToken = await generateAndSendLoginOtp({ userId: user.id, email: user.email, fingerprint });
-        return res.status(200).json({
-          requiresOtp: true,
-          pendingToken,
-          message: 'We sent a verification code to your email to confirm this new device.',
-        });
-      }
-
+      // Record device as known (no OTP challenge for new/unrecognized devices).
+      const { known } = await isKnownDevice({ userId: user.id, req });
       if (!known) {
-        // First device ever for this account — nothing to compare against, not suspicious.
         await recordKnownDevice({ userId: user.id, req });
       }
 
@@ -190,5 +138,5 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing action. Use "login", "logout", or "verify-login-otp".' });
+  return res.status(400).json({ error: 'Invalid or missing action. Use "login" or "logout".' });
 };
