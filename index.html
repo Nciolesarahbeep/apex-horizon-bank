@@ -3140,28 +3140,31 @@ if (activeLoanBalanceEl) {
             startNotificationPolling();
         }
 
-        async function restoreSessionOnLoad() {
-            const splash = document.getElementById('sessionCheckSplash');
+       async function restoreSessionOnLoad() {
+    const splash = document.getElementById('sessionCheckSplash');
 
-            // Always require a fresh login — never auto-restore from a
-            // lingering session cookie, regardless of browser.
-            try {
-                await withMinDelay(
-                    fetch('/api/auth-session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ action: 'logout' })
-                    }).catch(() => {}),
-                    900
-                );
-            } catch (err) {
-                // Cleanup only — never block showing the login screen on this.
-            }
+    try {
+        // Check if a valid session cookie still exists
+        const res = await fetch('/api/me', {
+            credentials: 'include',
+            cache: 'no-store'
+        });
 
+        if (res.ok) {
+            // Session is valid — load account data and show dashboard
+            await loadRealAccountDataWithRetry();
             splash.classList.add('hidden');
-            showLoginScreen();
+            showDashboardScreen();
+            return;
         }
+    } catch (err) {
+        console.error('Session restore check failed:', err);
+    }
+
+    // No valid session — show login
+    splash.classList.add('hidden');
+    showLoginScreen();
+}
 
         async function fetchAndRenderNotifications(isPoll) {
             try {
