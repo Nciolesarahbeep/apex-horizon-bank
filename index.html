@@ -9113,3 +9113,160 @@ function openSimulatePurchaseModal() {
 </script>
 </body>
 </html>
+<!-- ===== Apex Horizon Bank — Realistic Login Screen Enhancement ===== -->
+<style>
+@keyframes ahbLoginSheen {
+  0% { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+#ahbLoginHeader { position: relative; overflow: hidden; }
+#ahbLoginHeader::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(16,185,129,0.15) 45%, transparent 60%);
+  background-size: 250% 100%;
+  animation: ahbLoginSheen 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ahbLockPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+}
+.ahb-lock-pulse { animation: ahbLockPulse 2.4s ease-in-out infinite; }
+
+#ahbLoginPromo { position: relative; overflow: hidden; }
+.ahb-promo-slide { display: none; animation: ahbPromoFadeIn 0.5s ease; }
+.ahb-promo-slide.ahb-active { display: flex; }
+@keyframes ahbPromoFadeIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.ahb-promo-dot {
+  width: 5px; height: 5px; border-radius: 9999px;
+  background: rgba(255,255,255,0.25);
+  transition: all 0.3s ease;
+}
+.ahb-promo-dot.ahb-active { width: 14px; background: #10b981; }
+
+.ahb-quick-link { transition: transform 0.15s ease, background-color 0.15s ease; }
+.ahb-quick-link:active { transform: scale(0.94); }
+
+@media (prefers-reduced-motion: reduce) {
+  #ahbLoginHeader::after, .ahb-lock-pulse, .ahb-promo-slide { animation: none !important; }
+}
+</style>
+
+<script>
+(function () {
+  function initRealisticLoginScreen() {
+    const authScreen = document.getElementById('authScreen');
+    if (!authScreen || authScreen.dataset.ahbEnhanced) return;
+    authScreen.dataset.ahbEnhanced = 'true';
+
+    const card = authScreen.querySelector(':scope > div');
+    if (!card) return;
+
+    const oldHeader = card.querySelector(':scope > div.bg-slate-950');
+    if (oldHeader) {
+      oldHeader.id = 'ahbLoginHeader';
+      oldHeader.innerHTML = `
+        <div class="inline-flex items-center justify-center bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2 ahb-lock-pulse relative z-10">
+          <i class="fa-solid fa-building-columns text-2xl"></i>
+        </div>
+        <h2 class="text-lg font-bold text-white tracking-tight relative z-10">APEX HORIZON BANK</h2>
+        <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5 relative z-10">Encrypted Mobile Access</p>
+        <div class="flex items-center justify-center gap-3 mt-2 relative z-10">
+          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500"></i>256-bit TLS</span>
+          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-landmark text-emerald-500"></i>FDIC Member</span>
+        </div>
+      `;
+    }
+
+    const promos = [
+      { icon: 'fa-piggy-bank', color: 'text-emerald-400', tag: 'High-Yield Savings', title: '5.25% APY on new savings accounts' },
+      { icon: 'fa-credit-card', color: 'text-amber-400', tag: 'Apex Infinite Card', title: '3% unlimited cash back, no annual fee' },
+      { icon: 'fa-mobile-screen', color: 'text-sky-400', tag: 'Mobile Deposit', title: 'Deposit checks in seconds from your phone' },
+      { icon: 'fa-paper-plane', color: 'text-purple-400', tag: 'Instant Transfers', title: 'Send money to anyone at Apex, instantly' }
+    ];
+
+    if (oldHeader && !document.getElementById('ahbLoginPromo')) {
+      const promoWrap = document.createElement('div');
+      promoWrap.id = 'ahbLoginPromo';
+      promoWrap.className = 'bg-slate-900 border-t border-b border-slate-800 px-4 py-2.5';
+      promoWrap.innerHTML = `<div id="ahbPromoSlides"></div><div id="ahbPromoDots" class="flex items-center justify-center gap-1.5 mt-2"></div>`;
+      oldHeader.insertAdjacentElement('afterend', promoWrap);
+
+      const slidesEl = promoWrap.querySelector('#ahbPromoSlides');
+      const dotsEl = promoWrap.querySelector('#ahbPromoDots');
+
+      slidesEl.innerHTML = promos.map((p, i) => `
+        <div class="ahb-promo-slide items-center gap-2.5 ${i === 0 ? 'ahb-active' : ''}" data-slide="${i}">
+          <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
+            <i class="fa-solid ${p.icon} ${p.color} text-xs"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[8px] font-bold uppercase tracking-wider ${p.color}">${p.tag}</p>
+            <p class="text-[11px] font-semibold text-white leading-tight truncate">${p.title}</p>
+          </div>
+        </div>
+      `).join('');
+      dotsEl.innerHTML = promos.map((_, i) => `<span class="ahb-promo-dot ${i === 0 ? 'ahb-active' : ''}" data-dot="${i}"></span>`).join('');
+
+      let promoIndex = 0;
+      setInterval(() => {
+        const slides = slidesEl.querySelectorAll('.ahb-promo-slide');
+        const dots = dotsEl.querySelectorAll('.ahb-promo-dot');
+        slides[promoIndex].classList.remove('ahb-active');
+        dots[promoIndex].classList.remove('ahb-active');
+        promoIndex = (promoIndex + 1) % promos.length;
+        slides[promoIndex].classList.add('ahb-active');
+        dots[promoIndex].classList.add('ahb-active');
+      }, 4000);
+    }
+
+    const oldFooter = card.querySelector(':scope > div.bg-gray-50');
+    if (oldFooter) {
+      oldFooter.innerHTML = `
+        <div class="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-100 -mx-4 -mt-3 mb-3">
+          <a href="tel:+18005551234" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100">
+            <i class="fa-solid fa-headset text-slate-600 text-sm"></i>
+            <span class="text-[9px] font-semibold text-slate-600">Support</span>
+          </a>
+          <button type="button" onclick="alert('Sign in to find Apex Horizon branches and ATMs near you.')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100">
+            <i class="fa-solid fa-location-dot text-slate-600 text-sm"></i>
+            <span class="text-[9px] font-semibold text-slate-600">Locations</span>
+          </button>
+          <button type="button" onclick="alert('Apex Horizon uses 256-bit encryption, biometric login, and real-time fraud monitoring to keep your account secure.')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100">
+            <i class="fa-solid fa-shield-halved text-slate-600 text-sm"></i>
+            <span class="text-[9px] font-semibold text-slate-600">Security</span>
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-400 leading-normal text-center">Apex Horizon Bank, N.A. &middot; Member FDIC &middot; Equal Housing Lender</p>
+      `;
+    }
+  }
+
+  function fixPasswordResetBannerWording() {
+    const fpStep2 = document.getElementById('fpStep2');
+    if (!fpStep2) return;
+    const amberBox = fpStep2.querySelector('.bg-amber-50');
+    if (amberBox && !amberBox.dataset.ahbFixed) {
+      amberBox.dataset.ahbFixed = 'true';
+      amberBox.innerHTML = `
+        <p class="text-[10px] font-bold text-amber-800 uppercase mb-1">Verify It's You</p>
+        <p class="text-[11px] text-amber-800 leading-relaxed">For your security, finish resetting your password below. You'll be signed in with your new password right after.</p>
+      `;
+    }
+  }
+
+  function ahbInit() {
+    initRealisticLoginScreen();
+    fixPasswordResetBannerWording();
+  }
+
+  document.addEventListener('DOMContentLoaded', ahbInit);
+  if (document.readyState !== 'loading') ahbInit();
+})();
+</script>
+<!-- ===== End Realistic Login Screen Enhancement ===== -->
