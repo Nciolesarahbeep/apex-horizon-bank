@@ -1332,7 +1332,223 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", or "profile-photo".' });
+  // ---------- External Accounts (Move Money — linked bank accounts) ----------
+  if (resource === 'external-accounts') {
+    async function ensureExternalAccountsTable() {
+      await sql`
+        CREATE TABLE IF NOT EXISTS external_accounts (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          bank_name TEXT NOT NULL,
+          account_holder_name TEXT NOT NULL,
+          account_type TEXT NOT NULL DEFAULT 'checking',
+          routing_number TEXT NOT NULL,
+          account_number TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'verified',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          verified_at TIMESTAMPTZ
+        )
+      `;
+    }
+
+    function maskExternalAccount(row) {
+      const last4 = String(row.account_number || '').slice(-4);
+      return {
+        id: row.id,
+        bankName: row.bank_name,
+        accountHolderName: row.account_holder_name,
+        accountType: row.account_type,
+        routingNumber: row.routing_number,
+        maskedAccountNumber: '•••• ' + last4,
+        status: row.status,
+        createdAt: row.created_at,
+        verifiedAt: row.verified_at,
+      };
+    }
+
+    async function getCheckingRestriction(userId) {
+      const rows = await sql`
+        SELECT id, balance, restriction_level FROM accounts
+        WHERE user_id = ${userId} AND account_type = 'checking'
+        LIMIT 1
+      `;
+      return rows[0] || null;
+    }
+
+    if (req.method === 'GET') {
+      try {
+        await ensureExternalAccountsTable();
+        const rows = await sql`
+          SELECT * FROM external_accounts
+          WHERE user_id = ${session.userId} AND status != 'removed'
+          ORDER BY created_at DESC
+        `;
+        return res.status(200).json({ externalAccounts: rows.map(maskExternalAccount) });
+      } catch (err) {
+        console.error('List external accounts error:', err);
+        return res.status(500).json({ error: 'Failed to fetch linked bank accounts.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        await ensureExternalAccountsTable();
+        const { extAction } = req.body || {};
+
+        const checking = await getCheckingRestriction(session.userId);
+        if (!checking) {
+          return res.status(404).json({ error: 'Checking account not found.' });
+        }
+        // A full account lock blocks everything here (linking, unlinking, and
+        // transfers). A transfers-only lock still allows managing linked
+        // banks but blocks the actual money movement below.
+        if (checking.restriction_level === 'full') {
+          return restrictedResponse(res);
+        }
+
+        if (extAction === 'link') {
+          const bankName = String(req.body.bankName || '').trim();
+          const accountHolderName = String(req.body.accountHolderName || '').trim();
+          const accountType = ['checking', 'savings'].includes(req.body.accountType) ? req.body.accountType : 'checking';
+          const routingNumber = String(req.body.routingNumber || '').trim();
+          const accountNumber = String(req.body.accountNumber || '').trim();
+
+          if (!bankName) return res.status(400).json({ error: 'Bank name is required.' });
+          if (!accountHolderName) return res.status(400).json({ error: 'Account holder name is required.' });
+          if (!/^\d{9}$/.test(routingNumber)) return res.status(400).json({ error: 'Routing number must be exactly 9 digits.' });
+          if (!/^\d{4,17}$/.test(accountNumber)) return res.status(400).json({ error: 'Enter a valid account number.' });
+
+          const existing = await sql`
+            SELECT id FROM external_accounts
+            WHERE user_id = ${session.userId} AND routing_number = ${routingNumber} AND account_number = ${accountNumber} AND status != 'removed'
+            LIMIT 1
+          `;
+          if (existing.length > 0) {
+            return res.status(409).json({ error: 'This account is already linked.' });
+          }
+
+          const linkedCount = await sql`
+            SELECT COUNT(*)::int AS count FROM external_accounts WHERE user_id = ${session.userId} AND status != 'removed'
+          `;
+          if (linkedCount[0].count >= 5) {
+            return res.status(400).json({ error: 'You can link up to 5 external accounts. Remove one before adding another.' });
+          }
+
+          const inserted = await sql`
+            INSERT INTO external_accounts (user_id, bank_name, account_holder_name, account_type, routing_number, account_number, status, verified_at)
+            VALUES (${session.userId}, ${bankName}, ${accountHolderName}, ${accountType}, ${routingNumber}, ${accountNumber}, 'verified', NOW())
+            RETURNING *
+          `;
+
+          await createNotification(
+            session.userId,
+            'External Bank Linked',
+            `${bankName} account ending in ${accountNumber.slice(-4)} was linked and instantly verified. You can now move money between it and your Apex Horizon accounts.`
+          );
+
+          return res.status(201).json({
+            success: true,
+            externalAccount: maskExternalAccount(inserted[0]),
+            message: `${bankName} account linked and verified instantly.`,
+          });
+        }
+
+        if (extAction === 'unlink') {
+          const externalAccountId = Number(req.body.externalAccountId);
+          if (!externalAccountId) return res.status(400).json({ error: 'externalAccountId is required.' });
+
+          const updated = await sql`
+            UPDATE external_accounts SET status = 'removed'
+            WHERE id = ${externalAccountId} AND user_id = ${session.userId}
+            RETURNING id, bank_name
+          `;
+          if (updated.length === 0) return res.status(404).json({ error: 'Linked account not found.' });
+
+          return res.status(200).json({ success: true, message: `${updated[0].bank_name} account unlinked.` });
+        }
+
+        if (extAction === 'transferIn' || extAction === 'transferOut') {
+          if (checking.restriction_level === 'transfers_only') {
+            return restrictedResponse(res);
+          }
+
+          const externalAccountId = Number(req.body.externalAccountId);
+          const amount = Number(req.body.amount);
+          const description = String(req.body.description || '').trim();
+
+          if (!externalAccountId) return res.status(400).json({ error: 'externalAccountId is required.' });
+          if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Enter a valid amount.' });
+
+          const extRows = await sql`
+            SELECT * FROM external_accounts
+            WHERE id = ${externalAccountId} AND user_id = ${session.userId} AND status != 'removed'
+            LIMIT 1
+          `;
+          if (extRows.length === 0) return res.status(404).json({ error: 'Linked account not found.' });
+          const externalAccount = extRows[0];
+
+          const bankLabel = `${externalAccount.bank_name} •••• ${String(externalAccount.account_number).slice(-4)}`;
+
+          if (extAction === 'transferOut') {
+            if (Number(checking.balance) < amount) {
+              return res.status(400).json({ error: 'Insufficient funds in checking for this transfer.' });
+            }
+
+            await sql`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${checking.id}`;
+            const txnRows = await sql`
+              INSERT INTO transactions (account_id, type, amount, description, created_at)
+              VALUES (${checking.id}, 'debit', ${amount}, ${description || `External Transfer to ${bankLabel}`}, NOW())
+              RETURNING id, created_at
+            `;
+
+            await createNotification(
+              session.userId,
+              'External Transfer Sent',
+              `$${amount.toFixed(2)} was sent to your ${bankLabel} account. Estimated arrival: 1-3 business days.`
+            );
+
+            return res.status(200).json({
+              success: true,
+              message: `$${amount.toFixed(2)} sent to ${bankLabel}. Estimated arrival: 1-3 business days.`,
+              transactionId: txnRows[0].id,
+              transactionTimestamp: txnRows[0].created_at,
+            });
+          }
+
+          // transferIn — pulling money from the linked external account into checking
+          await sql`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${checking.id}`;
+          const txnRows = await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${checking.id}, 'ach_in', ${amount}, ${description || `External Transfer from ${bankLabel}`}, NOW())
+            RETURNING id, created_at
+          `;
+
+          await createNotification(
+            session.userId,
+            'External Transfer Received',
+            `$${amount.toFixed(2)} was pulled from your ${bankLabel} account into Apex Horizon Checking.`
+          );
+
+          return res.status(200).json({
+            success: true,
+            message: `$${amount.toFixed(2)} pulled from ${bankLabel} into your checking account.`,
+            transactionId: txnRows[0].id,
+            transactionTimestamp: txnRows[0].created_at,
+          });
+        }
+
+        return res.status(400).json({ error: 'Invalid extAction. Use "link", "unlink", "transferIn", or "transferOut".' });
+      } catch (err) {
+        console.error('External account action error:', err);
+        return res.status(500).json({ error: 'Failed to process external account action.' });
+      }
+    }
+
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", or "external-accounts".' });
 
 
 
