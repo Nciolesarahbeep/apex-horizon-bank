@@ -3132,15 +3132,23 @@ if (activeLoanBalanceEl) {
         }
 
         function showDashboardScreen() {
-            document.getElementById('authScreen').classList.add('hidden');
-            document.getElementById('dashboardApp').classList.remove('hidden');
-            const helpWidget = document.getElementById('ahb-help-widget');
-            if (helpWidget) helpWidget.classList.remove('hidden');
-            resetIdleTimer();
-            refreshUIBalances();
-            renderActiveAdState();
-            startNotificationPolling();
-        }
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('dashboardApp').classList.remove('hidden');
+    const helpWidget = document.getElementById('ahb-help-widget');
+    if (helpWidget) helpWidget.classList.remove('hidden');
+
+    // Always land on the summary/home screen on a fresh login or session
+    // restore — never wherever the person happened to be before they
+    // logged out or closed the app, matching how real banking apps behave.
+    viewHistory = ['summary'];
+    switchView('summary');
+
+    resetIdleTimer();
+    refreshUIBalances();
+    renderActiveAdState();
+    startNotificationPolling();
+}
+
 
        async function restoreSessionOnLoad() {
     const splash = document.getElementById('sessionCheckSplash');
