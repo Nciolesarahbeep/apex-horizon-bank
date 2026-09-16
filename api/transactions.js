@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const limit = Math.min(Number(req.query?.limit) || 25, 100);
+    const limit = Math.min(Number(req.query?.limit) || 25, 300);
 
     const rows = await sql`
       SELECT
