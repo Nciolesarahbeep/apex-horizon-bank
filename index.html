@@ -5746,7 +5746,8 @@ fetchAndApplyProfilePhoto();
             if (ledgerContainer) ledgerContainer.innerHTML = skeletonRowsHtml(4);
 
             try {
-                const res = await fetch('/api/transactions', { credentials: 'include', cache: 'no-store' });
+                const res = await fetch('/api/transactions?limit=300', { credentials: 'include', cache: 'no-store' });
+
                 if (!res.ok) throw new Error('Failed to load transactions');
                 const data = await res.json();
                 allTransactions = data.transactions || [];
