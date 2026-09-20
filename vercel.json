@@ -12,7 +12,7 @@
   ],
   "crons": [
     {
-      "path": "/api/account-services?resource=process-recurring",
+      "path": "/api/process-recurring",
       "schedule": "0 13 * * *"
     }
   ]
