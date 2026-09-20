@@ -127,7 +127,8 @@ module.exports = async function handler(req, res) {
       const token = signToken({ userId: user.id, email: user.email, jti });
       setSessionCookie(res, token);
 
-      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password' });
+      // Only surface an in-app "new device" notification when the device was unknown.
+      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password', isNewDevice: !known });
 
       return res.status(200).json({
         user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
