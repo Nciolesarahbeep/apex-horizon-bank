@@ -3,6 +3,7 @@ const { generateAuthenticationOptions, verifyAuthenticationResponse } = require(
 const { normalizeEmail, signToken, setSessionCookie, createSession } = require('../lib/auth');
 const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('../lib/webauthn');
 const { logSignInActivity } = require('../lib/loginActivity');
+const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -111,7 +112,11 @@ module.exports = async function handler(req, res) {
       setSessionCookie(res, token);
       clearChallengeCookie(res);
 
-      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'webauthn' });
+      const { known } = await isKnownDevice({ userId: user.id, req });
+      if (!known) {
+        await recordKnownDevice({ userId: user.id, req });
+      }
+      await logSignInActivity({ req, userId: user.id, email: user.email, method: 'webauthn', isNewDevice: !known });
 
       return res.status(200).json({
 
