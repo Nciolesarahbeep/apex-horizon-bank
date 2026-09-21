@@ -1595,93 +1595,256 @@ module.exports = async function handler(req, res) {
   }
 
 
-  // ---------- Ask Apex AI (merged here to stay under Hobby 12-function limit) ----------
+
+  // ---------- Ask Apex AI (bank-style assistant; no extra serverless function) ----------
   if (resource === 'assistant') {
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
       return res.status(405).json({ error: 'Method not allowed' });
     }
     try {
-      const { message } = req.body || {};
+      const { message, history } = req.body || {};
       if (!message || typeof message !== 'string' || !message.trim()) {
         return res.status(400).json({ error: 'A message is required.' });
       }
       if (message.length > 1000) {
-        return res.status(400).json({ error: 'Message is too long.' });
-      }
-      if (!process.env.ANTHROPIC_API_KEY) {
-        console.error('ANTHROPIC_API_KEY is not set.');
-        return res.status(500).json({ error: 'Ask Apex AI is not configured yet. Please try again later.' });
+        return res.status(400).json({ error: 'Message is too long. Please keep questions under 1,000 characters.' });
       }
 
-      const accounts = await sql`
-        SELECT account_type, balance FROM accounts
-        WHERE user_id = ${session.userId}
+      const userRows = await sql`
+        SELECT full_name, email FROM users WHERE id = ${session.userId} LIMIT 1
       `;
+      const customerName = (userRows[0] && userRows[0].full_name)
+        ? String(userRows[0].full_name).trim().split(/\s+/)[0]
+        : 'there';
+
+      const accounts = await sql`
+        SELECT account_type, balance, account_number FROM accounts
+        WHERE user_id = ${session.userId}
+        ORDER BY account_type ASC
+      `;
+
+      let cardInfo = null;
+      try {
+        const creditAcct = accounts.find(a => a.account_type === 'credit');
+        if (creditAcct) {
+          const cardRows = await sql`
+            SELECT last_four, is_frozen, velocity_limit, credit_limit, online_enabled, atm_enabled, international_enabled
+            FROM credit_card_details WHERE account_id = ${creditAcct.id} LIMIT 1
+          `;
+          if (cardRows.length) {
+            cardInfo = {
+              lastFour: cardRows[0].last_four,
+              frozen: !!cardRows[0].is_frozen,
+              velocityLimit: Number(cardRows[0].velocity_limit),
+              creditLimit: Number(cardRows[0].credit_limit),
+              balance: Number(creditAcct.balance),
+              online: cardRows[0].online_enabled !== false,
+              atm: cardRows[0].atm_enabled !== false,
+              international: cardRows[0].international_enabled !== false,
+            };
+          }
+        }
+      } catch (e) {
+        console.error('Assistant card lookup (non-fatal):', e);
+      }
+
       const recentTxns = await sql`
-        SELECT t.type, t.amount, t.description, t.created_at
+        SELECT t.type, t.amount, t.description, t.created_at, a.account_type
         FROM transactions t
         JOIN accounts a ON a.id = t.account_id
         WHERE a.user_id = ${session.userId}
         ORDER BY t.created_at DESC
-        LIMIT 15
+        LIMIT 20
       `;
+
+      const money = (n) =>
+        Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
       const accountSummary = accounts
-        .map(a => `- ${a.account_type}: $${Number(a.balance).toFixed(2)}`)
+        .map((a) => {
+          const label =
+            a.account_type === 'checking' ? 'Primary Checking' :
+            a.account_type === 'savings' ? 'High-Yield Savings' :
+            a.account_type === 'credit' ? 'Credit Card (balance owed)' :
+            a.account_type;
+          const masked = a.account_number ? '••••' + String(a.account_number).slice(-4) : '';
+          return `- ${label} ${masked}: ${money(a.balance)}`;
+        })
         .join('\n') || '(no accounts found)';
+
       const txnSummary = recentTxns
-        .map(t => `- ${new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })} | ${t.type} | ${t.description} | $${Number(t.amount).toFixed(2)}`)
+        .map((t) => {
+          const d = new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          return `- ${d} | ${t.account_type} | ${t.type} | ${t.description || '—'} | ${money(t.amount)}`;
+        })
         .join('\n') || '(no recent transactions)';
 
-      const systemPrompt = `You are Apex, the AI assistant for Apex Horizon Bank's mobile app. You help the logged-in customer understand their own account activity and answer general banking questions about how the app works.
+      const cardSummary = cardInfo
+        ? [
+            `- Card ending ${cardInfo.lastFour}`,
+            `- Status: ${cardInfo.frozen ? 'FROZEN' : 'Active'}`,
+            `- Balance owed: ${money(cardInfo.balance)}`,
+            `- Credit limit: ${money(cardInfo.creditLimit)}`,
+            `- Available credit: ${money(Math.max(0, cardInfo.creditLimit - cardInfo.balance))}`,
+            `- Single-purchase limit: ${money(cardInfo.velocityLimit)}`,
+            `- Online: ${cardInfo.online ? 'on' : 'off'}, ATM: ${cardInfo.atm ? 'on' : 'off'}, International: ${cardInfo.international ? 'on' : 'off'}`,
+          ].join('\n')
+        : '(no credit card on file)';
 
-Ground rules:
-- You are read-only. You cannot move money, change settings, freeze cards, or take any action — only answer questions and explain things. If asked to perform an action, explain the customer needs to use the relevant screen in the app (Send Money, Send Wire, Settings, etc.).
-- Never reveal full card numbers, CVV, PIN, or full account numbers, even if present in context — the app already masks these by design.
-- Keep answers concise and conversational, 2-4 sentences unless the question needs a list.
-- If asked about something outside this customer's own data or general banking help, say you can only help with their Apex Horizon account and general app questions.
+      const checkingBal = accounts.find(a => a.account_type === 'checking');
+      const savingsBal = accounts.find(a => a.account_type === 'savings');
 
-Customer's current account balances:
+      // Rule-based fallback so the assistant still works without an API key
+      function localBankReply(q) {
+        const text = q.toLowerCase();
+        if (/\b(hi|hello|hey|good morning|good afternoon)\b/.test(text)) {
+          return `Hi ${customerName}. I'm Apex, your virtual banking assistant. I can help with balances, recent activity, your card, transfers, and how to use features in the app. What would you like to know?`;
+        }
+        if (/balance|how much.*(have|left|in)|what.*(?:checking|savings)/.test(text)) {
+          const parts = [];
+          if (checkingBal) parts.push(`Checking: ${money(checkingBal.balance)}`);
+          if (savingsBal) parts.push(`Savings: ${money(savingsBal.balance)}`);
+          if (cardInfo) parts.push(`Credit card balance owed: ${money(cardInfo.balance)} (available ${money(Math.max(0, cardInfo.creditLimit - cardInfo.balance))})`);
+          return parts.length
+            ? `Here are your current balances, ${customerName}: ${parts.join('; ')}. Open Summary or Ledger for full details.`
+            : `I don't see any accounts on file yet. If this looks wrong, try refreshing the app or contact support.`;
+        }
+        if (/spend|spent|transaction|activity|recent|history/.test(text)) {
+          if (!recentTxns.length) {
+            return `You don't have any recent transactions yet. Activity will show here after deposits, transfers, or purchases.`;
+          }
+          const top = recentTxns.slice(0, 5).map((t) => {
+            const d = new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return `${d}: ${t.description || t.type} (${money(t.amount)})`;
+          });
+          return `Your latest activity: ${top.join('; ')}. Open Checking → Ledger to search or filter the full list.`;
+        }
+        if (/card|freeze|frozen|credit limit|cvv|pin/.test(text)) {
+          if (!cardInfo) {
+            return `I don't see a credit card on your profile yet. You can open a card from the Cards tab once it's available.`;
+          }
+          if (/freeze|frozen|lock/.test(text)) {
+            return cardInfo.frozen
+              ? `Your card ending ${cardInfo.lastFour} is currently frozen. Unfreeze it anytime under Cards → Freeze Card.`
+              : `Your card ending ${cardInfo.lastFour} is active. To freeze it instantly, go to Cards → Freeze Card. That blocks new purchases until you unfreeze.`;
+          }
+          return `Card ending ${cardInfo.lastFour} is ${cardInfo.frozen ? 'frozen' : 'active'}. Balance owed ${money(cardInfo.balance)}, available credit ${money(Math.max(0, cardInfo.creditLimit - cardInfo.balance))}. Manage limits and channel locks under Cards.`;
+        }
+        if (/transfer|send money|p2p|wire|bill pay|request money/.test(text)) {
+          return `To move money: open Transfers. Use Send to Apex User for instant P2P, Request Money to ask someone to pay you, Bill Pay for utilities/rent, or Wire for external banks. Large or new-payee transfers may need extra confirmation for security.`;
+        }
+        if (/direct deposit|routing|account number|deposit/.test(text)) {
+          return `For direct deposit setup, open Direct Deposit in the app to view your routing and account details (masked until you reveal them). Employers use those numbers to send your paycheck into Checking.`;
+        }
+        if (/statement|pdf|tax/.test(text)) {
+          return `Statements are under Settings → Statements. You can download a PDF for a selected period. Those are the documents you'd use for records or taxes.`;
+        }
+        if (/password|face id|login|security|session|device/.test(text)) {
+          return `Security options live in Settings: Face ID / biometrics, passcode, linked devices (sign out other sessions), and appearance. If you see a sign-in alert you don't recognize, change your password and remove that device.`;
+        }
+        if (/loan|credit|help|support|human|agent|speak to/.test(text)) {
+          if (/loan/.test(text)) {
+            return `Loans are under the Loans section. You can view offers and status there. I can't submit applications for you — use that screen to continue.`;
+          }
+          return `I can help with balances, transactions, cards, and how to use the app. For account restrictions or disputes that need a specialist, use the dispute flow on a transaction or visit a branch with ID if the app asks for in-person verification.`;
+        }
+        return `I can help with your balances, recent transactions, card status, transfers, bill pay, direct deposit, and statements. Try asking “What's my checking balance?” or “Show recent transactions.” For actions like sending money, use the Transfers screens in the app.`;
+      }
+
+      // Prefer Claude when configured; always have local fallback
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(200).json({ reply: localBankReply(message), source: 'local' });
+      }
+
+      const systemPrompt = `You are Apex, the official virtual assistant for Apex Horizon Bank inside the mobile banking app.
+
+Persona:
+- Professional, warm, and clear — like a top-tier digital bank assistant (think Chase, Capital One, or Ally).
+- Address the customer as ${customerName} when natural.
+- Confident about Apex Horizon features; never invent fees, rates, or policies that are not implied by the data below.
+- US retail banking context; amounts in USD.
+
+Hard rules:
+1. READ-ONLY. You cannot move money, freeze cards, change passwords, or submit forms. If the customer wants an action, tell them exactly which in-app screen to use (Transfers, Cards, Settings, Loans, Direct Deposit, Statements, Bill Pay, Request Money).
+2. Never invent balances or transactions. Use ONLY the account data provided.
+3. Never reveal full account numbers, routing numbers, CVV, or PIN. Masked last-4 is fine.
+4. If you lack data, say so briefly and point them to the right screen.
+5. Keep replies short: 2–5 sentences, or a tight bullet list when comparing numbers.
+6. Fraud / unrecognized charges: advise freezing the card under Cards, reviewing Linked Devices, and filing a dispute on the transaction if available.
+7. Do not discuss other customers or internal bank systems.
+
+Customer first name: ${customerName}
+
+Account balances:
 ${accountSummary}
 
-Customer's recent transactions (most recent first):
-${txnSummary}`;
+Credit card:
+${cardSummary}
 
-      const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 400,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: message.trim() }],
-        }),
-      });
+Recent transactions (newest first):
+${txnSummary}
 
-      if (!apiRes.ok) {
-        const errText = await apiRes.text();
-        console.error('Claude API error:', apiRes.status, errText);
-        return res.status(502).json({ error: 'Ask Apex AI is having trouble right now. Please try again in a moment.' });
+App navigation cheatsheet:
+- Summary: overview of balances
+- Ledger / Checking: full transaction list, search & filters
+- Transfers: P2P send, Request Money, Bill Pay, Wire
+- Cards: freeze, spend limit, online/ATM/international locks
+- Settings: security, statements, linked devices, appearance
+- Direct Deposit: routing & account info for paycheck setup
+- Loans: offers and status`;
+
+      const claudeMessages = [];
+      if (Array.isArray(history)) {
+        for (const h of history.slice(-6)) {
+          if (!h || !h.role || !h.content) continue;
+          const role = h.role === 'assistant' || h.role === 'bot' ? 'assistant' : 'user';
+          const content = String(h.content).slice(0, 500);
+          if (content) claudeMessages.push({ role, content });
+        }
       }
+      claudeMessages.push({ role: 'user', content: message.trim() });
 
-      const data = await apiRes.json();
-      const replyText = (data.content || [])
-        .filter(block => block.type === 'text')
-        .map(block => block.text)
-        .join('\n')
-        .trim();
+      try {
+        const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 500,
+            system: systemPrompt,
+            messages: claudeMessages,
+          }),
+        });
 
-      if (!replyText) {
-        return res.status(502).json({ error: 'Ask Apex AI could not generate a response. Please try again.' });
+        if (!apiRes.ok) {
+          const errText = await apiRes.text();
+          console.error('Claude API error:', apiRes.status, errText);
+          return res.status(200).json({ reply: localBankReply(message), source: 'local_fallback' });
+        }
+
+        const data = await apiRes.json();
+        const replyText = (data.content || [])
+          .filter((block) => block.type === 'text')
+          .map((block) => block.text)
+          .join('\n')
+          .trim();
+
+        if (!replyText) {
+          return res.status(200).json({ reply: localBankReply(message), source: 'local_fallback' });
+        }
+        return res.status(200).json({ reply: replyText, source: 'ai' });
+      } catch (claudeErr) {
+        console.error('Claude request failed:', claudeErr);
+        return res.status(200).json({ reply: localBankReply(message), source: 'local_fallback' });
       }
-      return res.status(200).json({ reply: replyText });
     } catch (err) {
       console.error('Assistant error:', err);
-      return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+      return res.status(500).json({ error: 'Something went wrong. Please try again in a moment.' });
     }
   }
 
