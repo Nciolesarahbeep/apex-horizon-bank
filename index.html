@@ -7863,12 +7863,12 @@ document.addEventListener('DOMContentLoaded', () => {
     aiMessages.scrollTop = aiMessages.scrollHeight;
 
     try {
-      const res = await fetch('/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ message: text })
-      });
+      const res = await fetch('/api/account-services', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include',
+  body: JSON.stringify({ resource: 'assistant', message: text })
+});
       const data = await res.json();
       thinkingBubble.textContent = res.ok ? data.reply : (data.error || 'Something went wrong.');
     } catch (err) {
