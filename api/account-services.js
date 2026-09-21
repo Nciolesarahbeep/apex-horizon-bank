@@ -132,12 +132,18 @@ async function createNotification(userId, title, message) {
 }
 
 module.exports = async function handler(req, res) {
-  const resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
+  let resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
+
+  // Vercel Cron cannot use query strings in the path — detect cron invocations here.
+  if (!resource && req.headers['x-vercel-cron'] === '1') {
+    resource = 'process-recurring';
+  }
 
   // ---------- Recurring Transfer Processor (cron-triggered, no user session) ----------
   if (resource === 'process-recurring') {
     const authHeader = req.headers.authorization;
-    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const isVercelCron = req.headers['x-vercel-cron'] === '1';
+    if (!isVercelCron && (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
