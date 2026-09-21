@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "0.9.5",
-    "@simplewebauthn/server": "7.4.0",
+    "@simplewebauthn/server": "14.0.2",
     "bcryptjs": "3.0.3",
     "jsonwebtoken": "9.0.2",
     "nodemailer": "6.9.14",
