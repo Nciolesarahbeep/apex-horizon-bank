@@ -1,15 +1,16 @@
 {
   "name": "apex-horizon-bank",
+  "version": "1.0.0",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": "18.x"
   },
   "dependencies": {
-    "nodemailer": "^6.9.14",
-    "@neondatabase/serverless": "^0.9.0",
-    "bcryptjs": "^3.0.3",
-    "jsonwebtoken": "^9.0.2",
-    "@simplewebauthn/server": "^7.4.0",
-    "pdfkit": "^0.15.0"
+    "@neondatabase/serverless": "0.9.5",
+    "@simplewebauthn/server": "7.4.0",
+    "bcryptjs": "3.0.3",
+    "jsonwebtoken": "9.0.2",
+    "nodemailer": "6.9.14",
+    "pdfkit": "0.15.0"
   }
 }
