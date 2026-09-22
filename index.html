@@ -2565,7 +2565,20 @@ async function submitCreateRecurringTransfer(event) {
         <div class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
     </button>
 </div>
-
+                            <button onclick="triggerViewSwitch('settings-login-history')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                                    <span class="text-sm font-medium text-gray-900">Login History</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                            <button onclick="triggerViewSwitch('settings-change-password')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-key"></i></div>
+                                    <span class="text-sm font-medium text-gray-900">Change Password</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
                             <button onclick="triggerViewSwitch('settings-linked-devices')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-mobile-screen"></i></div>
