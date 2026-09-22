@@ -7423,6 +7423,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btn) btn.disabled = false;
             }
         }
+        async function reportLostCard() {
+  if (!confirm('Report this card as lost or stolen?\n\nA new card will be issued and the current card will be deactivated.')) return;
+
+  try {
+    const res = await fetch('/api/account-services', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ resource: 'credit-card', cardAction: 'replaceCard' })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not replace card.');
+      return;
+    }
+    alert(data.message || 'A replacement card has been issued.');
+    if (typeof loadCreditCardData === 'function') loadCreditCardData();
+  } catch (err) {
+    alert('Network error. Please try again.');
+  }
+}
 
         async function saveCardVelocityLimit(value) {
             try {
