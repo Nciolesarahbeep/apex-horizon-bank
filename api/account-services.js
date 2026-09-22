@@ -1280,7 +1280,69 @@ module.exports = async function handler(req, res) {
       }
     }
   }
+  // ---------- Login History ----------
+  if (resource === 'login-history') {
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET');
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    try {
+      const rows = await sql`
+        SELECT id, method, ip_address, city, region, country, user_agent, created_at
+        FROM login_activity
+        WHERE user_id = ${session.userId}
+        ORDER BY created_at DESC
+        LIMIT 30
+      `;
+      return res.status(200).json({ history: rows });
+    } catch (err) {
+      console.error('Login history error:', err);
+      return res.status(500).json({ error: 'Failed to load login history.' });
+    }
+  }
 
+  // ---------- Change Password ----------
+  if (resource === 'change-password') {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    try {
+      const { currentPassword, newPassword } = req.body || {};
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current and new password are required.' });
+      }
+      if (String(newPassword).length < 8) {
+        return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+      }
+
+      const users = await sql`
+        SELECT id, password_hash FROM users WHERE id = ${session.userId} LIMIT 1
+      `;
+      if (users.length === 0) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+
+      const match = await bcrypt.compare(currentPassword, users[0].password_hash);
+      if (!match) {
+        return res.status(401).json({ error: 'Current password is incorrect.' });
+      }
+
+      const newHash = await bcrypt.hash(String(newPassword), 12);
+      await sql`UPDATE users SET password_hash = ${newHash} WHERE id = ${session.userId}`;
+
+      await createNotification(
+        session.userId,
+        'Password Changed',
+        'Your password was changed successfully. If you did not do this, contact support immediately.'
+      );
+
+      return res.status(200).json({ success: true, message: 'Password updated successfully.' });
+    } catch (err) {
+      console.error('Change password error:', err);
+      return res.status(500).json({ error: 'Failed to change password.' });
+    }
+  }
   // ---------- Passcode (in-app unlock code, separate from login password) ----------
   if (resource === 'passcode') {
     if (req.method !== 'POST') {
