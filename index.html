@@ -2701,7 +2701,41 @@ async function submitCreateRecurringTransfer(event) {
                     </div>
                     <div id="linkedDevicesContainer" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"></div>
                 </section>
+                <section id="view-settings-login-history" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Login History</h1>
+                    </div>
+                    <p class="text-[11px] text-gray-500 px-1">Recent sign-ins to your account. Contact support if you see anything unfamiliar.</p>
+                    <div id="loginHistoryContainer" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                        <div class="p-4 text-center text-xs text-gray-400">Loading…</div>
+                    </div>
+                </section>
 
+                <section id="view-settings-change-password" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Change Password</h1>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                        <div>
+                            <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Current Password</label>
+                            <input type="password" id="currentPasswordInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none" autocomplete="current-password">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">New Password</label>
+                            <input type="password" id="newPasswordInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none" autocomplete="new-password">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Confirm New Password</label>
+                            <input type="password" id="confirmPasswordInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none" autocomplete="new-password">
+                        </div>
+                        <p id="changePasswordError" class="hidden text-[11px] text-red-600"></p>
+                        <button onclick="submitChangePassword()" id="changePasswordBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2.5 rounded-lg transition">
+                            Update Password
+                        </button>
+                    </div>
+                </section>
                 <section id="view-settings-passcode" class="hidden space-y-4 animate-fade-in">
                     <div class="flex items-center space-x-2">
                         <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
