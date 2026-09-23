@@ -6987,7 +6987,106 @@ fetchAndApplyProfilePhoto();
                 container.innerHTML = emptyStateHtml('fa-triangle-exclamation', 'Could not load sessions', 'Please try again.');
             }
         }
+        async function loadLoginHistory() {
+            const container = document.getElementById('loginHistoryContainer');
+            if (!container) return;
+            container.innerHTML = '<div class="p-4 text-center text-xs text-gray-400">Loading…</div>';
 
+            try {
+                const res = await fetch('/api/account-services?resource=login-history', { credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+
+                const rows = data.history || [];
+                if (rows.length === 0) {
+                    container.innerHTML = '<div class="p-4 text-center text-xs text-gray-400">No login history yet.</div>';
+                    return;
+                }
+
+                container.innerHTML = rows.map(r => {
+                    const date = new Date(r.created_at).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                    });
+                    const method = r.method === 'webauthn' ? 'Face ID / Passkey' : 'Password';
+                    const location = [r.city, r.region, r.country].filter(Boolean).join(', ') || 'Unknown location';
+                    const ip = r.ip_address ? ` • ${r.ip_address}` : '';
+
+                    return `
+                        <div class="p-3.5 flex items-start gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                                <i class="fa-solid ${r.method === 'webauthn' ? 'fa-face-viewfinder' : 'fa-key'} text-slate-600 text-xs"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-semibold text-gray-900">${method}</p>
+                                <p class="text-[10px] text-gray-500 mt-0.5">${location}${ip}</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">${date}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                container.innerHTML = '<div class="p-4 text-center text-xs text-red-500">Could not load login history.</div>';
+            }
+        }
+
+        async function submitChangePassword() {
+            const current = document.getElementById('currentPasswordInput')?.value || '';
+            const next = document.getElementById('newPasswordInput')?.value || '';
+            const confirm = document.getElementById('confirmPasswordInput')?.value || '';
+            const errEl = document.getElementById('changePasswordError');
+            const btn = document.getElementById('changePasswordBtn');
+
+            errEl.classList.add('hidden');
+
+            if (!current || !next || !confirm) {
+                errEl.textContent = 'Please fill in all fields.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            if (next !== confirm) {
+                errEl.textContent = 'New passwords do not match.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            if (next.length < 8) {
+                errEl.textContent = 'New password must be at least 8 characters.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Updating…';
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        resource: 'change-password',
+                        currentPassword: current,
+                        newPassword: next
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errEl.textContent = data.error || 'Failed to update password.';
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+                alert('Password updated successfully.');
+                document.getElementById('currentPasswordInput').value = '';
+                document.getElementById('newPasswordInput').value = '';
+                document.getElementById('confirmPasswordInput').value = '';
+                navigateBackward();
+            } catch (err) {
+                errEl.textContent = 'Network error. Please try again.';
+                errEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Update Password';
+            }
+        }
         async function renameLinkedDevice(jti, currentName) {
             const newName = prompt('Rename this device:', currentName);
             if (newName === null) return;
