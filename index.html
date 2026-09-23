@@ -381,7 +381,7 @@
 
                 <div>
                     <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wide mb-1">Description (optional)</label>
-                    <input id="rtDescription" type="text" placeholder="e.g. Savings top-up" maxlength="255" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                    <input id="rtDescription" type="text" placeholder="Optional note" maxlength="255" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
                 </div>
 
                 <p id="rtFormError" class="hidden text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2"></p>
@@ -680,7 +680,7 @@ async function submitCreateRecurringTransfer(event) {
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Issuing State</label>
-                    <input type="text" id="kycIssuingStateInput" placeholder="e.g. CA" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none">
+                    <input type="text" id="kycIssuingStateInput" placeholder="State" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none">
                 </div>
             </div>
             <button onclick="submitKyc()" id="kycSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs mt-2">
@@ -745,7 +745,7 @@ async function submitCreateRecurringTransfer(event) {
             <div id="fpErrorBanner1" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
             <div>
                 <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                <input type="email" id="fpEmailInput" placeholder="you@example.com" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                <input type="email" id="fpEmailInput" placeholder="Enter your email" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
             </div>
             <button onclick="submitForgotPasswordEmail()" id="fpSubmitEmailBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
                 Send Reset Link
@@ -754,7 +754,7 @@ async function submitCreateRecurringTransfer(event) {
 
         <div id="fpStep2" class="hidden p-5 space-y-4">
             <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
-                <p class="text-[10px] font-bold text-amber-800 uppercase mb-1">Demo Mode</p>
+                <p class="text-[10px] font-bold text-amber-800 uppercase mb-1">Password Reset</p>
                 <p class="text-[11px] text-amber-800 leading-relaxed">No email service is connected yet, so your reset link is shown directly below instead of being emailed.</p>
             </div>
             <div id="fpErrorBanner2" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
@@ -2124,7 +2124,7 @@ async function submitCreateRecurringTransfer(event) {
                         <form class="p-4 space-y-3" onsubmit="handleP2PLookup(event)">
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Recipient's Email or Account Number</label>
-                                <input type="text" id="p2pRecipientIdentifierInput" placeholder="name@example.com or 10-digit account number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
+                                <input type="text" id="p2pRecipientIdentifierInput" placeholder="Email or account number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:outline-none" required>
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Amount (USD)</label>
@@ -2132,7 +2132,7 @@ async function submitCreateRecurringTransfer(event) {
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">What's it for? (optional)</label>
-                                <input type="text" id="p2pNoteInput" placeholder="e.g. Rent, dinner, gift" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
+                                <input type="text" id="p2pNoteInput"placeholder="Optional note" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
                             </div>
                             <p id="p2pLookupError" class="hidden text-[10px] text-red-500 font-semibold"></p>
                             <button type="submit" id="p2pLookupBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 rounded-lg mt-1 transition cursor-pointer">
@@ -2347,15 +2347,15 @@ async function submitCreateRecurringTransfer(event) {
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Originating Bank</label>
-                                <input type="text" id="ddBankNameInput" placeholder="e.g. Chase, Bank of America, Employer Payroll" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                                <input type="text" id="ddBankNameInput" placeholder="Bank or employer name" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Sender / Account Holder</label>
-                                <input type="text" id="ddHolderInput" placeholder="e.g. Acme Corp Payroll, Jane Smith" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                                <input type="text" id="ddHolderInput" placeholder="Account holder name" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Description (optional)</label>
-                                <input type="text" id="ddDescriptionInput" placeholder="e.g. Biweekly Payroll, Tax Refund" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                                <input type="text" id="ddDescriptionInput" placeholder="Description"" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
                             </div>
                             <button onclick="submitDirectDeposit()" id="ddSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-lg transition mt-1">
                                 Submit Direct Deposit
@@ -2461,7 +2461,7 @@ async function submitCreateRecurringTransfer(event) {
 
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Loan Purpose</label>
-                                <input type="text" id="loanPurposeInput" placeholder="e.g. Home renovation, debt consolidation" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-xs focus:outline-none">
+                                <input type="text" id="loanPurposeInput" placeholder="Purpose of loan" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-xs focus:outline-none">
                             </div>
 
                             <div>
@@ -9248,7 +9248,7 @@ function ccRelabelButtonsOnce() {
   const cvvBtn = document.getElementById('cardCvvBtn');
   if (cvvBtn) {
     const label = cvvBtn.querySelector('span.text-\\[11px\\]');
-    if (label) label.textContent = 'Simulate a Purchase';
+    if (label) label.textContent = 'Make a Purchase';
     const icon = cvvBtn.querySelector('i');
     if (icon) icon.className = 'fa-solid fa-cart-shopping text-teal-500 text-xs';
     const toggle = document.getElementById('cvvToggleNode');
@@ -9609,21 +9609,21 @@ function makeCardPayment() {
   );
 }
 
-/* ---------- Simulate a Purchase (real charge against the card) ---------- */
+/* ---------- Make a Purchase (real charge against the card) ---------- */
 function openSimulatePurchaseModal() {
   const available = creditCardState ? Number(creditCardState.availableCredit) : 0;
   const limit = creditCardState ? Number(creditCardState.velocityLimit) : 0;
   ccBuildModal(
     'ccPurchaseModal',
-    'Simulate a Purchase',
+    'Make a Purchase',
     `
-      <p class="text-xs text-gray-500">Demo-only: charges your card as if a real purchase happened, so you can see the balance and available credit move.</p>
+      <p class="text-xs text-gray-500">Demo-only: Enter a merchant and amount to post a purchase to this card.</p>
       <div class="bg-slate-50 rounded-lg px-3 py-2 text-xs text-gray-600 flex justify-between">
         <span>Available credit</span><span class="font-bold font-mono text-gray-900">${ccMoney(available)}</span>
       </div>
       <div>
         <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Merchant</label>
-        <input type="text" id="ccPurchaseMerchant" placeholder="e.g. Coffee Shop" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <input type="text" id="ccPurchaseMerchant" placeholder="Merchant name" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
       </div>
       <div>
         <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Amount (limit ${ccMoney(limit)})</label>
