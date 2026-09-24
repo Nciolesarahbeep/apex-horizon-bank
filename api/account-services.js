@@ -525,7 +525,70 @@ module.exports = async function handler(req, res) {
       }
     }
   }
+  // ---------- Notification Preferences ----------
+  if (resource === 'notification-prefs') {
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_push BOOLEAN NOT NULL DEFAULT TRUE`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_email BOOLEAN NOT NULL DEFAULT TRUE`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_txn BOOLEAN NOT NULL DEFAULT TRUE`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_marketing BOOLEAN NOT NULL DEFAULT FALSE`;
+    } catch (e) {
+      console.error('ensure notif pref columns (non-fatal):', e);
+    }
 
+    if (req.method === 'GET') {
+      try {
+        const rows = await sql`
+          SELECT notif_push, notif_email, notif_txn, notif_marketing
+          FROM users WHERE id = ${session.userId} LIMIT 1
+        `;
+        const u = rows[0] || {};
+        return res.status(200).json({
+          prefs: {
+            push: u.notif_push !== false,
+            email: u.notif_email !== false,
+            txn: u.notif_txn !== false,
+            marketing: u.notif_marketing === true,
+          }
+        });
+      } catch (err) {
+        console.error('Get notification prefs error:', err);
+        return res.status(500).json({ error: 'Failed to load notification preferences.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { key, enabled } = req.body || {};
+        const colMap = {
+          push: 'notif_push',
+          email: 'notif_email',
+          txn: 'notif_txn',
+          marketing: 'notif_marketing',
+        };
+        if (!colMap[key]) {
+          return res.status(400).json({ error: 'Invalid preference key.' });
+        }
+        const val = Boolean(enabled);
+        if (key === 'push') {
+          await sql`UPDATE users SET notif_push = ${val} WHERE id = ${session.userId}`;
+        } else if (key === 'email') {
+          await sql`UPDATE users SET notif_email = ${val} WHERE id = ${session.userId}`;
+        } else if (key === 'txn') {
+          await sql`UPDATE users SET notif_txn = ${val} WHERE id = ${session.userId}`;
+        } else {
+          await sql`UPDATE users SET notif_marketing = ${val} WHERE id = ${session.userId}`;
+        }
+        return res.status(200).json({ success: true, key, enabled: val });
+      } catch (err) {
+        console.error('Save notification prefs error:', err);
+        return res.status(500).json({ error: 'Failed to save preference.' });
+      }
+    }
+
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   // ---------- Credit Card ----------
   if (resource === 'credit-card') {
     async function ensureCardControlColumns() {
