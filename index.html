@@ -3207,8 +3207,8 @@ if (activeLoanBalanceEl) {
                                 if (targetViewId === 'settings-linked-devices') {
                     renderLinkedDevices();
                 }
-                if (targetViewId === 'settings-login-history') {
-                    loadLoginHistory();
+                                if (targetViewId === 'settings-notifications') {
+                    loadNotificationPrefs();
                 }
                 if (targetViewId === 'statements') {
                     const input = document.getElementById('statementMonthInput');
@@ -6798,9 +6798,56 @@ fetchAndApplyProfilePhoto();
             }
         }
 
-        function toggleNotifPref(key) {
-            notifPrefs[key] = !notifPrefs[key];
-            toggleGenericSwitch(`notifToggle-${key}`, notifPrefs[key]);
+                async function loadNotificationPrefs() {
+            try {
+                const res = await fetch('/api/account-services?resource=notification-prefs', {
+                    credentials: 'include',
+                    cache: 'no-store'
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const prefs = data.prefs || {};
+                notifPrefs = {
+                    push: prefs.push !== false,
+                    email: prefs.email !== false,
+                    txn: prefs.txn !== false,
+                    marketing: prefs.marketing === true,
+                };
+                ['push', 'email', 'txn', 'marketing'].forEach(k => {
+                    toggleGenericSwitch(`notifToggle-${k}`, notifPrefs[k]);
+                });
+            } catch (err) {
+                console.error('Failed to load notification prefs:', err);
+            }
+        }
+
+        async function toggleNotifPref(key) {
+            const next = !notifPrefs[key];
+            notifPrefs[key] = next;
+            toggleGenericSwitch(`notifToggle-${key}`, next);
+
+            try {
+                const res = await fetch('/api/account-services', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        resource: 'notification-prefs',
+                        key,
+                        enabled: next
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    notifPrefs[key] = !next;
+                    toggleGenericSwitch(`notifToggle-${key}`, !next);
+                    alert(data.error || 'Could not save preference.');
+                }
+            } catch (err) {
+                notifPrefs[key] = !next;
+                toggleGenericSwitch(`notifToggle-${key}`, !next);
+                alert('Network error. Please try again.');
+            }
         }
 
         function toggleFaceID() {
