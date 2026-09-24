@@ -3401,7 +3401,7 @@ if (activeLoanBalanceEl) {
         // Single source of truth for which screen is visible — every login/logout/
         // reload path routes through these two functions so the two screens can
         // never both end up visible (or both hidden) at the same time.
-        const IDLE_TIMEOUT_MS = 60 * 1000; // 1 minute of no activity signs the person out
+        const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes of no activity signs the person out
 
         let idleLogoutTimer = null;
         function resetIdleTimer() {
