@@ -2,7 +2,7 @@
 // Caches the app shell so it loads instantly and works offline.
 // Bump CACHE_NAME whenever you deploy changes so old caches get cleared.
 
-const CACHE_NAME = "apex-horizon-v1";
+const CACHE_NAME = "apex-horizon-v2";
 
 // Add any other static assets you want cached (css, logo images, etc.)
 const APP_SHELL = [
