@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apex Horizon Bank — Admin</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -222,6 +222,55 @@
     <p id="pendingLoansEmpty" class="text-slate-400 text-sm py-4 hidden">No pending loan applications.</p>
   </div>
 
+  <!-- Support messages (customers write from Help > Message support) -->
+  <div id="supportSection" class="bg-white rounded-xl shadow-sm p-4 mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-headset text-emerald-600 mr-1"></i>Support messages
+        <span id="supportWaitingBadge" class="hidden ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700"></span></h2>
+      <div class="flex items-center gap-3">
+        <div id="supportFilters" class="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+          <button type="button" data-filter="open" onclick="setSupportFilter('open')" class="px-3 py-1.5">Waiting</button>
+          <button type="button" data-filter="answered" onclick="setSupportFilter('answered')" class="px-3 py-1.5 border-l border-slate-200">Replied</button>
+          <button type="button" data-filter="closed" onclick="setSupportFilter('closed')" class="px-3 py-1.5 border-l border-slate-200">Closed</button>
+          <button type="button" data-filter="all" onclick="setSupportFilter('all')" class="px-3 py-1.5 border-l border-slate-200">All</button>
+        </div>
+        <button onclick="loadSupportTickets()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+      </div>
+    </div>
+    <div id="supportList" class="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden"></div>
+    <p id="supportEmpty" class="hidden text-slate-400 text-sm py-4">No conversations here.</p>
+  </div>
+
+  <div id="supportModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 items-center justify-center p-4" onclick="closeSupportModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle">
+      <div class="p-4 border-b border-slate-200 flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 id="supportModalTitle" class="font-semibold text-slate-800 truncate"></h3>
+          <p id="supportModalMeta" class="text-xs text-slate-500"></p>
+        </div>
+        <button type="button" onclick="closeSupportModal()" class="text-slate-400 hover:text-slate-600" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="supportModalCallback" class="hidden mx-4 mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900"></div>
+      <div id="supportModalMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50"></div>
+      <form class="p-4 border-t border-slate-200 space-y-2" onsubmit="sendSupportReply(event)">
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="text-slate-400 py-1">Quick replies:</span>
+          <button type="button" onclick="useSupportCanned(this)" class="support-canned px-2 py-1 rounded-full border border-slate-200 hover:bg-slate-50">Looking into it</button>
+          <button type="button" onclick="useSupportCanned(this)" class="support-canned px-2 py-1 rounded-full border border-slate-200 hover:bg-slate-50">Need more details</button>
+          <button type="button" onclick="useSupportCanned(this)" class="support-canned px-2 py-1 rounded-full border border-slate-200 hover:bg-slate-50">Resolved</button>
+        </div>
+        <textarea id="supportReplyInput" rows="3" maxlength="2000" class="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-emerald-500" placeholder="Write a reply to the customer…"></textarea>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <input id="supportAgentName" maxlength="60" class="border border-slate-300 rounded-lg px-2 py-1 text-sm w-44" placeholder="Your name (optional)">
+          <div class="flex gap-2">
+            <button type="button" id="supportCloseBtn" onclick="closeSupportTicketAdmin()" class="px-3 py-1.5 rounded-lg text-sm border border-slate-300 hover:bg-slate-50">Close conversation</button>
+            <button type="submit" id="supportSendBtn" class="px-4 py-1.5 rounded-lg text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60">Send reply</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Transaction disputes -->
   <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
     <div class="flex items-center justify-between mb-3">
@@ -366,6 +415,9 @@ async function unlock() {
     loadPendingKyc();
     loadPendingChecks();
     loadDisputes();
+    loadSupportTickets();
+    if (supportPollTimer) clearInterval(supportPollTimer);
+    supportPollTimer = setInterval(loadSupportTickets, 30000);
     loadFraudFlags();
     if (activityPollTimer) clearInterval(activityPollTimer);
     activityPollTimer = setInterval(loadLoginActivity, 7000);
@@ -836,6 +888,170 @@ function formatDisputeType(t) {
   };
   return map[t] || t;
 }
+
+// ===== Support messages =====
+// Customers write from Help in the app; each reply here notifies them.
+// Everything customers typed is shown with textContent.
+let supportFilter = 'open';
+let supportCurrentId = null;
+let supportPollTimer = null;
+const SUPPORT_CANNED = {
+  'Looking into it': "Thanks for getting in touch. We're looking into this now and will update you here shortly.",
+  'Need more details': 'Thanks for your message. Could you tell us a bit more, such as the date, the amount and the merchant or person involved?',
+  'Resolved': "This should now be sorted. If anything still doesn't look right, just reply here and we'll pick it straight back up."
+};
+
+function supportEl(tag, className, text) {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+
+function supportStatusChip(status, unread) {
+  const map = { open: ['Waiting for us', 'bg-amber-100 text-amber-800'], answered: ['Replied', 'bg-emerald-100 text-emerald-800'], closed: ['Closed', 'bg-slate-100 text-slate-600'] };
+  const [label, cls] = map[status] || map.open;
+  return supportEl('span', `px-2 py-0.5 rounded-full text-xs font-medium ${cls}`, unread && status === 'open' ? 'New' : label);
+}
+
+function setSupportFilter(f) {
+  supportFilter = f;
+  loadSupportTickets();
+}
+
+async function loadSupportTickets() {
+  try {
+    const data = await api('listSupportTickets', { params: { status: supportFilter } });
+    const counts = data.counts || {};
+    document.querySelectorAll('#supportFilters button').forEach(b => {
+      const f = b.dataset.filter;
+      const labels = { open: 'Waiting', answered: 'Replied', closed: 'Closed', all: 'All' };
+      b.textContent = f === 'all' ? labels.all : `${labels[f]} (${counts[f] || 0})`;
+      b.className = `px-3 py-1.5 ${f === 'open' ? '' : 'border-l border-slate-200 '}${f === supportFilter ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`;
+    });
+    const badge = document.getElementById('supportWaitingBadge');
+    badge.textContent = `${counts.open || 0} waiting`;
+    badge.classList.toggle('hidden', !counts.open);
+    const list = document.getElementById('supportList');
+    list.replaceChildren();
+    document.getElementById('supportEmpty').classList.toggle('hidden', data.tickets.length > 0);
+    list.classList.toggle('hidden', data.tickets.length === 0);
+    data.tickets.forEach(t => {
+      const row = supportEl('button', 'w-full text-left p-3 hover:bg-slate-50 flex items-start gap-3');
+      row.type = 'button';
+      row.onclick = () => openSupportTicket(t.id);
+      const dot = supportEl('span', `mt-1.5 w-2 h-2 rounded-full shrink-0 ${t.unread ? 'bg-red-500' : 'bg-transparent'}`);
+      const mid = supportEl('div', 'flex-1 min-w-0');
+      const top = supportEl('div', 'flex items-center gap-2');
+      if (t.callbackPhone) top.appendChild(supportEl('i', 'fa-solid fa-phone text-amber-600 text-xs'));
+      top.appendChild(supportEl('span', `truncate text-sm ${t.unread ? 'font-bold' : 'font-medium'} text-slate-800`, t.subject));
+      mid.appendChild(top);
+      mid.appendChild(supportEl('p', 'text-xs text-slate-500 truncate', `${t.user.fullName || t.user.email} · ${t.user.email} · ${t.categoryLabel}`));
+      if (t.lastMessage && t.lastMessage.body) mid.appendChild(supportEl('p', 'text-xs text-slate-600 truncate mt-0.5', `${t.lastMessage.sender === 'customer' ? 'Customer' : 'Us'}: ${t.lastMessage.body}`));
+      const right = supportEl('div', 'flex flex-col items-end gap-1 shrink-0');
+      right.appendChild(supportEl('span', 'text-xs text-slate-400', when(t.updatedAt)));
+      right.appendChild(supportStatusChip(t.status, t.unread));
+      row.append(dot, mid, right);
+      list.appendChild(row);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function renderSupportThread(data) {
+  const t = data.ticket;
+  supportCurrentId = t.id;
+  document.getElementById('supportModalTitle').textContent = t.subject;
+  document.getElementById('supportModalMeta').textContent = `#${t.id} · ${t.user.fullName || ''} <${t.user.email}> · ${t.categoryLabel} · opened ${when(t.createdAt)}`;
+  const cb = document.getElementById('supportModalCallback');
+  if (t.callbackPhone) {
+    cb.replaceChildren(supportEl('i', 'fa-solid fa-phone mr-1'), document.createTextNode(`Call back ${t.callbackPhone} ${t.callbackWindow || ''}`));
+    cb.classList.remove('hidden');
+  } else {
+    cb.classList.add('hidden');
+  }
+  const box = document.getElementById('supportModalMessages');
+  box.replaceChildren();
+  data.messages.forEach(m => {
+    if (m.sender === 'system') {
+      box.appendChild(supportEl('p', 'text-center text-xs text-slate-500 italic whitespace-pre-wrap', `${m.body} (${when(m.createdAt)})`));
+      return;
+    }
+    const mine = m.sender === 'agent';
+    const wrap = supportEl('div', `flex flex-col ${mine ? 'items-end' : 'items-start'}`);
+    wrap.appendChild(supportEl('span', 'text-xs text-slate-400 mb-0.5', `${mine ? (m.agentName || 'Apex Support') : 'Customer'} · ${when(m.createdAt)}`));
+    wrap.appendChild(supportEl('div', `max-w-[80%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${mine ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-800'}`, m.body));
+    box.appendChild(wrap);
+  });
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('supportCloseBtn').classList.toggle('hidden', t.status === 'closed');
+}
+
+async function openSupportTicket(id) {
+  try {
+    const data = await api('getSupportTicket', { params: { ticketId: id } });
+    renderSupportThread(data);
+    const modal = document.getElementById('supportModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('supportReplyInput').focus();
+    loadSupportTickets();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function closeSupportModal() {
+  const modal = document.getElementById('supportModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  supportCurrentId = null;
+}
+
+async function sendSupportReply(event) {
+  event.preventDefault();
+  const input = document.getElementById('supportReplyInput');
+  const message = input.value.trim();
+  if (!message || !supportCurrentId) return;
+  const agentName = document.getElementById('supportAgentName').value.trim();
+  try { localStorage.setItem('ahbAdminAgentName', agentName); } catch (e) {}
+  const btn = document.getElementById('supportSendBtn');
+  btn.disabled = true;
+  try {
+    const data = await api('replySupportTicket', { method: 'POST', body: { ticketId: supportCurrentId, message, agentName } });
+    input.value = '';
+    renderSupportThread(data);
+    showToast(data.message, false);
+    loadSupportTickets();
+  } catch (e) {
+    showToast(e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function closeSupportTicketAdmin() {
+  if (!supportCurrentId || !confirm('Close this conversation? The customer can reopen it by replying.')) return;
+  try {
+    const data = await api('closeSupportTicket', { method: 'POST', body: { ticketId: supportCurrentId } });
+    showToast(data.message, false);
+    renderSupportThread(await api('getSupportTicket', { params: { ticketId: supportCurrentId } }));
+    loadSupportTickets();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function useSupportCanned(button) {
+  const input = document.getElementById('supportReplyInput');
+  input.value = SUPPORT_CANNED[button.textContent.trim()] || '';
+  input.focus();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('supportModal').classList.contains('hidden')) closeSupportModal();
+});
+try { document.getElementById('supportAgentName').value = localStorage.getItem('ahbAdminAgentName') || ''; } catch (e) {}
 
 async function loadDisputes() {
   try {

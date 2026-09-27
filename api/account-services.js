@@ -9,6 +9,7 @@ const { creditSavingsInterest } = require('../lib/interest');
 const { getStepUpSettings, saveStepUpSettings, issueStepUpToken, requireStepUp, ensureStepUpSchema } = require('../lib/stepUp');
 const goals = require('../lib/goals');
 const budgets = require('../lib/budgets');
+const support = require('../lib/support');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -1163,6 +1164,27 @@ module.exports = async function handler(req, res) {
           return res.status(200).json({ success: true, isFrozen: updated[0].is_frozen });
         }
 
+        // Explicit freeze / unfreeze (Help > Freeze my card). Safe to repeat:
+        // asking to freeze a card that's already frozen changes nothing.
+        if (cardAction === 'setFreeze') {
+          const frozen = (req.body || {}).frozen === true;
+          const updated = await sql`
+            UPDATE credit_card_details SET is_frozen = ${frozen}
+            WHERE account_id = ${account.id} AND is_frozen IS DISTINCT FROM ${frozen}
+            RETURNING is_frozen
+          `;
+          if (updated.length) {
+            await createNotification(
+              session.userId,
+              frozen ? 'Card Frozen' : 'Card Unfrozen',
+              frozen
+                ? 'Your credit card has been frozen. No new purchases can be made until you unfreeze it.'
+                : 'Your credit card has been unfrozen and is ready to use.'
+            );
+          }
+          return res.status(200).json({ success: true, isFrozen: frozen, changed: updated.length > 0 });
+        }
+
         if (cardAction === 'setVelocityLimit') {
           const { velocityLimit } = req.body || {};
           const val = Number(velocityLimit);
@@ -1956,6 +1978,31 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ---------- Help: secure messages with the support team (see lib/support.js) ----------
+  if (resource === 'support') {
+    try {
+      await support.ensureSupportSchema(sql);
+      if (req.method === 'GET') {
+        if (query.summary) return res.status(200).json(await support.supportSummary(sql, session.userId));
+        if (query.ticketId) return res.status(200).json(await support.getTicket(sql, session.userId, query.ticketId));
+        return res.status(200).json(await support.listTickets(sql, session.userId));
+      }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const body = req.body || {};
+      if (body.supportAction === 'create') return res.status(200).json({ success: true, ...(await support.createTicket(sql, session.userId, body)) });
+      if (body.supportAction === 'reply') return res.status(200).json({ success: true, ...(await support.replyAsCustomer(sql, session.userId, body)) });
+      if (body.supportAction === 'close') return res.status(200).json({ success: true, ...(await support.closeAsCustomer(sql, session.userId, body)) });
+      return res.status(400).json({ error: 'Unknown support action.' });
+    } catch (err) {
+      if (err instanceof support.SupportError) return res.status(err.status).json({ error: err.message });
+      console.error('Support error:', err);
+      return res.status(500).json({ error: "We couldn't reach support just now. Please try again." });
+    }
+  }
+
   // ---------- Monthly budgets (see lib/budgets.js) ----------
   if (resource === 'budgets') {
     try {
@@ -2535,7 +2582,7 @@ module.exports = async function handler(req, res) {
             const d = new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             return `${d}: ${t.description || t.type} (${money(t.amount)})`;
           });
-          return `Your latest activity: ${top.join('; ')}. Open Checking → Ledger to search or filter the full list.`;
+          return `Your latest activity: ${top.join('; ')}. Open the Accounts tab to search, filter or download the full list.`;
         }
         if (/card|freeze|frozen|credit limit|cvv|pin/.test(text)) {
           if (!cardInfo) {
@@ -2543,30 +2590,30 @@ module.exports = async function handler(req, res) {
           }
           if (/freeze|frozen|lock/.test(text)) {
             return cardInfo.frozen
-              ? `Your card ending ${cardInfo.lastFour} is currently frozen. Unfreeze it anytime under Cards → Freeze Card.`
-              : `Your card ending ${cardInfo.lastFour} is active. To freeze it instantly, go to Cards → Freeze Card. That blocks new purchases until you unfreeze.`;
+              ? `Your card ending ${cardInfo.lastFour} is currently frozen. Unfreeze it any time in the Cards tab (Freeze Card) or from Help.`
+              : `Your card ending ${cardInfo.lastFour} is active. To freeze it instantly, use Freeze Card in the Cards tab or the quick fix in Help. That blocks new purchases until you unfreeze.`;
           }
           return `Card ending ${cardInfo.lastFour} is ${cardInfo.frozen ? 'frozen' : 'active'}. Balance owed ${money(cardInfo.balance)}, available credit ${money(Math.max(0, cardInfo.creditLimit - cardInfo.balance))}. Manage limits and channel locks under Cards.`;
         }
         if (/transfer|send money|p2p|wire|bill pay|request money/.test(text)) {
-          return `To move money: open Transfers. Use Send to Apex User for instant P2P, Request Money to ask someone to pay you, Bill Pay for utilities/rent, or Wire for external banks. Large or new-payee transfers may need extra confirmation for security.`;
+          return `To move money, open the Pay tab: "To an Apex User" sends money instantly, Bill Pay pays saved payees, and International / Bank Wire sends to another bank. Use Request on the Home screen to ask someone to pay you. Large payments may ask for Face ID or your passcode.`;
         }
         if (/direct deposit|routing|account number|deposit/.test(text)) {
-          return `For direct deposit setup, open Direct Deposit in the app to view your routing and account details (masked until you reveal them). Employers use those numbers to send your paycheck into Checking.`;
+          return `For direct deposit, open More → Direct deposit to see your routing and account details (masked until you reveal them). Your employer uses those numbers to send your paycheck into Checking. To deposit a paper check, use More → Deposit check.`;
         }
         if (/statement|pdf|tax/.test(text)) {
-          return `Statements are under Settings → Statements. You can download a PDF for a selected period. Those are the documents you'd use for records or taxes.`;
+          return `Statements are under More → Statements. Pick a month and download the PDF. Those are the documents you'd use for records or taxes. You can also download your transactions as a spreadsheet from the Accounts tab.`;
         }
         if (/password|face id|login|security|session|device/.test(text)) {
-          return `Security options live in Settings: Face ID / biometrics, passcode, linked devices (sign out other sessions), and appearance. If you see a sign-in alert you don't recognize, change your password and remove that device.`;
+          return `Security options are in More → Settings: Face ID, Passcode, Change Password, Linked Devices (sign out other sessions) and Login History. If you see a sign-in you don't recognize, change your password and remove that device.`;
         }
         if (/loan|credit|help|support|human|agent|speak to/.test(text)) {
           if (/loan/.test(text)) {
-            return `Loans are under the Loans section. You can view offers and status there. I can't submit applications for you — use that screen to continue.`;
+            return `Loans are under More → Loans. You can check offers, apply and see your loan's status there. I can't submit applications for you, so use that screen to continue.`;
           }
-          return `I can help with balances, transactions, cards, and how to use the app. For account restrictions or disputes that need a specialist, use the dispute flow on a transaction or visit a branch with ID if the app asks for in-person verification.`;
+          return `I can help with balances, transactions, cards, and how to use the app. To reach a person, go back to Help and choose "Message support" or "Request a call back". For a charge you don't recognize, use "Dispute a charge" in Help.`;
         }
-        return `I can help with your balances, recent transactions, card status, transfers, bill pay, direct deposit, and statements. Try asking “What's my checking balance?” or “Show recent transactions.” For actions like sending money, use the Transfers screens in the app.`;
+        return `I can help with your balances, recent transactions, card status, transfers, bill pay, direct deposit, statements, goals and budgets. Try asking “What's my checking balance?” or “Show recent transactions.” To reach a person, choose "Message support" in Help.`;
       }
 
       // Prefer Claude when configured; always have local fallback
@@ -2583,13 +2630,14 @@ Persona:
 - US retail banking context; amounts in USD.
 
 Hard rules:
-1. READ-ONLY. You cannot move money, freeze cards, change passwords, or submit forms. If the customer wants an action, tell them exactly which in-app screen to use (Transfers, Cards, Settings, Loans, Direct Deposit, Statements, Bill Pay, Request Money).
+1. READ-ONLY. You cannot move money, freeze cards, change passwords, or submit forms. If the customer wants an action, tell them exactly which in-app screen to use (see the navigation cheatsheet). Help has quick fixes to freeze a card, dispute a charge, or report a card lost.
 2. Never invent balances or transactions. Use ONLY the account data provided.
 3. Never reveal full account numbers, routing numbers, CVV, or PIN. Masked last-4 is fine.
 4. If you lack data, say so briefly and point them to the right screen.
 5. Keep replies short: 2–5 sentences, or a tight bullet list when comparing numbers.
 6. Fraud / unrecognized charges: advise freezing the card under Cards, reviewing Linked Devices, and filing a dispute on the transaction if available.
 7. Do not discuss other customers or internal bank systems.
+8. If the customer asks for a human, tell them to go back to Help and choose "Message support" (replies arrive in the app) or "Request a call back".
 
 Customer first name: ${customerName}
 
@@ -2602,14 +2650,14 @@ ${cardSummary}
 Recent transactions (newest first):
 ${txnSummary}
 
-App navigation cheatsheet:
-- Summary: overview of balances
-- Ledger / Checking: full transaction list, search & filters
-- Transfers: P2P send, Request Money, Bill Pay, Wire
-- Cards: freeze, spend limit, online/ATM/international locks
-- Settings: security, statements, linked devices, appearance
-- Direct Deposit: routing & account info for paycheck setup
-- Loans: offers and status`;
+App navigation cheatsheet (bottom tabs: Home, Accounts, Pay, Cards, More):
+- Home: balances, savings goals, budgets, recent activity, Request money
+- Accounts: full transaction list with search, filters and spreadsheet download
+- Pay: To an Apex User (instant), Bill Pay, International / Bank Wire
+- Cards: Freeze Card, single transaction limit, online/ATM/international locks, view CVV/PIN
+- More: Deposit check, Direct deposit, Scheduled transfers, Savings, Goals, Budgets, Loans, Statements, Insights, Currency, Offers, Branches, Profile, Settings, Help
+- More > Settings: Notifications, Appearance, Language, Face ID, Login History, Change Password, Linked Devices, Passcode, Transaction Confirmation
+- Help: search how-to articles, quick fixes (freeze card, dispute a charge, report a lost card), Message support, Request a call back`;
 
       const claudeMessages = [];
       if (Array.isArray(history)) {

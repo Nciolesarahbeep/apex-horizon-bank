@@ -4,6 +4,7 @@ const { getQuery } = require('../lib/query');
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const { creditSavingsInterest } = require('../lib/interest');
 const goals = require('../lib/goals');
+const support = require('../lib/support');
 
 // Same table definition as api/account-services.js, so the admin queue works
 // even before any customer has deposited a check.
@@ -607,6 +608,45 @@ module.exports = async function handler(req, res) {
         ORDER BY d.created_at ASC
       `;
       return res.status(200).json({ disputes });
+    }
+
+    // ---------- Support messages (see lib/support.js) ----------
+    if (['listSupportTickets', 'getSupportTicket', 'replySupportTicket', 'closeSupportTicket'].includes(action)) {
+      try {
+        await support.ensureSupportSchema(sql);
+        const body = req.body || {};
+        if (action === 'listSupportTickets') {
+          return res.status(200).json(await support.adminListTickets(sql, { status: query.status }));
+        }
+        if (action === 'getSupportTicket') {
+          return res.status(200).json(await support.adminGetTicket(sql, query.ticketId));
+        }
+        if (action === 'replySupportTicket') {
+          const result = await support.adminReply(sql, body);
+          try {
+            await sql`
+              INSERT INTO notifications (user_id, title, message, is_read, created_at)
+              VALUES (${result.userId}, ${result.notification.title}, ${result.notification.message}, FALSE, NOW())
+            `;
+          } catch (notifyErr) {
+            console.error('Support reply notification error (non-fatal):', notifyErr);
+          }
+          await sql`
+            INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+            VALUES ('replySupportTicket', NULL, NULL, ${'Replied to support conversation #' + result.ticketId}, NOW())
+          `;
+          return res.status(200).json({ success: true, message: `Reply sent. The customer has been notified.`, ...(await support.adminGetTicket(sql, result.ticketId)) });
+        }
+        const closed = await support.adminClose(sql, body);
+        await sql`
+          INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+          VALUES ('closeSupportTicket', NULL, NULL, ${'Closed support conversation #' + closed.ticketId}, NOW())
+        `;
+        return res.status(200).json({ success: true, message: closed.closed ? 'Conversation closed.' : 'That conversation was already closed.' });
+      } catch (err) {
+        if (err instanceof support.SupportError) return res.status(err.status).json({ error: err.message });
+        throw err;
+      }
     }
 
     // ---------- getLoginActivity (live sign-in feed) ----------
