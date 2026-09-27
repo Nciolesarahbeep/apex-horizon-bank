@@ -94,9 +94,9 @@
         .ahb-tabbar-clearance {
             padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
         }
-        /* The floating Help button steps aside while a bottom sheet is open, so it
-           never covers the sheet's buttons. */
-        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden)) #ahb-help-widget {
+        /* The floating Help button steps aside while a bottom sheet is open or a
+           payment is processing, so it never covers buttons or looks tappable mid-payment. */
+        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden), #loadingOverlay:not(.hidden), #preQualLoader:not(.hidden)) #ahb-help-widget {
             display: none !important;
         }
         /* Savings goals: progress rings, on/off switch, account choice cards. */
@@ -137,6 +137,15 @@
         .animate-fade-in {
             animation: fadeIn 0.3s ease-out forwards;
         }
+        /* Realistic timing (the "Realistic timing" script near the end drives these). */
+        .ahb-progress { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; translate: -50% 0; width: min(100%, 28rem); height: 2px; z-index: 10060; pointer-events: none; opacity: 0; transition: opacity 0.2s ease; }
+        .ahb-progress.is-active { opacity: 1; }
+        .ahb-progress > div { height: 100%; width: 0; background: linear-gradient(90deg, #059669, #34d399); box-shadow: 0 0 8px rgba(16, 185, 129, 0.55); border-radius: 0 2px 2px 0; }
+        #appShellRoot section.ahb-view-pending { opacity: 0.55; pointer-events: none; transition: opacity 0.16s ease; }
+        /* Loaders stay on screen however far you've scrolled. The screen skeleton sits
+           between the header and the tab bar, so you can still switch tabs while it loads. */
+        .ahb-fixed-overlay { position: fixed !important; inset: 0 auto 0 50% !important; translate: -50% 0; width: min(100%, 28rem); }
+        #bubbleLoader.ahb-content-overlay { position: fixed !important; inset: var(--ahb-top, 0px) auto var(--ahb-bottom, 0px) 50% !important; translate: -50% 0; width: min(100%, 28rem); z-index: 45 !important; }
         .checkingBalanceLabel,
 #hysBalanceLabel,
 #creditPortfolioBalanceLabel,
@@ -275,7 +284,7 @@
 
     <div id="appShellRoot" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative flex flex-col overflow-x-hidden">
 
-        <div id="bubbleLoader" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6">
+        <div id="bubbleLoader" class="ahb-content-overlay hidden absolute inset-0 bg-slate-900/90 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6">
             <div class="w-8 h-8 rounded-full border border-emerald-400/70 flex items-center justify-center mb-4">
                 <i class="fa-solid fa-building-columns text-emerald-400 text-sm"></i>
             </div>
@@ -325,12 +334,12 @@
             <img id="profilePhotoViewerImage" src="" alt="Profile photo" class="w-72 h-72 max-w-[80vw] max-h-[80vw] rounded-full object-cover shadow-2xl">
         </div>
 
-        <div id="preQualLoader" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-xs z-[9999] flex flex-col items-center justify-center space-y-4">
+        <div id="preQualLoader" class="ahb-fixed-overlay hidden absolute inset-0 bg-slate-950/90 backdrop-blur-xs z-[9999] flex flex-col items-center justify-center space-y-4">
             <div class="relative w-16 h-16">
                 <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
                 <div class="absolute inset-0 rounded-full border-4 border-indigo-400 border-t-transparent animate-spin"></div>
             </div>
-            <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Analyzing Risk Profile Matrix...</p>
+            <p data-ahb-status class="text-white text-xs font-semibold tracking-wide text-center px-6 animate-pulse" role="status" aria-live="polite">Reviewing your application…</p>
         </div>
 
         <div id="accountNumberModal" class="hidden absolute inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
@@ -926,9 +935,9 @@ async function submitCreateRecurringTransfer(event) {
             </div>
         </div>
 
-        <div id="loadingOverlay" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-xs z-[999] flex flex-col items-center justify-center space-y-4">
+        <div id="loadingOverlay" class="ahb-fixed-overlay hidden absolute inset-0 bg-slate-900/80 backdrop-blur-xs z-[999] flex flex-col items-center justify-center space-y-4">
             <div class="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
-            <p class="text-white text-xs font-mono tracking-widest uppercase animate-pulse">Securing Clearing Network...</p>
+            <p data-ahb-status class="text-white text-xs font-semibold tracking-wide text-center px-6 animate-pulse" role="status" aria-live="polite">Processing…</p>
         </div>
 
         <div id="loginSequenceLoader" class="hidden absolute inset-0 bg-slate-950 z-[9999] flex flex-col items-center justify-center px-8">
@@ -2675,7 +2684,7 @@ async function submitCreateRecurringTransfer(event) {
 
                     <div id="p2pSendingPane" class="hidden bg-white rounded-xl border border-gray-200 p-8 flex flex-col items-center justify-center space-y-3">
                         <div class="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                        <p class="text-xs font-mono text-gray-500 uppercase tracking-wider">Processing Transfer...</p>
+                        <p data-ahb-status class="text-xs font-semibold text-gray-600 text-center" role="status" aria-live="polite">Sending…</p>
                     </div>
                 </section>
                 <section id="view-bill-pay" class="hidden space-y-4">
@@ -3192,6 +3201,13 @@ async function submitCreateRecurringTransfer(event) {
                             <i class="fa-solid fa-circle-check text-emerald-500 appearanceCheck hidden"></i>
                         </button>
                     </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p id="realisticTimingLabel" class="text-sm font-semibold text-gray-900">Realistic loading</p>
+                            <p class="text-[11px] text-gray-500">Screens and payments take a moment, like a real banking app. Turn off to make everything instant.</p>
+                        </div>
+                        <button type="button" id="realisticTimingSwitch" role="switch" aria-checked="true" aria-labelledby="realisticTimingLabel" onclick="toggleRealisticTiming()" class="ahb-switch shrink-0"><span></span></button>
+                    </div>
                 </section>
 
                 <section id="view-settings-language" class="hidden space-y-4 animate-fade-in">
@@ -3691,103 +3707,93 @@ if (activeLoanBalanceEl) {
             refreshLiveCalculations();
         }
 
-        // Real apps don't take the same time to load every screen — heavier views
-        // (that actually fetch data) get a slightly longer, still-randomized delay
-        // than simple static ones, so the loading time feels networked, not fake.
-        function realisticLoaderDelay(targetViewId) {
-            const heavyViews = ['loans', 'credit', 'statements', 'spending-insights', 'settings-linked-devices', 'savings-analytics', 'manage-account', 'locations'];
-            const isHeavy = heavyViews.includes(targetViewId);
-            const base = isHeavy ? 1100 : 650;
-            const jitter = isHeavy ? 900 : 750;
-            return base + Math.floor(Math.random() * jitter);
-        }
-
+        // Screen changes go through the realistic timing engine (window.ahbTiming,
+        // defined in the "Realistic timing" script near the end): how long a screen
+        // takes depends on the work behind it, and the latest tap always wins.
         function triggerViewSwitch(targetViewId) {
             if (viewHistory[viewHistory.length - 1] !== targetViewId) {
                 viewHistory.push(targetViewId);
             }
-
-            const loader = document.getElementById('bubbleLoader');
-            loader.classList.remove('hidden');
-            
-            setTimeout(() => {
-                loader.classList.add('hidden');
+            runViewNavigation(targetViewId, false, () => {
                 switchView(targetViewId);
-                if (targetViewId === 'loans') {
-                    runLiveLoanCalculator();
-                    loadMyLoans();
-                }
-                if (targetViewId === 'credit') {
-                    loadCreditCardData();
-                }
-                                if (targetViewId === 'settings-linked-devices') {
-                    renderLinkedDevices();
-                }
-                                if (targetViewId === 'settings-notifications') {
-                    loadNotificationPrefs();
-                }
-                if (targetViewId === 'settings-biometrics') {
-                    loadBiometricsView();
-                }
-                if (targetViewId === 'settings-transaction-confirmation') {
-                    loadTxnConfirmSettings();
-                }
-                if (targetViewId === 'settings') {
-                    refreshFaceIdStatus();
-                }
-                                if (targetViewId === 'settings-login-history') {
-                    loadLoginHistory();
-                }
-                if (targetViewId === 'statements') {
-                    const input = document.getElementById('statementMonthInput');
-                    if (input) {
-                        const now = new Date();
-                        const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                        input.max = currentMonthValue;
-                        if (!input.value) input.value = currentMonthValue;
-                    }
-                }
-                if (targetViewId === 'offers' && document.getElementById('adDisclosureFooter')) {
-                    syncDismissedAdsForOffersView();
-                    if (document.getElementById('adDisclosureFooter')) {
-                        renderActiveAdState();
-                    }
-                }
-                if (targetViewId === 'profile') {
-                    renderProfileView();
-                }
-                if (targetViewId === 'manage-account') {
-                    loadManageAccountInfo();
-                }
-                if (targetViewId === 'locations') {
-                    requestUserLocationForBranches();
-                }
-                if (targetViewId === 'check-deposit') {
-                    resetCheckDepositForm();
-                    renderCheckDepositHistory();
-                }
-                if (targetViewId === 'goals' && typeof loadGoals === 'function') {
-                    loadGoals().catch(() => {});
-                }
-                if (targetViewId === 'budgets' && typeof loadBudgets === 'function') {
-                    if (typeof showBudgetsMsg === 'function') showBudgetsMsg(null, '');
-                    loadBudgets().catch(() => {});
-                }
-            }, realisticLoaderDelay(targetViewId)); 
+                runViewEnterHooks(targetViewId);
+            });
         }
 
         function navigateBackward() {
             if (viewHistory.length > 1) {
-                viewHistory.pop(); 
+                viewHistory.pop();
                 const targetPreviousView = viewHistory[viewHistory.length - 1];
-                
-                const loader = document.getElementById('bubbleLoader');
-                loader.classList.remove('hidden');
-                
-                setTimeout(() => {
-                    loader.classList.add('hidden');
-                    switchView(targetPreviousView);
-                }, realisticLoaderDelay(targetPreviousView)); 
+                runViewNavigation(targetPreviousView, true, () => switchView(targetPreviousView));
+            }
+        }
+
+        function runViewNavigation(targetViewId, back, apply) {
+            if (window.ahbTiming) return window.ahbTiming.navigate(targetViewId, { back, apply });
+            apply();
+        }
+
+        // Data each screen loads when it opens.
+        function runViewEnterHooks(targetViewId) {
+            if (targetViewId === 'loans') {
+                runLiveLoanCalculator();
+                loadMyLoans();
+            }
+            if (targetViewId === 'credit') {
+                loadCreditCardData();
+            }
+            if (targetViewId === 'settings-linked-devices') {
+                renderLinkedDevices();
+            }
+            if (targetViewId === 'settings-notifications') {
+                loadNotificationPrefs();
+            }
+            if (targetViewId === 'settings-biometrics') {
+                loadBiometricsView();
+            }
+            if (targetViewId === 'settings-transaction-confirmation') {
+                loadTxnConfirmSettings();
+            }
+            if (targetViewId === 'settings') {
+                refreshFaceIdStatus();
+            }
+            if (targetViewId === 'settings-login-history') {
+                loadLoginHistory();
+            }
+            if (targetViewId === 'statements') {
+                const input = document.getElementById('statementMonthInput');
+                if (input) {
+                    const now = new Date();
+                    const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    input.max = currentMonthValue;
+                    if (!input.value) input.value = currentMonthValue;
+                }
+            }
+            if (targetViewId === 'offers' && document.getElementById('adDisclosureFooter')) {
+                syncDismissedAdsForOffersView();
+                if (document.getElementById('adDisclosureFooter')) {
+                    renderActiveAdState();
+                }
+            }
+            if (targetViewId === 'profile') {
+                renderProfileView();
+            }
+            if (targetViewId === 'manage-account') {
+                loadManageAccountInfo();
+            }
+            if (targetViewId === 'locations') {
+                requestUserLocationForBranches();
+            }
+            if (targetViewId === 'check-deposit') {
+                resetCheckDepositForm();
+                renderCheckDepositHistory();
+            }
+            if (targetViewId === 'goals' && typeof loadGoals === 'function') {
+                loadGoals().catch(() => {});
+            }
+            if (targetViewId === 'budgets' && typeof loadBudgets === 'function') {
+                if (typeof showBudgetsMsg === 'function') showBudgetsMsg(null, '');
+                loadBudgets().catch(() => {});
             }
         }
 
@@ -3814,6 +3820,7 @@ if (activeLoanBalanceEl) {
 
             closeNotificationPanel();
             window.scrollTo(0, 0);
+            document.dispatchEvent(new CustomEvent('ahb:viewchange', { detail: { view: targetViewId } }));
         }
 
         function toggleNotificationDropdown(event) {
@@ -3828,7 +3835,9 @@ if (activeLoanBalanceEl) {
 
         // Ensures a minimum realistic processing time even when the network is fast —
         // matches how real banking sites always show at least a brief "working on it" state.
+        // `ms` is the typical time; the timing engine varies it the way real requests vary.
         function withMinDelay(promise, ms) {
+            if (window.ahbTiming) return window.ahbTiming.minDelay(promise, ms);
             return Promise.all([promise, new Promise(resolve => setTimeout(resolve, ms))]).then(([result]) => result);
         }
 
@@ -3862,6 +3871,8 @@ if (activeLoanBalanceEl) {
 
         function animateCountUp(el, targetValue, durationMs = 800, fromValue = 0) {
             if (!el) return;
+            // Bigger changes count for longer, like a real odometer.
+            if (window.ahbTiming) durationMs = window.ahbTiming.countUpMs(fromValue, targetValue);
             const startValue = fromValue;
             const startTime = performance.now();
             function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
@@ -5081,8 +5092,7 @@ if (activeLoanBalanceEl) {
 
             document.getElementById('p2pConfirmPane').classList.add('hidden');
             document.getElementById('p2pSendingPane').classList.remove('hidden');
-
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            // How long sending takes (and its status steps) comes from the timing engine.
 
             let data;
             try {
@@ -10364,13 +10374,9 @@ setInterval(pollForIncomingMoney, 8000);
 
   // The credit view (and its card element) only exists once triggerViewSwitch('credit')
   // has rendered it at least once, so bind on view switches too, not just on load.
-  const _origTriggerViewSwitch = window.triggerViewSwitch;
-  window.triggerViewSwitch = function (targetViewId) {
-    _origTriggerViewSwitch(targetViewId);
-    if (targetViewId === 'credit') {
-      setTimeout(attachTapToZoom, 1600); // after the bubble loader finishes
-    }
-  };
+  document.addEventListener('ahb:viewchange', function (e) {
+    if (e.detail && e.detail.view === 'credit') attachTapToZoom();
+  });
 
   attachTapToZoom();
 })();
@@ -13617,6 +13623,579 @@ document.addEventListener('keydown', (e) => {
             if (home) home.replaceChildren(bEl('p', 'p-4 text-xs text-gray-500 text-center', 'Loading…'));
         } catch (err) {}
         return result;
+    };
+})();
+</script>
+<script>
+// ===== Realistic timing: how long things take, and how they move =====
+// Real apps don't take one fixed time for everything. How long something takes
+// depends on the work behind it: a settings screen that's already on the phone
+// opens almost at once, a screen that pulls a long transaction history takes a
+// moment, and a wire takes longer than moving money between your own accounts.
+// Network time isn't even either: most requests are quick, a few are slow, and a
+// slow connection stays slow for a little while. This engine models all of that.
+//
+// - Screens (ahbTiming.navigate): the wait comes from the screen's weight, how
+//   much data it shows, whether it was opened recently (cached), and the current
+//   connection. Short waits show only a progress bar, medium ones dim the screen,
+//   long ones show the skeleton. The latest tap always wins.
+// - Payments and saves: each request gets a processing time based on what it is
+//   and how much money or data it moves, with status steps on the loading screens.
+// - Motion: press depth, sheet slide time and balance count-ups scale with size
+//   or distance, the way physical things do.
+// Settings > Appearance > "Realistic loading" turns the waits off.
+(function () {
+    const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const STORE_KEY = 'ahbRealisticTiming';
+    let enabled = true;
+    try { enabled = localStorage.getItem(STORE_KEY) !== 'off'; } catch (e) {}
+
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+    // ----- Random times with a realistic shape -----
+    function gaussian() { // Box-Muller
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    // Log-normal: most waits land near the typical time and a few run long, which
+    // is how real network timings are spread. `sigma` sets how spread out they are.
+    function logNormal(median, sigma) {
+        return median * Math.exp(sigma * gaussian());
+    }
+
+    // The connection drifts instead of jumping around, so a slow patch lasts a few
+    // taps, and it wanders further the longer the app sat idle.
+    const connection = { factor: 1, at: 0 };
+    function connectionFactor() {
+        const now = Date.now();
+        const idle = connection.at ? Math.min(60000, now - connection.at) : 4000;
+        connection.at = now;
+        const drift = gaussian() * 0.07 * Math.sqrt(idle / 4000 + 0.25);
+        const pullBack = Math.pow(1 / connection.factor, 0.2); // drifts back towards normal
+        connection.factor = clamp(connection.factor * Math.exp(drift) * pullBack, 0.8, 1.45);
+        return connection.factor;
+    }
+
+    // No two waits in a row are the same: resample when within 40 ms of the last one.
+    // Screens and payments keep separate memories, so a payment in between doesn't
+    // let two screen changes in a row come out alike.
+    const lastWait = { screen: -1000, action: -1000 };
+    function pick(sample, lo, hi, channel) {
+        const last = lastWait[channel];
+        let ms = 0;
+        for (let i = 0; i < 8; i++) {
+            ms = Math.round(clamp(sample(), lo, hi));
+            if (Math.abs(ms - last) >= 40) break;
+        }
+        if (Math.abs(ms - last) < 40) { // pinned against a limit: step away from the last wait
+            const up = last + 40 + Math.random() * 30;
+            const down = last - 40 - Math.random() * 30;
+            ms = Math.round(clamp(up <= hi ? up : down, lo, hi));
+        }
+        lastWait[channel] = ms;
+        return ms;
+    }
+
+    function money(n) {
+        return Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    }
+
+    // ----- Screens -----
+    // instant: already on the phone (menus, forms, settings)
+    // light:   one small request (a list, a few settings)
+    // heavy:   several requests or a lot of data to crunch (charts, statements, sessions, maps)
+    const SCREEN_TIMES = {
+        instant: { median: 190, sigma: 0.3, min: 110, max: 420 },
+        light: { median: 520, sigma: 0.28, min: 300, max: 1150 },
+        heavy: { median: 980, sigma: 0.26, min: 650, max: 2200 }
+    };
+    const SCREENS = {
+        summary: 'instant', 'send-menu': 'instant', settings: 'instant', 'settings-appearance': 'instant',
+        'settings-language': 'instant', 'settings-passcode': 'instant', 'settings-change-password': 'instant',
+        fx: 'instant', wire: 'instant', 'send-p2p': 'instant', offers: 'instant', 'direct-deposit': 'instant',
+        'savings-withdraw': 'instant',
+        checking: 'light', 'savings-summary': 'light', goals: 'light', budgets: 'light', profile: 'light',
+        'settings-notifications': 'light', 'settings-biometrics': 'light', 'settings-transaction-confirmation': 'light',
+        'check-deposit': 'light', 'bill-pay': 'light',
+        credit: 'heavy', loans: 'heavy', statements: 'heavy', 'spending-insights': 'heavy', 'savings-analytics': 'heavy',
+        'settings-linked-devices': 'heavy', 'settings-login-history': 'heavy', 'manage-account': 'heavy', locations: 'heavy'
+    };
+
+    function count(fn) { try { return Number(fn()) || 0; } catch (e) { return 0; } }
+    const txnCount = () => count(() => allTransactions.length);
+    // Extra time for how much a screen has to show, the first time it opens.
+    const DATA_COST = {
+        checking: () => Math.min(320, txnCount() * 0.9),
+        'spending-insights': () => Math.min(420, txnCount() * 1.2),
+        'savings-analytics': () => 160,
+        statements: () => 120,
+        credit: () => 140,
+        locations: () => 380, // finding your location
+        goals: () => Math.min(200, count(() => goalsUi.data.goals.length) * 35),
+        budgets: () => Math.min(200, count(() => budgetsUi.data.budgets.length) * 25)
+    };
+
+    const lastOpened = new Map(); // screen -> when it was last shown
+    const CACHE_MS = 2 * 60 * 1000; // opened in the last 2 minutes: served from cache
+    function isWarm(view) {
+        const t = lastOpened.get(view);
+        return !!t && Date.now() - t < CACHE_MS;
+    }
+    // After money moves, screens that show balances or activity fetch fresh data again.
+    function forgetCachedScreens() {
+        [...lastOpened.keys()].forEach(v => { if (SCREENS[v] !== 'instant') lastOpened.delete(v); });
+    }
+    document.addEventListener('ahb:viewchange', (e) => {
+        if (e.detail && e.detail.view) lastOpened.set(e.detail.view, Date.now());
+    });
+
+    function screenWait(view, opts) {
+        const back = !!(opts && opts.back);
+        const weight = SCREENS[view] || 'light';
+        const p = SCREEN_TIMES[weight];
+        const warm = back || isWarm(view);
+        const net = connectionFactor();
+        const extra = !warm && DATA_COST[view] ? DATA_COST[view]() : 0;
+        let lo = p.min;
+        let hi = p.max + extra;
+        let scale = 1;
+        if (warm) { scale = weight === 'instant' ? 0.75 : 0.4; lo = Math.min(lo, 110); }
+        if (back) { scale *= 0.6; lo = 80; hi = Math.max(lo + 120, hi * 0.5); }
+        // Now and then a request is just slow (about 1 in 30 fresh loads).
+        const slow = !warm && weight !== 'instant' && Math.random() < 0.035 ? 1.5 + Math.random() * 0.7 : 1;
+        hi *= slow;
+        return pick(() => (logNormal(p.median, p.sigma) * net * slow + extra) * scale, lo, hi, 'screen');
+    }
+
+    // ----- Payments and saves -----
+    // perAmount: extra ms per tenfold increase in the amount (bigger payments get more checks).
+    // bytesPerMs: upload speed for requests that carry photos (~1.5 MB/s).
+    const ACTION_TIMES = {
+        toggle: { median: 320, sigma: 0.28, min: 180, max: 800 },
+        save: { median: 560, sigma: 0.28, min: 300, max: 1300 },
+        secure: { median: 1050, sigma: 0.22, min: 700, max: 2000 },
+        request: { median: 800, sigma: 0.25, min: 450, max: 1700 },
+        internal: { median: 900, sigma: 0.25, min: 550, max: 2100, perAmount: 120, steps: ['Moving {amount}…', 'Updating your balances…'] },
+        p2p: { median: 1500, sigma: 0.22, min: 950, max: 3400, perAmount: 180, steps: ['Checking the recipient…', 'Sending {amount}…', 'Confirming…'] },
+        billPay: { median: 1300, sigma: 0.22, min: 800, max: 3000, perAmount: 150, steps: ['Sending {amount} to your payee…', 'Confirming…'] },
+        wire: { median: 2600, sigma: 0.2, min: 1800, max: 5600, perAmount: 260, steps: ['Verifying the routing number…', 'Running security checks…', 'Sending {amount} to {bank}…', 'Confirming…'] },
+        cardPayment: { median: 1250, sigma: 0.22, min: 800, max: 2800, perAmount: 150, steps: ['Taking {amount} from checking…', 'Posting your card payment…'] },
+        cardCharge: { median: 900, sigma: 0.25, min: 550, max: 2200, perAmount: 100, steps: ['Authorizing {amount}…'] },
+        loanPayment: { median: 1400, sigma: 0.22, min: 900, max: 3000, perAmount: 150, steps: ['Applying your {amount} payment…', 'Updating your loan balance…'] },
+        loanApply: { median: 2400, sigma: 0.2, min: 1600, max: 5000, perAmount: 200, steps: ['Reviewing your application…', 'Checking your account history…', 'Making a decision…'] },
+        upload: { median: 1300, sigma: 0.22, min: 800, max: 3200, bytesPerMs: 1500, steps: ['Uploading…', 'Checking the images…', 'Submitting for review…'] },
+        photo: { median: 500, sigma: 0.25, min: 300, max: 1400, bytesPerMs: 1500 },
+        statement: { median: 1200, sigma: 0.22, min: 800, max: 2600 }
+    };
+    const MONEY_KINDS = ['internal', 'p2p', 'billPay', 'wire', 'cardPayment', 'cardCharge', 'loanPayment', 'loanApply'];
+
+    // Works out what a request is from where it goes and what it sends.
+    function classify(input, init) {
+        const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+        const url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+        if (url.origin !== window.location.origin) return null;
+        const path = url.pathname;
+        if (method === 'GET') {
+            return path === '/api/account-services' && url.searchParams.get('resource') === 'statement' ? { kind: 'statement' } : null;
+        }
+        if (method === 'DELETE') return path === '/api/account-services' ? { kind: 'save' } : null;
+        const raw = init && typeof init.body === 'string' ? init.body : '';
+        let body = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch (e) { body = {}; }
+        if (!body || typeof body !== 'object') body = {};
+        const bytes = raw.length;
+        const amount = Math.abs(Number(body.amount || body.principal || 0)) || 0;
+
+        if (path === '/api/transfer') {
+            if (body.action === 'create_money_request' || body.action === 'respond_money_request') return { kind: 'request', amount };
+            if (body.routingNumber) return { kind: 'wire', amount, bank: body.targetBank };
+            if (body.recipientIdentifier) return { kind: 'p2p', amount };
+            if (body.toAccountType) return { kind: 'internal', amount };
+            return null;
+        }
+        if (path === '/api/bill-pay') {
+            if (body.billAction === 'pay') return { kind: 'billPay', amount };
+            return body.billAction ? { kind: 'save' } : null;
+        }
+        if (path !== '/api/account-services') return null;
+        switch (body.resource) {
+            case 'credit-card':
+                if (body.cardAction === 'makePayment') return { kind: 'cardPayment', amount };
+                if (body.cardAction === 'charge') return { kind: 'cardCharge', amount };
+                if (body.cardAction === 'setPin') return { kind: 'secure' };
+                if (body.cardAction === 'replaceCard' || body.cardAction === 'setVelocityLimit') return { kind: 'save' };
+                return { kind: 'toggle' };
+            case 'loans':
+                if (body.loanAction === 'apply') return { kind: 'loanApply', amount };
+                if (body.loanAction === 'makePayment') return { kind: 'loanPayment', amount };
+                return null;
+            case 'savings-goals':
+                if (['deposit', 'withdraw', 'close', 'sweep'].includes(body.goalAction)) return { kind: 'internal', amount };
+                return { kind: body.goalAction === 'roundups' ? 'toggle' : 'save' };
+            case 'check-deposits':
+            case 'kyc':
+                return { kind: 'upload', bytes };
+            case 'profile-photo':
+                return { kind: 'photo', bytes };
+            case 'change-password':
+            case 'passcode':
+            case 'transaction-security':
+                return { kind: 'secure' };
+            case 'notification-prefs':
+                return { kind: 'toggle' };
+            case 'budgets':
+            case 'recurring-transfers':
+            case 'email-change':
+            case 'disputes':
+            case 'direct-deposit':
+            case 'sessions':
+                return { kind: 'save' };
+            default:
+                return null; // the assistant, sign-in checks, marking notifications read: real time only
+        }
+    }
+
+    function actionWait(plan) {
+        const p = ACTION_TIMES[plan.kind];
+        let median = p.median;
+        if (p.perAmount && plan.amount > 0) median += p.perAmount * Math.log10(1 + plan.amount / 50);
+        const net = connectionFactor();
+        const transferMs = p.bytesPerMs && plan.bytes ? (plan.bytes / p.bytesPerMs) * net : 0;
+        const ms = pick(() => logNormal(median, p.sigma) * net + transferMs, p.min, p.max + transferMs, 'action');
+        return { ms, transferMs };
+    }
+
+    // Status steps on the loading screens ([data-ahb-status]), each given its share of the time.
+    let stepRun = 0;
+    function showSteps(plan, total, transferMs) {
+        const steps = ACTION_TIMES[plan.kind].steps;
+        if (!steps || !steps.length) return () => {};
+        const run = ++stepRun;
+        const fill = (t) => t
+            .replace('{amount}', plan.amount > 0 ? money(plan.amount) : 'your money')
+            .replace('{bank}', plan.bank ? String(plan.bank) : 'the receiving bank');
+        const set = (text) => document.querySelectorAll('[data-ahb-status]').forEach(el => {
+            if (el.dataset.ahbStatusDefault === undefined) el.dataset.ahbStatusDefault = el.textContent;
+            el.textContent = text;
+        });
+        // An upload spends its upload time on step one; a final "Confirming" step is the shortest.
+        const n = steps.length;
+        const weights = steps.map((_, i) => (n > 1 && i === n - 1 ? 0.6 : 1));
+        if (transferMs > 0 && n > 1) {
+            const rest = weights.slice(1).reduce((a, b) => a + b, 0);
+            const share = clamp(transferMs / total, 0.2, 0.8);
+            weights[0] = (rest * share) / (1 - share);
+        }
+        const sum = weights.reduce((a, b) => a + b, 0);
+        const timers = [];
+        let at = 0;
+        steps.forEach((text, i) => {
+            if (i === 0) set(fill(text));
+            else timers.push(setTimeout(() => { if (run === stepRun) set(fill(text)); }, Math.round(at)));
+            at += (weights[i] / sum) * total;
+        });
+        return () => {
+            timers.forEach(clearTimeout);
+            // Put the default text back once the loading screen has gone away.
+            setTimeout(() => {
+                if (run !== stepRun) return;
+                document.querySelectorAll('[data-ahb-status]').forEach(el => {
+                    if (el.dataset.ahbStatusDefault !== undefined) el.textContent = el.dataset.ahbStatusDefault;
+                });
+            }, 400);
+        };
+    }
+
+    function hold(promise, plan) {
+        const t = actionWait(plan);
+        const started = performance.now();
+        const stop = showSteps(plan, t.ms, t.transferMs);
+        const until = (ms) => new Promise(r => setTimeout(r, Math.max(0, ms - (performance.now() - started))));
+        return promise.then(async (res) => {
+            // A refusal (like "not enough money") comes back sooner than a finished payment.
+            await until(res && res.ok ? t.ms : t.ms * 0.5);
+            stop();
+            if (res && res.ok && MONEY_KINDS.includes(plan.kind)) forgetCachedScreens();
+            return res;
+        }, async (err) => {
+            await until(t.ms * 0.4);
+            stop();
+            throw err;
+        });
+    }
+
+    // Every request still starts at once; the answer is just held until a realistic
+    // time has passed. Wraps the large-payment confirmation wrapper, so the payment
+    // resent after Face ID or the passcode gets its own processing time too.
+    const innerFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+        const promise = innerFetch(input, init);
+        if (!enabled) return promise;
+        let plan = null;
+        try { plan = classify(input, init); } catch (e) { plan = null; }
+        return plan ? hold(promise, plan) : promise;
+    };
+
+    // withMinDelay(promise, ms): `ms` is the typical time, varied like everything else.
+    function minDelay(promise, typicalMs) {
+        if (!enabled) return promise;
+        const net = connectionFactor();
+        const ms = pick(() => logNormal(typicalMs, 0.22) * net, typicalMs * 0.6, typicalMs * 1.9, 'action');
+        return Promise.all([promise, new Promise(r => setTimeout(r, ms))]).then(([res]) => res);
+    }
+
+    // ----- Screen changes: loading states and transitions -----
+    const TAB_VIEWS = ['summary', 'checking', 'send-menu', 'credit'];
+    const SKELETON_AFTER = 200; // don't flash a skeleton for a quick load
+    const SKELETON_MIN = 380; // once it shows, keep it up long enough to read as intentional
+    const scrollMemory = new Map();
+    let navToken = 0;
+    let pending = null;
+
+    const bar = document.createElement('div');
+    bar.className = 'ahb-progress';
+    bar.setAttribute('aria-hidden', 'true');
+    bar.appendChild(document.createElement('div'));
+    document.body.appendChild(bar);
+    let barTimers = [];
+    function barStart(ms) {
+        barTimers.forEach(clearTimeout);
+        barTimers = [];
+        const fill = bar.firstChild;
+        fill.style.transition = 'none';
+        fill.style.width = '0%';
+        bar.classList.add('is-active');
+        void fill.offsetWidth;
+        // A quick jump as the request goes out, then a crawl that slows near the end.
+        fill.style.transition = 'width 0.15s ease-out';
+        fill.style.width = '14%';
+        barTimers.push(setTimeout(() => {
+            fill.style.transition = `width ${Math.max(200, ms - 150)}ms cubic-bezier(0.1, 0.6, 0.3, 1)`;
+            fill.style.width = '86%';
+        }, 150));
+    }
+    function barFinish() {
+        if (!bar.classList.contains('is-active')) return;
+        barTimers.forEach(clearTimeout);
+        barTimers = [];
+        const fill = bar.firstChild;
+        fill.style.transition = 'width 0.18s ease-out';
+        fill.style.width = '100%';
+        barTimers.push(setTimeout(() => bar.classList.remove('is-active'), 180));
+        barTimers.push(setTimeout(() => { fill.style.transition = 'none'; fill.style.width = '0%'; }, 420));
+    }
+    function barCancel() {
+        barTimers.forEach(clearTimeout);
+        barTimers = [];
+        bar.classList.remove('is-active');
+    }
+
+    function visibleView() {
+        const el = [...document.querySelectorAll('section[id^="view-"]')].find(e => !e.classList.contains('hidden'));
+        return el ? el.id.slice(5) : null;
+    }
+
+    // The tapped tab lights up straight away, before its screen has loaded.
+    function highlightTab(view) {
+        if (!TAB_VIEWS.includes(view)) return;
+        TAB_VIEWS.forEach(v => {
+            const b = document.getElementById('nav-' + v);
+            if (!b) return;
+            b.classList.toggle('text-emerald-400', v === view);
+            b.classList.toggle('text-gray-400', v !== view);
+        });
+    }
+
+    function placeSkeleton(loader) {
+        const header = document.getElementById('appHeaderBar');
+        const tabs = document.getElementById('appTabBar');
+        const top = header && !header.closest('.hidden') ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+        const bottom = tabs && !tabs.closest('.hidden') ? Math.max(0, window.innerHeight - tabs.getBoundingClientRect().top) : 0;
+        loader.style.setProperty('--ahb-top', `${Math.round(top)}px`);
+        loader.style.setProperty('--ahb-bottom', `${Math.round(bottom)}px`);
+    }
+
+    function navigate(view, opts) {
+        const back = !!(opts && opts.back);
+        const apply = opts && opts.apply;
+        const token = ++navToken;
+        const from = visibleView();
+        if (from) scrollMemory.set(from, window.scrollY);
+        const type = back ? 'pop' : (TAB_VIEWS.includes(view) && (!from || TAB_VIEWS.includes(from)) ? 'tab' : 'push');
+        const warm = isWarm(view);
+        highlightTab(view);
+        const loader = document.getElementById('bubbleLoader');
+        const skeletonUp = !!loader && !loader.classList.contains('hidden');
+        if (pending) pending.cleanup(false);
+
+        const finish = () => {
+            if (token !== navToken) return; // a newer tap took over
+            if (pending) pending.cleanup(true);
+            pending = null;
+            if (typeof apply === 'function') apply();
+            if (back && scrollMemory.has(view)) window.scrollTo(0, scrollMemory.get(view));
+            barFinish();
+            animateEnter(view, type, !warm && !back);
+        };
+
+        if (!enabled) {
+            if (loader) loader.classList.add('hidden');
+            barCancel();
+            finish();
+            return 0;
+        }
+
+        const wait = screenWait(view, { back });
+        const fromEl = from ? document.getElementById('view-' + from) : null;
+        const timers = [];
+        let total = wait;
+        if (wait >= 140) barStart(wait); else barCancel();
+        if (wait >= 750 && loader) {
+            if (!skeletonUp) {
+                total = Math.max(wait, SKELETON_AFTER + SKELETON_MIN);
+                timers.push(setTimeout(() => {
+                    if (token !== navToken) return;
+                    placeSkeleton(loader);
+                    loader.classList.remove('hidden');
+                }, SKELETON_AFTER));
+            }
+        } else {
+            if (skeletonUp) loader.classList.add('hidden');
+            if (wait >= 420 && fromEl) {
+                timers.push(setTimeout(() => { if (token === navToken) fromEl.classList.add('ahb-view-pending'); }, 120));
+            }
+        }
+        pending = {
+            cleanup(done) {
+                timers.forEach(clearTimeout);
+                if (fromEl) fromEl.classList.remove('ahb-view-pending');
+                if (done && loader) loader.classList.add('hidden');
+            }
+        };
+        timers.push(setTimeout(finish, total));
+        return wait;
+    }
+
+    function animateEnter(view, type, fresh) {
+        const el = document.getElementById('view-' + view);
+        if (!el || reduceMotion || !el.animate) return;
+        el.getAnimations().forEach(a => a.cancel()); // replaces the generic fade-in
+        const frames = type === 'tab'
+            ? [{ opacity: 0 }, { opacity: 1 }]
+            : [{ opacity: 0, transform: `translateX(${type === 'push' ? 18 : -14}px)` }, { opacity: 1, transform: 'translateX(0)' }];
+        // Going forward takes a touch longer than coming back, like iOS.
+        el.animate(frames, { duration: type === 'tab' ? 170 : type === 'push' ? 260 : 210, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+        if (fresh) staggerRows(el);
+    }
+
+    // On a fresh load, rows paint top to bottom a beat apart, like data arriving.
+    function staggerRows(root) {
+        const vh = window.innerHeight;
+        const rows = [];
+        const seen = new Set();
+        root.querySelectorAll('.divide-y > *, [data-txn-id]').forEach(el => {
+            if (rows.length >= 8 || seen.has(el)) return;
+            seen.add(el);
+            const r = el.getBoundingClientRect();
+            if (r.height > 0 && r.top < vh && r.bottom > 0 && !el.getAnimations().length) rows.push(el);
+        });
+        rows.forEach((el, i) => el.animate(
+            [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }],
+            { duration: 240, delay: 70 + i * 32, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'backwards' }
+        ));
+    }
+
+    // ----- Touch: every press dips about the same few pixels -----
+    // So a small button shrinks more (in %) than a wide card, like pressing a real thing.
+    if (!reduceMotion && Element.prototype.animate) {
+        const PRESSABLE = 'button, a[href], [role="button"], label.ahb-choice';
+        let pressed = null;
+        const release = (p) => {
+            if (!p) return;
+            const held = performance.now() - p.at;
+            setTimeout(() => {
+                p.anim.cancel();
+                p.el.animate([{ scale: String(p.depth) }, { scale: '1' }], { duration: 170, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+            }, Math.max(0, 80 - held)); // even a quick tap shows the press
+        };
+        document.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            const el = e.target.closest(PRESSABLE);
+            if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true') return;
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height || r.height > 240) return;
+            const depth = clamp(1 - 5 / Math.max(r.width, r.height), 0.94, 0.99);
+            release(pressed);
+            pressed = {
+                el, depth, at: performance.now(),
+                anim: el.animate([{ scale: '1' }, { scale: String(depth) }], { duration: 90, easing: 'ease-out', fill: 'forwards' })
+            };
+        }, { passive: true, capture: true });
+        const up = () => { release(pressed); pressed = null; };
+        document.addEventListener('pointerup', up, { passive: true, capture: true });
+        document.addEventListener('pointercancel', up, { passive: true, capture: true }); // e.g. the finger started a scroll
+        window.addEventListener('blur', up);
+    }
+
+    // ----- Sheets slide up; a taller sheet travels further, so it takes a little longer -----
+    function slideIn(sheet) {
+        const panel = sheet.firstElementChild;
+        if (!panel || reduceMotion || !panel.animate) return;
+        const h = panel.getBoundingClientRect().height;
+        panel.getAnimations().forEach(a => a.cancel()); // replaces the generic fade-in
+        const asSheet = window.innerWidth < 640;
+        const duration = Math.round(clamp(190 + h * 0.2, 230, 420));
+        sheet.animate([{ opacity: 0 }, { opacity: 1 }], { duration: Math.round(duration * 0.7), easing: 'ease-out' });
+        panel.animate(asSheet
+            ? [{ transform: `translateY(${Math.round(Math.min(h, window.innerHeight))}px)` }, { transform: 'translateY(0)' }]
+            : [{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'scale(1)' }],
+            { duration, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+    }
+    document.querySelectorAll('div.fixed.inset-0.items-end').forEach(sheet => {
+        let wasHidden = sheet.classList.contains('hidden');
+        new MutationObserver(() => {
+            const hidden = sheet.classList.contains('hidden');
+            if (wasHidden && !hidden) slideIn(sheet);
+            wasHidden = hidden;
+        }).observe(sheet, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    // ----- Balance count-ups: bigger changes count for longer -----
+    function countUpMs(from, to) {
+        const change = Math.abs(Number(to) - Number(from)) || 0;
+        return Math.round(clamp(350 + 110 * Math.log10(1 + change), 350, 1100));
+    }
+
+    // ----- Settings > Appearance > Realistic loading -----
+    function syncSwitch() {
+        const sw = document.getElementById('realisticTimingSwitch');
+        if (sw) sw.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    }
+    window.toggleRealisticTiming = function () {
+        enabled = !enabled;
+        try { localStorage.setItem(STORE_KEY, enabled ? 'on' : 'off'); } catch (e) {}
+        syncSwitch();
+    };
+    syncSwitch();
+
+    // Signing out drops any screen change still loading.
+    const previousShowLogin = window.showLoginScreen;
+    if (typeof previousShowLogin === 'function') {
+        window.showLoginScreen = function () {
+            navToken++;
+            if (pending) { pending.cleanup(true); pending = null; }
+            barCancel();
+            lastOpened.clear();
+            return previousShowLogin.apply(this, arguments);
+        };
+    }
+
+    window.ahbTiming = {
+        navigate, minDelay, countUpMs, screenWait, actionWait, classify,
+        isEnabled: () => enabled
     };
 })();
 </script>
