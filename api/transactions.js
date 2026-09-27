@@ -1,9 +1,11 @@
 const { neon } = require('@neondatabase/serverless');
+const { getQuery } = require('../lib/query');
 const { getUserFromRequest } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 module.exports = async function handler(req, res) {
+  const query = getQuery(req);
   if (req.method === 'DELETE') {
     try {
       const session = await getUserFromRequest(req);
@@ -11,7 +13,7 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      const transactionId = Number(req.query?.id || (req.body || {}).id);
+      const transactionId = Number(query?.id || (req.body || {}).id);
       if (!transactionId || !Number.isFinite(transactionId)) {
         return res.status(400).json({ error: 'Transaction ID is required.' });
       }
@@ -62,18 +64,18 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const limit = Math.min(Math.max(Number(req.query?.limit) || 50, 1), 300);
-    const q = String(req.query?.q || '').trim().toLowerCase();
-    const type = String(req.query?.type || '').trim().toLowerCase();
-    const direction = String(req.query?.direction || '').trim().toLowerCase();
-    const minAmount = req.query?.minAmount !== undefined && req.query?.minAmount !== ''
-      ? Number(req.query.minAmount)
+    const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 300);
+    const q = String(query?.q || '').trim().toLowerCase();
+    const type = String(query?.type || '').trim().toLowerCase();
+    const direction = String(query?.direction || '').trim().toLowerCase();
+    const minAmount = query?.minAmount !== undefined && query?.minAmount !== ''
+      ? Number(query.minAmount)
       : null;
-    const maxAmount = req.query?.maxAmount !== undefined && req.query?.maxAmount !== ''
-      ? Number(req.query.maxAmount)
+    const maxAmount = query?.maxAmount !== undefined && query?.maxAmount !== ''
+      ? Number(query.maxAmount)
       : null;
-    const fromDate = String(req.query?.fromDate || '').trim();
-    const toDate = String(req.query?.toDate || '').trim();
+    const fromDate = String(query?.fromDate || '').trim();
+    const toDate = String(query?.toDate || '').trim();
 
     const fetchLimit = Math.min(500, Math.max(limit * 4, 100));
 

@@ -1,16 +1,18 @@
 const { neon } = require('@neondatabase/serverless');
+const { getQuery } = require('../lib/query');
 const { getUserFromRequest } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const MAX_ACH_DAILY_LIMIT = 25000;
 
 module.exports = async function handler(req, res) {
+  const query = getQuery(req);
   const session = await getUserFromRequest(req);
   if (!session) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const resource = req.method === 'GET' ? req.query.resource : (req.body || {}).resource;
+  const resource = req.method === 'GET' ? query.resource : (req.body || {}).resource;
 
   // ---------- Account Numbers ----------
   if (resource === 'account-numbers') {
@@ -165,7 +167,7 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
     try {
-      const limit = Math.min(Number(req.query?.limit) || 25, 100);
+      const limit = Math.min(Number(query?.limit) || 25, 100);
 
       const transfers = await sql`
         SELECT at.id, at.to_external_account_holder, at.to_external_bank_name, at.amount,

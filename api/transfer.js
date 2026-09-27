@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getQuery } = require('../lib/query');
 const { getUserFromRequest } = require('../lib/auth');
 const { sendEmail, moneySentEmailHtml, moneyReceivedEmailHtml } = require('../lib/email');
 const { flagLargeTransfer } = require('../lib/fraud');
@@ -114,12 +115,13 @@ async function isDemoUser(userId) {
 const DEMO_BLOCKED_MESSAGE = 'Sending or requesting money from other people is turned off on the demo account. Try a transfer between your own accounts instead.';
 
 module.exports = async function handler(req, res) {
+  const query = getQuery(req);
   if (req.method === 'GET') {
     try {
       const session = await getUserFromRequest(req);
       if (!session) return res.status(401).json({ error: 'Not authenticated' });
 
-      if (req.query && (req.query.moneyRequests === '1' || req.query.moneyRequests === 'true')) {
+      if (query && (query.moneyRequests === '1' || query.moneyRequests === 'true')) {
         await ensureMoneyRequestsTable();
         const rows = await sql`
           SELECT mr.id, mr.amount, mr.note, mr.status, mr.created_at, mr.responded_at,
@@ -137,7 +139,7 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      const lookupIdentifier = (req.query && req.query.lookupIdentifier || '').trim();
+      const lookupIdentifier = (query && query.lookupIdentifier || '').trim();
       if (!lookupIdentifier) return res.status(400).json({ error: 'lookupIdentifier is required.' });
       const isEmail = lookupIdentifier.includes('@');
       const isAccountNumber = /^\d{10}$/.test(lookupIdentifier);

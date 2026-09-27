@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getQuery } = require('../lib/query');
 const { getUserFromRequest, revokeSessionByJti } = require('../lib/auth');
 const { sendEmail } = require('../lib/email');
 const crypto = require('crypto');
@@ -258,7 +259,8 @@ async function createNotification(userId, title, message) {
 }
 
 module.exports = async function handler(req, res) {
-  let resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
+  const query = getQuery(req);
+  let resource = (req.method === 'GET' || req.method === 'DELETE') ? query.resource : (req.body || {}).resource;
 
   // Vercel Cron cannot use query strings in the path — detect cron invocations here.
   // Routing only: the request is still authenticated with CRON_SECRET below.
@@ -1676,9 +1678,9 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-      const accountType = String(req.query.accountType || 'checking');
-      const month = Number(req.query.month);
-      const year = Number(req.query.year);
+      const accountType = String(query.accountType || 'checking');
+      const month = Number(query.month);
+      const year = Number(query.year);
 
       if (!['checking', 'savings'].includes(accountType)) {
         return res.status(400).json({ error: 'Statements are available for checking and savings accounts.' });

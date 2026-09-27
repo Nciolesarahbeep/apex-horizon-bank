@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getQuery } = require('../lib/query');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const { creditSavingsInterest } = require('../lib/interest');
@@ -313,16 +314,17 @@ function generateAccountHistory({ accountType, yearsBack, density }) {
 }
 
 module.exports = async function handler(req, res) {
+  const query = getQuery(req);
   if (!checkAdminAuth(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const action = req.method === 'GET' ? req.query.action : (req.body || {}).action;
+  const action = req.method === 'GET' ? query.action : (req.body || {}).action;
 
   try {
     // ---------- listUsers ----------
     if (action === 'listUsers') {
-      const search = normalizeEmail(req.query.search || '');
+      const search = normalizeEmail(query.search || '');
       const users = search
         ? await sql`
             SELECT u.id, u.email, u.full_name, u.is_active, u.approval_status, u.created_at,
@@ -348,7 +350,7 @@ module.exports = async function handler(req, res) {
 
     // ---------- listAccounts(email) — accounts for a single user, with restriction status ----------
     if (action === 'listAccounts') {
-      const email = normalizeEmail(req.query.email);
+      const email = normalizeEmail(query.email);
       if (!email) return res.status(400).json({ error: 'email is required' });
 
       const userRows = await sql`SELECT id, email FROM users WHERE LOWER(email) = ${email} LIMIT 1`;
@@ -379,7 +381,7 @@ module.exports = async function handler(req, res) {
 
     // ---------- getAuditLogs(email) ----------
     if (action === 'getAuditLogs') {
-      const email = normalizeEmail(req.query.email);
+      const email = normalizeEmail(query.email);
       if (!email) return res.status(400).json({ error: 'email is required' });
 
       const logs = await sql`
