@@ -96,7 +96,7 @@
         }
         /* The floating Help button steps aside while a bottom sheet is open, so it
            never covers the sheet's buttons. */
-        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden)) #ahb-help-widget {
+        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden)) #ahb-help-widget {
             display: none !important;
         }
         /* Savings goals: progress rings, on/off switch, account choice cards. */
@@ -1310,7 +1310,66 @@ async function submitCreateRecurringTransfer(event) {
     </div>
 </div>
 
-<div id="goalDetailSheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalDetail()">
+<div id="ledgerFiltersSheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeLedgerFilters()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="ledgerFiltersTitle">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h3 id="ledgerFiltersTitle" class="text-sm font-bold text-gray-900">Filter transactions</h3>
+                <p class="text-[11px] text-gray-500">Narrow things down by account, date or amount.</p>
+            </div>
+            <button type="button" onclick="closeLedgerFilters()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <fieldset>
+            <legend class="block text-[9px] font-bold uppercase text-gray-500 mb-1.5">Account</legend>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="ahb-choice"><input type="radio" name="ledgerAccount" value="" class="sr-only"><span class="block text-xs font-bold text-gray-900">All accounts</span></label>
+                <label class="ahb-choice"><input type="radio" name="ledgerAccount" value="checking" class="sr-only"><span class="block text-xs font-bold text-gray-900">Checking</span></label>
+                <label class="ahb-choice"><input type="radio" name="ledgerAccount" value="savings" class="sr-only"><span class="block text-xs font-bold text-gray-900">Savings</span></label>
+                <label class="ahb-choice"><input type="radio" name="ledgerAccount" value="credit" class="sr-only"><span class="block text-xs font-bold text-gray-900">Credit card</span></label>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend class="block text-[9px] font-bold uppercase text-gray-500 mb-1.5">Date</legend>
+            <div id="ledgerPresetChips" class="flex flex-wrap gap-2 mb-2">
+                <button type="button" data-preset="" class="ledger-preset-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">Any time</button>
+                <button type="button" data-preset="month" class="ledger-preset-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">This month</button>
+                <button type="button" data-preset="30" class="ledger-preset-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">Last 30 days</button>
+                <button type="button" data-preset="90" class="ledger-preset-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">Last 90 days</button>
+                <button type="button" data-preset="year" class="ledger-preset-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">This year</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label for="ledgerFromDate" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">From</label>
+                    <input type="date" id="ledgerFromDate" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label for="ledgerToDate" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">To</label>
+                    <input type="date" id="ledgerToDate" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend class="block text-[9px] font-bold uppercase text-gray-500 mb-1.5">Amount</legend>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <input type="number" id="ledgerMinAmount" inputmode="decimal" min="0" step="0.01" placeholder="Min" aria-label="Minimum amount" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <input type="number" id="ledgerMaxAmount" inputmode="decimal" min="0" step="0.01" placeholder="Max" aria-label="Maximum amount" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+        </fieldset>
+        <p id="ledgerFiltersError" class="hidden text-[11px] text-red-600 font-semibold" role="alert"></p>
+        <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="resetLedgerFilters()" class="bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-bold py-3 rounded-lg transition">Reset</button>
+            <button type="button" onclick="applyLedgerFilters()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition">Show results</button>
+        </div>
+    </div>
+</div>
+
+<div id="goalDetailSheet" class=""hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalDetail()">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="goalDetailTitle">
         <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
@@ -2160,19 +2219,37 @@ async function submitCreateRecurringTransfer(event) {
                             <span class="text-[9px] bg-slate-100 text-slate-700 px-2 py-1 rounded font-medium">Real-Time Feed</span>
                         </div>
                         
-                        <div class="space-y-2">
+                        <div class="space-y-3">
                             <div id="liveWireLogContainer" class="space-y-2"></div>
 
-                            <div id="scrollableLogWrapper" class="space-y-2 max-h-[400px] overflow-y-auto scroll-smooth pr-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <h3 class="text-sm font-bold text-gray-900">Transactions</h3>
+                                <button type="button" id="ledgerDownloadBtn" onclick="downloadLedgerCsv()" class="text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition disabled:opacity-60"><i class="fa-solid fa-download mr-1" aria-hidden="true"></i>Download</button>
+                            </div>
+
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none" aria-hidden="true"></i>
+                                <input type="search" id="ledgerSearchInput" placeholder="Search merchants, notes or amounts" autocomplete="off" enterkeyhint="search" aria-label="Search transactions" maxlength="100" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-8 pr-9 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                                <button type="button" id="ledgerSearchClear" onclick="clearLedgerSearch()" aria-label="Clear search" class="hidden absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full text-gray-500 hover:bg-gray-200 items-center justify-center"><i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i></button>
+                            </div>
+
+                            <div class="flex items-center gap-2" role="group" aria-label="Filter by direction">
+                                <button type="button" data-ledger-direction="" onclick="setLedgerDirection('')" aria-pressed="true" class="ledger-dir-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">All</button>
+                                <button type="button" data-ledger-direction="in" onclick="setLedgerDirection('in')" aria-pressed="false" class="ledger-dir-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">Money in</button>
+                                <button type="button" data-ledger-direction="out" onclick="setLedgerDirection('out')" aria-pressed="false" class="ledger-dir-chip text-[11px] font-semibold px-3 py-1.5 rounded-full border transition">Money out</button>
+                                <button type="button" id="ledgerFiltersBtn" onclick="openLedgerFilters()" aria-haspopup="dialog" class="ml-auto text-[11px] font-semibold px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition"><i class="fa-solid fa-sliders mr-1" aria-hidden="true"></i>Filters<span id="ledgerFiltersCount" class="hidden ml-1 min-w-[16px] h-4 px-1 rounded-full bg-emerald-700 text-white text-[9px] leading-4 text-center"></span></button>
+                            </div>
+
+                            <div id="ledgerActiveFilters" class="hidden"></div>
+                            <p id="ledgerResultSummary" class="hidden text-[11px] text-gray-500" aria-live="polite"></p>
+                            <p id="ledgerDownloadMsg" class="hidden text-[11px] font-semibold rounded-lg px-3 py-2" role="status" aria-live="polite"></p>
+
+                            <div id="scrollableLogWrapper" class="space-y-2">
                                 <div id="realTransactionContainer" class="space-y-2"></div>
                                 <div id="additionalHistoryContainer" class="space-y-2"></div>
                             </div>
 
-                            <div class="pt-2" id="logActionInterface">
-                                <button id="loadOlderBtn" onclick="loadMoreTransactions()" class="w-full text-center text-[11px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-lg border border-emerald-200 cursor-pointer transition-all duration-300">
-                                    Load Older Log Files
-                                </button>
-                            </div>
+                            <div class="pt-1" id="logActionInterface"></div>
 
                             <button onclick="triggerViewSwitch('spending-insights')" class="w-full text-center text-[11px] font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 py-2 rounded-lg border border-slate-200 transition-all duration-300">
                                 <i class="fa-solid fa-chart-pie mr-1"></i> View Spending Insights
@@ -6801,6 +6878,8 @@ fetchAndApplyProfilePhoto();
                 if (!res.ok) throw new Error('Failed to load transactions');
                 const data = await res.json();
                 allTransactions = data.transactions || [];
+                window.ahbTxnHasMore = !!data.hasMore;
+                window.ahbTxnNextCursor = data.nextCursor || null;
                 renderTransactionLedger();
                 renderSpendingInsights();
             } catch (err) {
@@ -7058,7 +7137,10 @@ fetchAndApplyProfilePhoto();
             const isDebit = typeof txnIsOutgoing === 'function' ? txnIsOutgoing(txn) : (txn.type === 'debit' || parseFloat(txn.amount) < 0);
             const amountAbs = Math.abs(parseFloat(txn.amount));
             const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+            const txnDate = new Date(txn.created_at);
+            const dateStr = txnDate.toLocaleDateString('en-US', txnDate.getFullYear() === new Date().getFullYear()
+                ? { month: 'short', day: '2-digit' }
+                : { month: 'short', day: '2-digit', year: 'numeric' });
 
             const wrapper = document.createElement('div');
             wrapper.className = "relative overflow-hidden rounded-lg animate-fade-in";
@@ -7176,6 +7258,9 @@ fetchAndApplyProfilePhoto();
         }
 
         function renderTransactionLedger() {
+            // Search, filters and paging live in the "Transaction search" script
+            // near the end of this file; this is the entry point everything calls.
+            if (typeof ledgerRefresh === 'function') { ledgerRefresh(); return; }
             const container = document.getElementById('realTransactionContainer');
             if (!container) return;
             container.innerHTML = '';
@@ -7204,6 +7289,7 @@ fetchAndApplyProfilePhoto();
         }
 
         function loadMoreTransactions() {
+            if (typeof ledgerLoadMore === 'function') { ledgerLoadMore(); return; }
             const container = document.getElementById('additionalHistoryContainer');
             container.innerHTML = '';
 
@@ -12470,6 +12556,538 @@ function closeTopGoalSheet() {
             const home = document.getElementById('homeGoals');
             if (home) home.replaceChildren(gEl('p', 'p-4 text-xs text-gray-500 text-center', 'Loading…'));
         } catch (err) {}
+        return result;
+    };
+})();
+</script>
+<script>
+// ===== Transaction search: search box, money in/out chips, filters sheet,
+// paging and CSV download on the Accounts screen. The server does the
+// filtering over the whole history (lib/txnSearch.js). Rows are built by the
+// existing createSwipeableTxnRow, so receipts, disputes and deletes still work.
+
+const LEDGER_PAGE = 25;
+const LEDGER_ACCOUNT_LABELS = { checking: 'Checking', savings: 'Savings', credit: 'Credit card' };
+const LEDGER_PRESET_LABELS = { month: 'This month', '30': 'Last 30 days', '90': 'Last 90 days', year: 'This year' };
+const LEDGER_CHIP_ON = 'bg-emerald-700 text-white border-emerald-700';
+const LEDGER_CHIP_OFF = 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50';
+
+const ledgerUi = {
+    q: '', direction: '', account: '', fromDate: '', toDate: '', minAmount: '', maxAmount: '', preset: '',
+    items: [], cursor: null, hasMore: false, total: null,
+    mode: 'local',        // 'local' = paging through the rows already loaded; 'server' = a search
+    localOffset: 0,
+    seq: 0,               // drops responses to searches that were superseded
+    loadingMore: false,
+    loadMoreError: '',
+    debounce: null,
+    pendingPreset: ''
+};
+
+function lEl(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+}
+
+function lShow(el, show, displayClass) {
+    if (!el) return;
+    el.classList.toggle('hidden', !show);
+    if (displayClass) el.classList.toggle(displayClass, show);
+}
+
+function ledgerYmd(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function ledgerFiltersActive() {
+    const u = ledgerUi;
+    return !!(u.q || u.direction || u.account || u.fromDate || u.toDate || u.minAmount || u.maxAmount);
+}
+
+function ledgerAdvancedCount() {
+    const u = ledgerUi;
+    return (u.account ? 1 : 0) + (u.fromDate || u.toDate ? 1 : 0) + (u.minAmount || u.maxAmount ? 1 : 0);
+}
+
+function ledgerParams(extra) {
+    const u = ledgerUi;
+    const p = new URLSearchParams();
+    if (u.q) p.set('q', u.q);
+    if (u.direction) p.set('direction', u.direction);
+    if (u.account) p.set('account', u.account);
+    if (u.fromDate) p.set('fromDate', u.fromDate);
+    if (u.toDate) p.set('toDate', u.toDate);
+    if (u.minAmount) p.set('minAmount', u.minAmount);
+    if (u.maxAmount) p.set('maxAmount', u.maxAmount);
+    p.set('tzOffset', String(new Date().getTimezoneOffset()));
+    Object.entries(extra || {}).forEach(([k, v]) => {
+        if (v !== null && v !== undefined && v !== '') p.set(k, String(v));
+    });
+    return p.toString();
+}
+
+function ledgerShortDate(ymd) {
+    const [y, m, d] = String(ymd).split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const opts = y === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' };
+    return date.toLocaleDateString('en-US', opts);
+}
+
+function ledgerPresetRange(preset) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (preset === 'month') return [ledgerYmd(new Date(today.getFullYear(), today.getMonth(), 1)), ledgerYmd(today)];
+    if (preset === '30' || preset === '90') {
+        const from = new Date(today);
+        from.setDate(from.getDate() - (Number(preset) - 1));
+        return [ledgerYmd(from), ledgerYmd(today)];
+    }
+    if (preset === 'year') return [ledgerYmd(new Date(today.getFullYear(), 0, 1)), ledgerYmd(today)];
+    return ['', ''];
+}
+
+function ledgerDateLabel() {
+    const u = ledgerUi;
+    if (u.preset && LEDGER_PRESET_LABELS[u.preset]) {
+        const [f, t] = ledgerPresetRange(u.preset);
+        if (f === u.fromDate && t === u.toDate) return LEDGER_PRESET_LABELS[u.preset];
+    }
+    if (u.fromDate && u.toDate) return u.fromDate === u.toDate ? ledgerShortDate(u.fromDate) : `${ledgerShortDate(u.fromDate)} – ${ledgerShortDate(u.toDate)}`;
+    if (u.fromDate) return `From ${ledgerShortDate(u.fromDate)}`;
+    return `Until ${ledgerShortDate(u.toDate)}`;
+}
+
+function ledgerMoneyLabel(v) {
+    const n = Number(v);
+    return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: n % 1 ? 2 : 0 });
+}
+
+function ledgerAmountLabel() {
+    const u = ledgerUi;
+    if (u.minAmount && u.maxAmount) return `${ledgerMoneyLabel(u.minAmount)} – ${ledgerMoneyLabel(u.maxAmount)}`;
+    if (u.minAmount) return `${ledgerMoneyLabel(u.minAmount)} or more`;
+    return `Up to ${ledgerMoneyLabel(u.maxAmount)}`;
+}
+
+// ----- Controls -----
+function syncLedgerControls() {
+    document.querySelectorAll('.ledger-dir-chip').forEach(b => {
+        const on = (b.dataset.ledgerDirection || '') === ledgerUi.direction;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        LEDGER_CHIP_ON.split(' ').forEach(c => b.classList.toggle(c, on));
+        LEDGER_CHIP_OFF.split(' ').forEach(c => b.classList.toggle(c, !on));
+    });
+    const input = document.getElementById('ledgerSearchInput');
+    if (input && document.activeElement !== input && input.value.trim() !== ledgerUi.q) input.value = ledgerUi.q;
+    lShow(document.getElementById('ledgerSearchClear'), !!(input && input.value), 'flex');
+    const n = ledgerAdvancedCount();
+    const badge = document.getElementById('ledgerFiltersCount');
+    if (badge) { badge.textContent = String(n); lShow(badge, n > 0, 'inline-block'); }
+    const filtersBtn = document.getElementById('ledgerFiltersBtn');
+    if (filtersBtn) filtersBtn.setAttribute('aria-label', n ? `Filters, ${n} on` : 'Filters');
+}
+
+function setLedgerDirection(direction) {
+    ledgerUi.direction = direction === 'in' || direction === 'out' ? direction : '';
+    ledgerRefresh();
+}
+
+function clearLedgerSearch() {
+    const input = document.getElementById('ledgerSearchInput');
+    if (input) input.value = '';
+    clearTimeout(ledgerUi.debounce);
+    ledgerUi.q = '';
+    ledgerRefresh();
+    if (input) input.focus();
+}
+
+function resetLedgerState() {
+    Object.assign(ledgerUi, { q: '', direction: '', account: '', fromDate: '', toDate: '', minAmount: '', maxAmount: '', preset: '' });
+    const input = document.getElementById('ledgerSearchInput');
+    if (input) input.value = '';
+    clearTimeout(ledgerUi.debounce);
+}
+
+function clearAllLedgerFilters() {
+    resetLedgerState();
+    ledgerRefresh();
+}
+
+(function wireLedgerSearch() {
+    const input = document.getElementById('ledgerSearchInput');
+    if (!input) return;
+    const commit = () => {
+        const q = input.value.replace(/\s+/g, ' ').trim();
+        if (q === ledgerUi.q) return;
+        ledgerUi.q = q;
+        ledgerRefresh();
+    };
+    input.addEventListener('input', () => {
+        lShow(document.getElementById('ledgerSearchClear'), !!input.value, 'flex');
+        clearTimeout(ledgerUi.debounce);
+        ledgerUi.debounce = setTimeout(commit, 350);
+    });
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(ledgerUi.debounce);
+            commit();
+            input.blur();
+        }
+    });
+})();
+
+// ----- Loading -----
+function ledgerRefresh() {
+    syncLedgerControls();
+    if (typeof showLedgerDownloadMsg === 'function') showLedgerDownloadMsg(null, ''); // a new search makes the old download note stale
+    if (ledgerFiltersActive()) { runLedgerSearch(); return; }
+    ledgerUi.seq++; // cancels any search still in flight
+    const all = typeof allTransactions !== 'undefined' && Array.isArray(allTransactions) ? allTransactions : [];
+    ledgerUi.mode = 'local';
+    ledgerUi.items = all.slice(0, LEDGER_PAGE);
+    ledgerUi.localOffset = ledgerUi.items.length;
+    ledgerUi.cursor = window.ahbTxnNextCursor || null;
+    ledgerUi.hasMore = all.length > LEDGER_PAGE || !!window.ahbTxnHasMore;
+    ledgerUi.total = null;
+    ledgerUi.loadMoreError = '';
+    paintLedger();
+}
+
+async function runLedgerSearch() {
+    const seq = ++ledgerUi.seq;
+    ledgerUi.mode = 'server';
+    ledgerUi.loadMoreError = '';
+    const box = document.getElementById('realTransactionContainer');
+    const extra = document.getElementById('additionalHistoryContainer');
+    if (box) box.innerHTML = typeof skeletonRowsHtml === 'function' ? skeletonRowsHtml(4) : '';
+    if (extra) extra.replaceChildren();
+    const footer = document.getElementById('logActionInterface');
+    if (footer) footer.replaceChildren();
+    const summary = document.getElementById('ledgerResultSummary');
+    if (summary) { summary.textContent = 'Searching…'; lShow(summary, true); }
+    renderLedgerActiveFilters();
+    try {
+        const res = await fetch('/api/transactions?' + ledgerParams({ limit: LEDGER_PAGE }), { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (seq !== ledgerUi.seq) return;
+        if (!res.ok) throw new Error(data.error || "Couldn't search your transactions. Please try again.");
+        ledgerUi.items = Array.isArray(data.transactions) ? data.transactions : [];
+        ledgerUi.cursor = data.nextCursor || null;
+        ledgerUi.hasMore = !!data.hasMore;
+        ledgerUi.total = typeof data.totalMatched === 'number' ? data.totalMatched : null;
+        paintLedger();
+    } catch (err) {
+        if (seq !== ledgerUi.seq) return;
+        ledgerUi.items = [];
+        ledgerUi.hasMore = false;
+        ledgerUi.total = null;
+        paintLedger(err.message);
+    }
+}
+
+async function ledgerLoadMore() {
+    if (ledgerUi.loadingMore) return;
+    const all = typeof allTransactions !== 'undefined' && Array.isArray(allTransactions) ? allTransactions : [];
+    if (ledgerUi.mode === 'local' && ledgerUi.localOffset < all.length) {
+        const next = all.slice(ledgerUi.localOffset, ledgerUi.localOffset + LEDGER_PAGE);
+        ledgerUi.localOffset += next.length;
+        ledgerUi.items = ledgerUi.items.concat(next);
+        ledgerUi.hasMore = ledgerUi.localOffset < all.length || !!ledgerUi.cursor;
+        appendLedgerRows(next);
+        paintLedgerFooter();
+        return;
+    }
+    if (!ledgerUi.cursor) {
+        ledgerUi.hasMore = false;
+        paintLedgerFooter();
+        return;
+    }
+    const seq = ledgerUi.seq;
+    ledgerUi.loadingMore = true;
+    ledgerUi.loadMoreError = '';
+    paintLedgerFooter();
+    try {
+        const res = await fetch('/api/transactions?' + ledgerParams({ limit: LEDGER_PAGE, cursor: ledgerUi.cursor }), { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (seq !== ledgerUi.seq) return;
+        if (!res.ok) throw new Error(data.error || "Couldn't load more transactions.");
+        const shown = new Set(ledgerUi.items.map(t => String(t.id)));
+        const fresh = (Array.isArray(data.transactions) ? data.transactions : []).filter(t => !shown.has(String(t.id)));
+        ledgerUi.items = ledgerUi.items.concat(fresh);
+        ledgerUi.cursor = data.nextCursor || null;
+        ledgerUi.hasMore = !!data.hasMore;
+        appendLedgerRows(fresh);
+    } catch (err) {
+        if (seq === ledgerUi.seq) ledgerUi.loadMoreError = err.message;
+    } finally {
+        if (seq === ledgerUi.seq) {
+            ledgerUi.loadingMore = false;
+            paintLedgerFooter();
+        }
+    }
+}
+
+// ----- Painting -----
+function ledgerEmptyState(icon, title, text, actionLabel, action) {
+    const wrap = lEl('div', 'text-center py-8 px-4 space-y-2');
+    const circle = lEl('span', 'w-12 h-12 rounded-full bg-gray-100 text-gray-500 inline-flex items-center justify-center');
+    circle.setAttribute('aria-hidden', 'true');
+    circle.appendChild(lEl('i', `fa-solid ${icon}`));
+    wrap.append(circle, lEl('p', 'text-sm font-bold text-gray-900', title), lEl('p', 'text-[11px] text-gray-500', text));
+    if (actionLabel) {
+        const b = lEl('button', 'mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition', actionLabel);
+        b.type = 'button';
+        b.onclick = action;
+        wrap.appendChild(b);
+    }
+    return wrap;
+}
+
+function paintLedger(errorMessage) {
+    const box = document.getElementById('realTransactionContainer');
+    if (!box) return;
+    const extra = document.getElementById('additionalHistoryContainer');
+    box.replaceChildren();
+    if (extra) extra.replaceChildren();
+    if (errorMessage) {
+        box.appendChild(ledgerEmptyState('fa-triangle-exclamation', "Search didn't work", errorMessage, 'Try again', runLedgerSearch));
+    } else if (!ledgerUi.items.length) {
+        if (ledgerFiltersActive()) {
+            box.appendChild(ledgerEmptyState('fa-magnifying-glass', 'No transactions match', 'Try a different word, or fewer filters.', 'Clear search and filters', clearAllLedgerFilters));
+        } else if (typeof emptyStateHtml === 'function') {
+            box.innerHTML = emptyStateHtml('fa-receipt', 'No transactions yet', 'Once you send, receive, or spend money, your activity will show up here.');
+        }
+    } else {
+        ledgerUi.items.forEach(t => box.appendChild(createSwipeableTxnRow(t)));
+    }
+    paintLedgerSummary();
+    paintLedgerFooter();
+    renderLedgerActiveFilters();
+}
+
+function appendLedgerRows(rows) {
+    const box = document.getElementById('realTransactionContainer');
+    if (!box) return;
+    rows.forEach(t => box.appendChild(createSwipeableTxnRow(t)));
+    paintLedgerSummary();
+}
+
+function paintLedgerSummary() {
+    const el = document.getElementById('ledgerResultSummary');
+    if (!el) return;
+    if (!ledgerFiltersActive() || !ledgerUi.items.length) { lShow(el, false); return; }
+    const shown = ledgerUi.items.length;
+    const total = ledgerUi.total;
+    el.textContent = total !== null && total > shown
+        ? `Showing ${shown} of ${total} results`
+        : `${total !== null ? total : shown} result${(total !== null ? total : shown) === 1 ? '' : 's'}`;
+    lShow(el, true);
+}
+
+function paintLedgerFooter() {
+    const footer = document.getElementById('logActionInterface');
+    if (!footer) return;
+    footer.replaceChildren();
+    if (!ledgerUi.hasMore && !ledgerUi.loadMoreError) return;
+    const b = lEl('button', 'w-full text-center text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-2.5 rounded-lg border border-emerald-200 transition disabled:opacity-60');
+    b.type = 'button';
+    b.id = 'loadOlderBtn';
+    b.disabled = ledgerUi.loadingMore;
+    b.textContent = ledgerUi.loadingMore ? 'Loading…' : (ledgerUi.loadMoreError ? `${ledgerUi.loadMoreError} Tap to try again.` : 'Load more');
+    b.onclick = ledgerLoadMore;
+    footer.appendChild(b);
+}
+
+function renderLedgerActiveFilters() {
+    const box = document.getElementById('ledgerActiveFilters');
+    if (!box) return;
+    box.replaceChildren();
+    const u = ledgerUi;
+    const chips = [];
+    if (u.account) chips.push({ label: LEDGER_ACCOUNT_LABELS[u.account], clear: () => { u.account = ''; } });
+    if (u.fromDate || u.toDate) chips.push({ label: ledgerDateLabel(), clear: () => { u.fromDate = ''; u.toDate = ''; u.preset = ''; } });
+    if (u.minAmount || u.maxAmount) chips.push({ label: ledgerAmountLabel(), clear: () => { u.minAmount = ''; u.maxAmount = ''; } });
+    if (!chips.length) {
+        box.className = 'hidden';
+        return;
+    }
+    box.className = 'flex flex-wrap items-center gap-2';
+    chips.forEach(c => {
+        const b = lEl('button', 'inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 pl-3 pr-2 py-1 rounded-full hover:bg-emerald-100 transition');
+        b.type = 'button';
+        b.setAttribute('aria-label', `Remove filter: ${c.label}`);
+        b.append(document.createTextNode(c.label), lEl('i', 'fa-solid fa-xmark text-[10px]'));
+        b.onclick = () => { c.clear(); ledgerRefresh(); };
+        box.appendChild(b);
+    });
+    const clear = lEl('button', 'text-[11px] font-semibold text-gray-600 hover:underline px-1', 'Clear all');
+    clear.type = 'button';
+    clear.onclick = clearAllLedgerFilters;
+    box.appendChild(clear);
+}
+
+// ----- Filters sheet -----
+function paintLedgerPresetChips(active) {
+    document.querySelectorAll('.ledger-preset-chip').forEach(b => {
+        const on = (b.dataset.preset || '') === active;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        LEDGER_CHIP_ON.split(' ').forEach(c => b.classList.toggle(c, on));
+        LEDGER_CHIP_OFF.split(' ').forEach(c => b.classList.toggle(c, !on));
+    });
+}
+
+function openLedgerFilters() {
+    const u = ledgerUi;
+    const radio = document.querySelector(`input[name="ledgerAccount"][value="${u.account || ''}"]`);
+    if (radio) radio.checked = true;
+    const today = ledgerYmd(new Date());
+    const from = document.getElementById('ledgerFromDate');
+    const to = document.getElementById('ledgerToDate');
+    from.value = u.fromDate;
+    to.value = u.toDate;
+    from.max = today;
+    to.max = today;
+    document.getElementById('ledgerMinAmount').value = u.minAmount;
+    document.getElementById('ledgerMaxAmount').value = u.maxAmount;
+    u.pendingPreset = u.fromDate || u.toDate ? (u.preset || 'custom') : '';
+    paintLedgerPresetChips(u.pendingPreset);
+    const err = document.getElementById('ledgerFiltersError');
+    err.textContent = '';
+    err.classList.add('hidden');
+    if (typeof closeNotificationPanel === 'function') closeNotificationPanel();
+    lShow(document.getElementById('ledgerFiltersSheet'), true, 'flex');
+}
+
+function closeLedgerFilters() {
+    lShow(document.getElementById('ledgerFiltersSheet'), false, 'flex');
+}
+
+(function wireLedgerFilterSheet() {
+    document.querySelectorAll('.ledger-preset-chip').forEach(b => {
+        b.addEventListener('click', () => {
+            const preset = b.dataset.preset || '';
+            const [f, t] = ledgerPresetRange(preset);
+            document.getElementById('ledgerFromDate').value = f;
+            document.getElementById('ledgerToDate').value = t;
+            ledgerUi.pendingPreset = preset;
+            paintLedgerPresetChips(preset);
+        });
+    });
+    ['ledgerFromDate', 'ledgerToDate'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => {
+            const any = document.getElementById('ledgerFromDate').value || document.getElementById('ledgerToDate').value;
+            ledgerUi.pendingPreset = any ? 'custom' : '';
+            paintLedgerPresetChips(ledgerUi.pendingPreset);
+        });
+    });
+})();
+
+function applyLedgerFilters() {
+    const err = document.getElementById('ledgerFiltersError');
+    const fail = (msg) => { err.textContent = msg; err.classList.remove('hidden'); };
+    const picked = document.querySelector('input[name="ledgerAccount"]:checked');
+    const from = document.getElementById('ledgerFromDate').value;
+    const to = document.getElementById('ledgerToDate').value;
+    const minRaw = document.getElementById('ledgerMinAmount').value.trim();
+    const maxRaw = document.getElementById('ledgerMaxAmount').value.trim();
+    if (from && to && from > to) return fail('The start date is after the end date.');
+    let min = minRaw === '' ? '' : Number(minRaw);
+    let max = maxRaw === '' ? '' : Number(maxRaw);
+    if ((min !== '' && (!Number.isFinite(min) || min < 0)) || (max !== '' && (!Number.isFinite(max) || max < 0))) {
+        return fail('Enter amounts as positive numbers.');
+    }
+    if (min !== '' && max !== '' && min > max) [min, max] = [max, min];
+    Object.assign(ledgerUi, {
+        account: picked ? picked.value : '',
+        fromDate: from,
+        toDate: to,
+        minAmount: min === '' ? '' : String(Math.round(min * 100) / 100),
+        maxAmount: max === '' ? '' : String(Math.round(max * 100) / 100),
+        preset: LEDGER_PRESET_LABELS[ledgerUi.pendingPreset] ? ledgerUi.pendingPreset : ''
+    });
+    closeLedgerFilters();
+    ledgerRefresh();
+}
+
+function resetLedgerFilters() {
+    Object.assign(ledgerUi, { account: '', fromDate: '', toDate: '', minAmount: '', maxAmount: '', preset: '' });
+    closeLedgerFilters();
+    ledgerRefresh();
+}
+
+// ----- Download -----
+function showLedgerDownloadMsg(kind, text) {
+    const el = document.getElementById('ledgerDownloadMsg');
+    if (!el) return;
+    if (!text) { el.className = 'hidden'; el.textContent = ''; return; }
+    el.textContent = text;
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    el.className = 'text-[11px] font-semibold rounded-lg px-3 py-2 border ' + (kind === 'error'
+        ? 'bg-red-50 text-red-700 border-red-200'
+        : 'bg-emerald-50 text-emerald-800 border-emerald-200');
+}
+
+async function downloadLedgerCsv() {
+    const btn = document.getElementById('ledgerDownloadBtn');
+    if (!btn || btn.disabled) return;
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Preparing…';
+    showLedgerDownloadMsg(null, '');
+    try {
+        const res = await fetch('/api/transactions?' + ledgerParams({ format: 'csv' }), { credentials: 'include', cache: 'no-store' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Couldn't prepare your download. Please try again.");
+        }
+        const blob = await res.blob();
+        const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+        const name = match ? match[1] : 'apex-horizon-transactions.csv';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        const rows = Number(res.headers.get('X-Row-Count'));
+        const truncated = res.headers.get('X-Truncated') === 'true';
+        const what = ledgerFiltersActive() ? 'matching transaction' : 'transaction';
+        if (Number.isFinite(rows) && rows >= 0) {
+            showLedgerDownloadMsg('success', truncated
+                ? `Downloaded your latest ${rows.toLocaleString('en-US')} ${what}s. Narrow the dates to get older ones.`
+                : `Downloaded ${rows.toLocaleString('en-US')} ${what}${rows === 1 ? '' : 's'} as a spreadsheet file.`);
+        } else {
+            showLedgerDownloadMsg('success', 'Download ready.');
+        }
+    } catch (err) {
+        showLedgerDownloadMsg('error', err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLedgerFilters();
+});
+
+syncLedgerControls();
+
+// Signing out clears the search, so the next person starts fresh.
+(function hookLedgerSignOut() {
+    const previous = window.showLoginScreen;
+    if (typeof previous !== 'function') return;
+    window.showLoginScreen = function () {
+        const result = previous.apply(this, arguments);
+        try { resetLedgerState(); closeLedgerFilters(); showLedgerDownloadMsg(null, ''); } catch (err) {}
         return result;
     };
 })();

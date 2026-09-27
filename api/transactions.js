@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { getQuery } = require('../lib/query');
 const { getUserFromRequest } = require('../lib/auth');
+const { parseSearchParams, searchTransactions, exportTransactionsCsv, SearchError } = require('../lib/txnSearch');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -64,87 +65,29 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 300);
-    const q = String(query?.q || '').trim().toLowerCase();
-    const type = String(query?.type || '').trim().toLowerCase();
-    const direction = String(query?.direction || '').trim().toLowerCase();
-    const minAmount = query?.minAmount !== undefined && query?.minAmount !== ''
-      ? Number(query.minAmount)
-      : null;
-    const maxAmount = query?.maxAmount !== undefined && query?.maxAmount !== ''
-      ? Number(query.maxAmount)
-      : null;
-    const fromDate = String(query?.fromDate || '').trim();
-    const toDate = String(query?.toDate || '').trim();
-
-    const fetchLimit = Math.min(500, Math.max(limit * 4, 100));
-
-    const rows = await sql`
-      SELECT
-        t.id,
-        t.type,
-        t.amount,
-        t.description,
-        t.created_at,
-        a.account_type
-      FROM transactions t
-      JOIN accounts a ON a.id = t.account_id
-      WHERE a.user_id = ${session.userId}
-      ORDER BY t.created_at DESC
-      LIMIT ${fetchLimit}
-    `;
-
-    const incomingTypes = new Set([
-      'p2p_in', 'transfer_in', 'ach_in', 'credit', 'loan_disbursement',
-    ]);
-    const outgoingTypes = new Set([
-      'p2p_out', 'transfer_out', 'wire_out', 'debit',
-    ]);
-
-    let filtered = rows;
-
-    if (q) {
-      filtered = filtered.filter((t) => {
-        const hay = `${t.description || ''} ${t.type || ''} ${t.account_type || ''}`.toLowerCase();
-        return hay.includes(q);
-      });
+    // Filters: q (text or an amount), direction (in|out), type, account
+    // (checking|savings|credit), minAmount, maxAmount, fromDate, toDate
+    // (YYYY-MM-DD in the person's timezone, given by tzOffset), limit, cursor.
+    let params;
+    try {
+      params = parseSearchParams(query || {});
+    } catch (err) {
+      if (err instanceof SearchError) return res.status(400).json({ error: err.message });
+      throw err;
     }
 
-    if (type) {
-      filtered = filtered.filter((t) => String(t.type || '').toLowerCase() === type);
+    if (String(query.format || '').toLowerCase() === 'csv') {
+      const file = await exportTransactionsCsv(sql, session.userId, params);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Row-Count', String(file.rowCount));
+      if (file.truncated) res.setHeader('X-Truncated', 'true');
+      return res.status(200).send(file.csv);
     }
 
-    if (direction === 'in') {
-      filtered = filtered.filter((t) => incomingTypes.has(t.type));
-    } else if (direction === 'out') {
-      filtered = filtered.filter((t) => outgoingTypes.has(t.type) || (!incomingTypes.has(t.type) && Number(t.amount) < 0));
-    }
-
-    if (minAmount !== null && Number.isFinite(minAmount)) {
-      filtered = filtered.filter((t) => Math.abs(Number(t.amount)) >= minAmount);
-    }
-    if (maxAmount !== null && Number.isFinite(maxAmount)) {
-      filtered = filtered.filter((t) => Math.abs(Number(t.amount)) <= maxAmount);
-    }
-
-    if (fromDate && /^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
-      const from = new Date(fromDate + 'T00:00:00.000Z');
-      filtered = filtered.filter((t) => new Date(t.created_at) >= from);
-    }
-    if (toDate && /^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
-      const to = new Date(toDate + 'T23:59:59.999Z');
-      filtered = filtered.filter((t) => new Date(t.created_at) <= to);
-    }
-
-    const totalMatched = filtered.length;
-    const page = filtered.slice(0, limit);
-
-    return res.status(200).json({
-      transactions: page,
-      totalMatched,
-      limit,
-      filters: { q, type, direction, minAmount, maxAmount, fromDate, toDate },
-    });
+    const result = await searchTransactions(sql, session.userId, params);
+    return res.status(200).json(result);
   } catch (err) {
     console.error('Transactions endpoint error:', err);
     return res.status(500).json({ error: 'Something went wrong loading your transactions.' });
