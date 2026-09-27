@@ -8733,25 +8733,42 @@ document.addEventListener('DOMContentLoaded', () => {
     z-index: 9999;
     /* Floats just above the bottom tab bar (4rem tall) instead of over it. */
     bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-    right: 24px;
+    right: 16px;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
   }
 
+  /* Small "Help" pill: the phone at a third of its old size, plus a label. */
   #ahb-help-bubble {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #10b981, #059669);
-    box-shadow: 0 8px 20px rgba(5, 150, 105, 0.45), 0 2px 4px rgba(0,0,0,0.25);
-    display: flex;
+    position: relative;
+    height: 32px;
+    padding: 0 14px 0 11px;
+    border-radius: 999px;
+    /* Deeper green keeps the white label easy to read (over 5:1 contrast). */
+    background: linear-gradient(145deg, #047857, #065f46);
+    box-shadow: 0 6px 14px rgba(4, 120, 87, 0.35), 0 2px 4px rgba(0,0,0,0.2);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    color: #ffffff;
     cursor: grab;
     transform-origin: top center;
     animation: ahb-dangle 4.5s ease-in-out infinite;
     transition: box-shadow 0.2s ease;
+  }
+
+  /* Invisible margin around the pill so it's still an easy tap (44px tall). */
+  #ahb-help-bubble::before {
+    content: '';
+    position: absolute;
+    inset: -6px -4px;
+  }
+
+  #ahb-help-bubble:focus-visible {
+    outline: 2px solid #34d399;
+    outline-offset: 3px;
   }
 
   #ahb-help-bubble:active {
@@ -8760,19 +8777,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   #ahb-help-bubble svg {
-    width: 28px;
-    height: 28px;
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
     fill: #ffffff;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));
   }
 
+  .ahb-help-label {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+
+  /* A gentle wiggle now and then (softer than before, to suit the pill). */
   @keyframes ahb-dangle {
     0%, 55% { transform: rotate(0deg); }
-    58% { transform: rotate(-10deg); }
-    61% { transform: rotate(8deg); }
-    64% { transform: rotate(-6deg); }
-    67% { transform: rotate(4deg); }
-    70% { transform: rotate(-2deg); }
+    58% { transform: rotate(-6deg); }
+    61% { transform: rotate(5deg); }
+    64% { transform: rotate(-4deg); }
+    67% { transform: rotate(3deg); }
+    70% { transform: rotate(-1deg); }
     73%, 100% { transform: rotate(0deg); }
   }
 
@@ -8782,11 +8808,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   #ahb-help-card {
     position: absolute;
-    bottom: 74px;
+    bottom: 44px;
     right: 0;
     width: 260px;
-    max-height: calc(100vh - 180px);
-    max-height: calc(100dvh - 180px);
+    max-height: calc(100vh - 200px);
+    max-height: calc(100dvh - 200px);
     overflow-y: auto;
     background: #0b1220;
     border: 1px solid rgba(16, 185, 129, 0.35);
@@ -8984,6 +9010,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <div id="ahb-help-bubble" role="button" aria-label="Get help" tabindex="0">
     <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.57.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.49a1 1 0 011 1 11.36 11.36 0 00.57 3.57 1 1 0 01-.25 1.02z"/></svg>
+    <span class="ahb-help-label">Help</span>
   </div>
 </div>
 
