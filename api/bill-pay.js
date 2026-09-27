@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest } = require('../lib/auth');
+const { requireStepUp } = require('../lib/stepUp');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -125,23 +126,44 @@ module.exports = async function handler(req, res) {
           return res.status(400).json({ error: 'Insufficient funds in checking.' });
         }
 
-        const updated = await sql`
-          UPDATE accounts SET balance = balance - ${payAmount}
-          WHERE id = ${checking.id} AND balance >= ${payAmount}
-          RETURNING balance
-        `;
-        if (updated.length === 0) return res.status(409).json({ error: 'Balance changed. Please try again.' });
+        // Large payments need Face ID / passcode confirmation.
+        if (!(await requireStepUp(sql, { req, res, session, amount: payAmount }))) return;
 
+        // Debit, ledger row and payment record happen together or not at all.
         const desc = memo ? `Bill pay to ${payee.name} — ${memo}` : `Bill pay to ${payee.name}`;
-        await sql`
-          INSERT INTO transactions (account_id, type, amount, description, created_at)
-          VALUES (${checking.id}, 'debit', ${payAmount}, ${desc}, NOW())
-        `;
-        const payment = await sql`
-          INSERT INTO bill_payments (user_id, payee_id, payee_name, amount, memo, status, created_at)
-          VALUES (${session.userId}, ${payee.id}, ${payee.name}, ${payAmount}, ${memo || null}, 'completed', NOW())
-          RETURNING id, payee_name, amount, memo, status, created_at
-        `;
+        let paidRows;
+        try {
+          paidRows = await sql`
+            WITH debit AS (
+              UPDATE accounts SET balance = balance - ${payAmount}
+              WHERE id = ${checking.id} AND balance >= ${payAmount}
+              RETURNING id, balance
+            ),
+            txn AS (
+              INSERT INTO transactions (account_id, type, amount, description, created_at)
+              VALUES ((SELECT id FROM debit), 'debit', ${payAmount}, ${desc}, NOW())
+              RETURNING id
+            ),
+            payment AS (
+              INSERT INTO bill_payments (user_id, payee_id, payee_name, amount, memo, status, created_at)
+              SELECT ${session.userId}, ${payee.id}, ${payee.name}, ${payAmount}, ${memo || null}, 'completed', NOW()
+              FROM debit
+              RETURNING id, payee_name, amount, memo, status, created_at
+            )
+            SELECT
+              (SELECT balance FROM debit) AS balance,
+              (SELECT row_to_json(p) FROM payment p) AS payment,
+              (SELECT COUNT(*) FROM txn) AS txn_rows,
+              1 / (SELECT COUNT(*) FROM debit) AS guard
+          `;
+        } catch (moveErr) {
+          if (moveErr && (moveErr.code === '22012' || moveErr.code === '23502' || /division by zero/i.test(String(moveErr.message || '')))) {
+            return res.status(409).json({ error: 'Your balance changed before the payment went through. Nothing was paid. Please try again.' });
+          }
+          throw moveErr;
+        }
+        const updated = [{ balance: paidRows[0].balance }];
+        const payment = [typeof paidRows[0].payment === 'string' ? JSON.parse(paidRows[0].payment) : paidRows[0].payment];
         const amountFormatted = payAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         await createNotification(session.userId, 'Bill Paid', `You paid $${amountFormatted} to ${payee.name}.`);
 

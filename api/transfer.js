@@ -2,6 +2,7 @@ const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest } = require('../lib/auth');
 const { sendEmail, moneySentEmailHtml, moneyReceivedEmailHtml } = require('../lib/email');
 const { flagLargeTransfer } = require('../lib/fraud');
+const { requireStepUp } = require('../lib/stepUp');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -254,6 +255,8 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: 'There is an issue on this account that blocks transfers.' });
       }
       if (Number(fromAccount.balance) < amount) return res.status(400).json({ error: 'Insufficient funds to pay this request.' });
+      // Large payments need Face ID / passcode confirmation.
+      if (!(await requireStepUp(sql, { req, res, session, amount }))) return;
       const toRows = await sql`SELECT id, balance FROM accounts WHERE user_id = ${moneyReq.requester_user_id} AND account_type = 'checking' LIMIT 1`;
       if (toRows.length === 0) return res.status(404).json({ error: 'Requester checking account not found.' });
       const toAccount = toRows[0];
@@ -388,6 +391,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (Number(fromAccount.balance) < transferAmount) return res.status(400).json({ error: 'Insufficient funds in the source account.' });
+
+    // Money leaving your own accounts (P2P or wire) at or above the confirmation
+    // threshold needs Face ID / passcode. Moving between your own accounts doesn't.
+    if ((isP2P || isWire) && !(await requireStepUp(sql, { req, res, session, amount: transferAmount }))) return;
 
     const outType = isWire ? 'wire_out' : (isP2P ? 'p2p_out' : 'transfer_out');
     let moved;

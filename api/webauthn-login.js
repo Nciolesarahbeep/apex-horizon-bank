@@ -19,8 +19,16 @@ module.exports = async function handler(req, res) {
   if (action === 'options') {
     try {
       const { email } = req.body || {};
+
+      // No email: passkey-style sign-in. The phone offers the Face ID
+      // credential saved for this site, and verify works out whose it is.
       if (!email) {
-        return res.status(400).json({ error: 'Email is required.' });
+        const options = await generateAuthenticationOptions({
+          rpID: RP_ID,
+          userVerification: 'required',
+        });
+        setChallengeCookie(res, options.challenge, { userId: null, purpose: 'login' });
+        return res.status(200).json(options);
       }
 
       const normalizedEmail = normalizeEmail(email);
@@ -45,7 +53,7 @@ module.exports = async function handler(req, res) {
         })),
       });
 
-      setChallengeCookie(res, options.challenge, { userId: user.id });
+      setChallengeCookie(res, options.challenge, { userId: user.id, purpose: 'login' });
 
       return res.status(200).json(options);
     } catch (err) {
@@ -57,7 +65,7 @@ module.exports = async function handler(req, res) {
   if (action === 'verify') {
     try {
       const challengeData = readChallengeCookie(req);
-      if (!challengeData) {
+      if (!challengeData || (challengeData.purpose && challengeData.purpose !== 'login')) {
         return res.status(400).json({ error: 'Face ID sign-in expired. Please try again.' });
       }
 
@@ -73,7 +81,7 @@ module.exports = async function handler(req, res) {
         LIMIT 1
       `;
 
-      if (credRows.length === 0 || credRows[0].user_id !== challengeData.userId) {
+      if (credRows.length === 0 || (challengeData.userId != null && credRows[0].user_id !== challengeData.userId)) {
         return res.status(400).json({ error: 'Face ID credential not recognized.' });
       }
       const credRow = credRows[0];
@@ -98,12 +106,39 @@ module.exports = async function handler(req, res) {
         UPDATE webauthn_credentials SET counter = ${verification.authenticationInfo.newCounter}
         WHERE id = ${credRow.id}
       `;
+      try {
+        await sql`UPDATE webauthn_credentials SET last_used_at = NOW() WHERE id = ${credRow.id}`;
+      } catch (e) {
+        // Column is added by api/webauthn-register.js; ignore if it isn't there yet.
+      }
 
-      const userRows = await sql`SELECT id, email, full_name FROM users WHERE id = ${credRow.user_id} LIMIT 1`;
+      const userRows = await sql`
+        SELECT id, email, full_name, is_active, approval_status, approval_reason
+        FROM users WHERE id = ${credRow.user_id} LIMIT 1
+      `;
       if (userRows.length === 0) {
         return res.status(401).json({ error: 'Account not found.' });
       }
       const user = userRows[0];
+
+      // Same account gates as password sign-in: Face ID must not let a
+      // pending, rejected or disabled account in.
+      if (user.approval_status === 'pending') {
+        return res.status(403).json({ error: "Your account is still under review. We'll notify you by email once a decision is made.", approvalStatus: 'pending' });
+      }
+      if (user.approval_status === 'rejected') {
+        return res.status(403).json({
+          error: user.approval_reason
+            ? `Your account application was not approved: ${user.approval_reason}`
+            : 'Your account application was not approved. Please contact support for details.',
+          approvalStatus: 'rejected',
+        });
+      }
+      if (!user.is_active) {
+        return res.status(403).json({ error: 'This account has been disabled. Please contact support.' });
+      }
+
+      await sql`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`;
 
       // Same session-tracking path as password login, so Face ID sign-ins
       // show up in — and can be revoked from — Linked Devices too.

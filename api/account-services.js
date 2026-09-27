@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const PDFDocument = require('pdfkit');
 const { creditSavingsInterest } = require('../lib/interest');
+const { getStepUpSettings, saveStepUpSettings, issueStepUpToken, requireStepUp, ensureStepUpSchema } = require('../lib/stepUp');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -489,6 +490,97 @@ module.exports = async function handler(req, res) {
         console.error('Submit KYC error:', err);
         return res.status(500).json({ error: 'Failed to submit KYC.' });
       }
+    }
+  }
+
+  // ---------- Transaction confirmation settings (step-up for large transfers) ----------
+  if (resource === 'transaction-security') {
+    try {
+      if (req.method === 'GET') {
+        const settings = await getStepUpSettings(sql, session.userId);
+        return res.status(200).json({ settings });
+      }
+      if (req.method === 'POST') {
+        const { enabled, threshold, useFaceId } = req.body || {};
+        // Loosening protection (turning it off or raising the amount) needs the
+        // same Face ID / passcode check as a large transfer.
+        const current = await getStepUpSettings(sql, session.userId);
+        const loosening = current.enabled && (!enabled || Number(threshold) > current.threshold);
+        if (loosening && !(await requireStepUp(sql, { req, res, session, amount: current.threshold, reason: 'settings' }))) return;
+        const settings = await saveStepUpSettings(sql, session.userId, { enabled, threshold, useFaceId });
+        await createNotification(
+          session.userId,
+          'Security Setting Updated',
+          settings.enabled
+            ? `Transfers of $${settings.threshold.toLocaleString('en-US')} or more now need Face ID or your passcode.`
+            : 'Transfer confirmation was turned off. Large transfers will no longer ask for Face ID or your passcode.'
+        );
+        return res.status(200).json({ success: true, settings });
+      }
+      res.setHeader('Allow', 'GET, POST');
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (err) {
+      if (err.status === 400) return res.status(400).json({ error: err.message });
+      console.error('Transaction security settings error:', err);
+      return res.status(500).json({ error: 'Failed to update transaction confirmation settings.' });
+    }
+  }
+
+  // ---------- Step-up with passcode (or password if no passcode is set) ----------
+  // Face ID step-up lives in api/webauthn-register.js ("stepup-options" / "stepup-verify").
+  if (resource === 'step-up') {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    try {
+      await ensureStepUpSchema(sql);
+      const { method, secret, amount } = req.body || {};
+      if (!['passcode', 'password'].includes(method) || !secret) {
+        return res.status(400).json({ error: 'Enter your passcode or password.' });
+      }
+
+      const rows = await sql`
+        SELECT passcode_hash, password_hash, step_up_failed_attempts, step_up_locked_until
+        FROM users WHERE id = ${session.userId} LIMIT 1
+      `;
+      if (rows.length === 0) return res.status(401).json({ error: 'Not authenticated' });
+      const u = rows[0];
+
+      if (u.step_up_locked_until && new Date(u.step_up_locked_until) > new Date()) {
+        const mins = Math.ceil((new Date(u.step_up_locked_until) - new Date()) / 60000);
+        return res.status(429).json({ error: `Too many incorrect attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}, or use Face ID.` });
+      }
+
+      const hash = method === 'passcode' ? u.passcode_hash : u.password_hash;
+      if (method === 'passcode' && !hash) {
+        return res.status(400).json({ error: "You haven't set an app passcode yet. Use your password instead.", noPasscode: true });
+      }
+
+      const ok = hash ? await bcrypt.compare(String(secret), hash) : false;
+      if (!ok) {
+        const failures = Number(u.step_up_failed_attempts || 0) + 1;
+        const lock = failures >= 5;
+        await sql`
+          UPDATE users
+          SET step_up_failed_attempts = ${lock ? 0 : failures},
+              step_up_locked_until = ${lock ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null}
+          WHERE id = ${session.userId}
+        `;
+        if (lock) {
+          await createNotification(session.userId, 'Transfer Confirmation Locked', 'Too many incorrect passcode or password attempts while confirming a transfer. Confirmation is locked for 15 minutes. If this wasn\'t you, change your password.');
+          return res.status(429).json({ error: 'Too many incorrect attempts. Confirmation is locked for 15 minutes.' });
+        }
+        const left = 5 - failures;
+        return res.status(401).json({ error: `Incorrect ${method}. ${left} attempt${left === 1 ? '' : 's'} left.` });
+      }
+
+      await sql`UPDATE users SET step_up_failed_attempts = 0, step_up_locked_until = NULL WHERE id = ${session.userId}`;
+      const { token, expiresInSeconds } = issueStepUpToken({ userId: session.userId, jti: session.jti, method, maxAmount: amount });
+      return res.status(200).json({ success: true, stepUpToken: token, expiresInSeconds });
+    } catch (err) {
+      console.error('Step-up (passcode) error:', err);
+      return res.status(500).json({ error: 'Could not confirm right now. Please try again.' });
     }
   }
 
@@ -2114,6 +2206,9 @@ module.exports = async function handler(req, res) {
               return res.status(400).json({ error: 'Insufficient funds in checking for this transfer.' });
             }
 
+            // Large transfers out need Face ID / passcode confirmation.
+            if (!(await requireStepUp(sql, { req, res, session, amount }))) return;
+
             let moved;
             try {
               moved = await atomicDebit({
@@ -2441,5 +2536,5 @@ App navigation cheatsheet:
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", "external-accounts", "check-deposits", or "assistant".' });
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", "external-accounts", "check-deposits", "transaction-security", "step-up", or "assistant".' });
 };

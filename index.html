@@ -1130,6 +1130,28 @@ async function submitCreateRecurringTransfer(event) {
     <span id="pullToRefreshLabel">Pull to refresh</span>
 </div>
 
+<div id="stepUpSheet" class="hidden fixed inset-0 z-[10050] bg-slate-900/70 backdrop-blur-sm items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="stepUpTitle">
+        <div class="text-center space-y-1">
+            <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center"><i class="fa-solid fa-shield-halved text-lg"></i></div>
+            <h3 id="stepUpTitle" class="text-sm font-bold text-gray-900">Confirm it's you</h3>
+            <p id="stepUpSubtitle" class="text-xs text-gray-600 leading-relaxed"></p>
+        </div>
+        <button id="stepUpFaceIdBtn" type="button" class="hidden w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-face-viewfinder text-emerald-400"></i><span>Confirm with Face ID</span>
+        </button>
+        <div id="stepUpDivider" class="hidden flex items-center gap-2 text-[10px] text-gray-400"><span class="flex-1 h-px bg-gray-200"></span>or<span class="flex-1 h-px bg-gray-200"></span></div>
+        <form id="stepUpSecretForm" class="space-y-2" autocomplete="off">
+            <label id="stepUpSecretLabel" for="stepUpSecretInput" class="block text-[9px] font-bold uppercase text-gray-400">App passcode</label>
+            <input id="stepUpSecretInput" type="password" inputmode="numeric" autocomplete="off" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500">
+            <button id="stepUpSecretBtn" type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2.5 rounded-lg transition">Confirm</button>
+            <button id="stepUpSwitchBtn" type="button" class="w-full text-[10px] text-gray-500 underline underline-offset-2">Use password instead</button>
+        </form>
+        <p id="stepUpError" class="hidden text-center text-[11px] text-red-600 font-semibold" role="alert"></p>
+        <button id="stepUpCancelBtn" type="button" class="w-full text-xs font-semibold text-gray-500 py-1">Cancel</button>
+    </div>
+</div>
+
 <div id="notifDetailSheet" class="hidden fixed inset-0 z-[9990] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeNotificationDetail()">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3 shadow-2xl animate-fade-in" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="notifDetailTitle">
         <div class="flex items-start gap-3">
@@ -2809,16 +2831,18 @@ async function submitCreateRecurringTransfer(event) {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm font-medium text-gray-900">Require Confirmation</p>
-                                <p class="text-[10px] text-gray-400">Extra step for transfers above threshold</p>
+                                <p class="text-[10px] text-gray-400">Face ID or passcode for payments at or above the amount below</p>
                             </div>
                             <button onclick="toggleTxnConfirm()" id="txnConfirmToggle" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
                                 <div class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform duration-300"></div>
                             </button>
                         </div>
                         <div>
-                            <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Threshold Amount ($)</label>
-                            <input type="number" id="txnThresholdInput" value="1000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-sm font-mono font-bold focus:outline-none">
+                            <label for="txnThresholdInput" class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Threshold Amount ($)</label>
+                            <input type="number" id="txnThresholdInput" value="1000" min="50" max="25000" step="50" inputmode="decimal" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-sm font-mono font-bold focus:outline-none">
+                            <p class="text-[10px] text-gray-400 mt-1">Applies to sending money to people, wires, bill pay and transfers to linked banks. Moving money between your own accounts never asks.</p>
                         </div>
+                        <p id="txnConfirmStatus" class="hidden text-[11px] font-semibold"></p>
                         <button onclick="saveTxnConfirmSettings()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2.5 rounded-lg transition">
                             Save Preference
                         </button>
@@ -2831,20 +2855,37 @@ async function submitCreateRecurringTransfer(event) {
                         <h1 class="text-md font-bold text-gray-900">Biometrics</h1>
                     </div>
                     <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-                        <div class="p-3.5 flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">Fingerprint / Face Login</p>
-                                <p class="text-[10px] text-gray-400">Use biometrics instead of passcode</p>
+                        <div class="p-3.5 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-face-viewfinder"></i></div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-gray-900">Face ID on this device</p>
+                                    <p id="biometricThisDeviceLabel" class="text-[10px] text-gray-400">Checking…</p>
+                                </div>
                             </div>
-                            <button onclick="toggleBiometric()" id="biometricToggle" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
+                            <button type="button" onclick="handleFaceIdToggleClick()" id="biometricDeviceToggle" aria-label="Face ID on this device" class="w-11 h-6 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
+                                <div class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
+                            </button>
+                        </div>
+                        <div class="p-3.5 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900">Approve large transfers with Face ID</p>
+                                <p class="text-[10px] text-gray-400">Otherwise we'll ask for your app passcode</p>
+                            </div>
+                            <button type="button" onclick="toggleBiometric()" id="biometricToggle" aria-label="Approve large transfers with Face ID" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
                                 <div class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform duration-300"></div>
                             </button>
                         </div>
                     </div>
-                    <button onclick="rescanBiometrics()" class="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 font-semibold text-xs py-3 rounded-xl transition flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-fingerprint text-emerald-500"></i>
-                        <span>Re-enroll Biometric Data</span>
-                    </button>
+
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Devices with Face ID</h3>
+                        <div id="biometricDevicesList" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-3.5 text-xs text-gray-400 text-center">Loading…</p>
+                        </div>
+                    </div>
+
+                    <p class="text-[10px] text-gray-400 leading-relaxed px-1">Face ID is checked by your phone. Apex never sees or stores your face, only a secure key your phone creates for this account. You can use it to sign in and to approve large transfers.</p>
                 </section>
 
             </main>
@@ -3258,6 +3299,15 @@ if (activeLoanBalanceEl) {
                 }
                                 if (targetViewId === 'settings-notifications') {
                     loadNotificationPrefs();
+                }
+                if (targetViewId === 'settings-biometrics') {
+                    loadBiometricsView();
+                }
+                if (targetViewId === 'settings-transaction-confirmation') {
+                    loadTxnConfirmSettings();
+                }
+                if (targetViewId === 'settings') {
+                    refreshFaceIdStatus();
                 }
                                 if (targetViewId === 'settings-login-history') {
                     loadLoginHistory();
@@ -7243,25 +7293,25 @@ fetchAndApplyProfilePhoto();
             }
         }
 
-        function toggleFaceID() {
-            faceIdEnabled = !faceIdEnabled;
-            toggleGenericSwitch('faceIdToggle', faceIdEnabled);
-            alert(`Face ID authentication ${faceIdEnabled ? 'enabled' : 'disabled'} for this device.`);
-        }
+        // Transaction confirmation (step-up) settings, stored on the server and
+        // enforced there for P2P, wires, bill pay and transfers to linked banks.
+        let txnConfirmSettings = { enabled: true, threshold: 1000, useFaceId: true, hasPasscode: false };
 
-        function toggleBiometric() {
-            biometricEnabled = !biometricEnabled;
-            toggleGenericSwitch('biometricToggle', biometricEnabled);
-            alert(`Biometric login ${biometricEnabled ? 'enabled' : 'disabled'}.`);
-        }
-
-        function rescanBiometrics() {
-            const loader = document.getElementById('preQualLoader');
-            loader.classList.remove('hidden');
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                alert("Biometric data re-enrolled successfully.");
-            }, 1400);
+        async function loadTxnConfirmSettings() {
+            try {
+                const res = await fetch('/api/account-services?resource=transaction-security', { credentials: 'include', cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                txnConfirmSettings = data.settings || txnConfirmSettings;
+                txnConfirmEnabled = txnConfirmSettings.enabled;
+                biometricEnabled = txnConfirmSettings.useFaceId;
+                toggleGenericSwitch('txnConfirmToggle', txnConfirmEnabled);
+                const input = document.getElementById('txnThresholdInput');
+                if (input) input.value = txnConfirmSettings.threshold;
+                if (document.getElementById('biometricToggle')) toggleGenericSwitch('biometricToggle', biometricEnabled);
+            } catch (err) {
+                console.error('Failed to load transaction confirmation settings:', err);
+            }
         }
 
         function toggleTxnConfirm() {
@@ -7269,9 +7319,61 @@ fetchAndApplyProfilePhoto();
             toggleGenericSwitch('txnConfirmToggle', txnConfirmEnabled);
         }
 
-        function saveTxnConfirmSettings() {
-            const threshold = parseFloat(document.getElementById('txnThresholdInput').value) || 0;
-            alert(`Transaction confirmation ${txnConfirmEnabled ? `enabled for transfers above $${threshold.toLocaleString()}` : 'disabled'}.`);
+        async function saveTransactionSecurity(changes) {
+            const payload = {
+                resource: 'transaction-security',
+                enabled: txnConfirmSettings.enabled,
+                threshold: txnConfirmSettings.threshold,
+                useFaceId: txnConfirmSettings.useFaceId,
+                ...changes
+            };
+            const res = await fetch('/api/account-services', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Could not save this setting.');
+            txnConfirmSettings = data.settings || txnConfirmSettings;
+            return txnConfirmSettings;
+        }
+
+        async function saveTxnConfirmSettings() {
+            const status = document.getElementById('txnConfirmStatus');
+            const threshold = parseFloat(document.getElementById('txnThresholdInput').value);
+            if (status) status.classList.add('hidden');
+            try {
+                const saved = await saveTransactionSecurity({ enabled: txnConfirmEnabled, threshold });
+                if (status) {
+                    status.textContent = saved.enabled
+                        ? `Saved. Payments of $${Number(saved.threshold).toLocaleString('en-US')} or more will ask for Face ID or your passcode.`
+                        : 'Saved. Large payments will no longer ask for confirmation.';
+                    status.className = 'text-[11px] font-semibold text-emerald-700';
+                }
+            } catch (err) {
+                // Put the controls back to what's actually saved.
+                txnConfirmEnabled = txnConfirmSettings.enabled;
+                toggleGenericSwitch('txnConfirmToggle', txnConfirmEnabled);
+                document.getElementById('txnThresholdInput').value = txnConfirmSettings.threshold;
+                if (status) {
+                    status.textContent = err.message;
+                    status.className = 'text-[11px] font-semibold text-red-600';
+                }
+            }
+        }
+
+        async function toggleBiometric() {
+            const next = !biometricEnabled;
+            biometricEnabled = next;
+            toggleGenericSwitch('biometricToggle', next);
+            try {
+                await saveTransactionSecurity({ useFaceId: next });
+            } catch (err) {
+                biometricEnabled = !next;
+                toggleGenericSwitch('biometricToggle', !next);
+                alert(err.message);
+            }
         }
 
         async function savePasscode() {
@@ -7747,57 +7849,159 @@ async function submitNewPassword() {
 }
 
 // ===== FACE ID (real WebAuthn) =====
+// Face ID is a WebAuthn platform credential: the phone checks the face and
+// signs a challenge; the server only ever sees a public key. Used for:
+//   • signing in (with or without typing your email)
+//   • approving large transfers (step-up, see below)
+//   • Settings → Face ID toggle and Settings → Biometrics device list
+
+const FACE_ID_LOCAL_KEY = 'ahb-faceid-credential-ids';
 
 function isWebAuthnSupported() {
     return typeof window.SimpleWebAuthnBrowser !== 'undefined' &&
            window.PublicKeyCredential !== undefined;
 }
 
+async function isPlatformAuthenticatorAvailable() {
+    if (!isWebAuthnSupported()) return false;
+    try {
+        return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    } catch (err) {
+        return false;
+    }
+}
+
+// Remember which Face ID keys belong to *this* device, so the app can tell
+// "on for this phone" apart from "on for your other phone".
+function getLocalFaceIdIds() {
+    try {
+        const raw = localStorage.getItem(FACE_ID_LOCAL_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list : [];
+    } catch (err) {
+        return [];
+    }
+}
+function rememberLocalFaceId(credentialId) {
+    if (!credentialId) return;
+    const list = getLocalFaceIdIds();
+    if (!list.includes(credentialId)) list.push(credentialId);
+    try { localStorage.setItem(FACE_ID_LOCAL_KEY, JSON.stringify(list.slice(-10))); } catch (err) {}
+}
+function forgetLocalFaceId(credentialId) {
+    const list = getLocalFaceIdIds().filter(id => id !== credentialId);
+    try { localStorage.setItem(FACE_ID_LOCAL_KEY, JSON.stringify(list)); } catch (err) {}
+}
+
+function friendlyDeviceName() {
+    const ua = navigator.userAgent || '';
+    const device = /iPhone/.test(ua) ? 'iPhone'
+        : /iPad/.test(ua) ? 'iPad'
+        : /Android/.test(ua) ? 'Android phone'
+        : /Macintosh|Mac OS X/.test(ua) ? 'Mac'
+        : /Windows/.test(ua) ? 'Windows PC'
+        : 'This device';
+    const browser = /CriOS|Chrome\//.test(ua) && !/Edg\//.test(ua) ? 'Chrome'
+        : /Edg\//.test(ua) ? 'Edge'
+        : /FxiOS|Firefox\//.test(ua) ? 'Firefox'
+        : /Safari\//.test(ua) ? 'Safari'
+        : '';
+    return browser ? `${device} (${browser})` : device;
+}
+
 let faceIdEnabledForAccount = false;
+let faceIdDevices = [];
+let faceIdOnThisDevice = null; // device row for this phone, if known
+
+async function loadFaceIdStatus() {
+    const res = await fetch('/api/webauthn-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'status' })
+    });
+    if (!res.ok) throw new Error('status failed');
+    const data = await res.json();
+    faceIdDevices = data.devices || [];
+    faceIdEnabledForAccount = faceIdDevices.length > 0;
+    const localIds = getLocalFaceIdIds();
+    faceIdOnThisDevice = faceIdDevices.find(d => localIds.includes(d.credentialId)) || null;
+    return data;
+}
+
+function setSwitch(toggle, isOn) {
+    if (!toggle) return;
+    const ball = toggle.querySelector('div');
+    toggle.classList.toggle('bg-emerald-500', isOn);
+    toggle.classList.toggle('bg-gray-200', !isOn);
+    if (ball) ball.classList.toggle('translate-x-5', isOn);
+    toggle.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+}
+
+function faceIdStatusText(available) {
+    if (!isWebAuthnSupported()) return 'Not supported in this browser';
+    if (!available) return 'Face ID / Touch ID not available on this device';
+    if (faceIdOnThisDevice) return 'On for this device';
+    if (faceIdDevices.length > 0) {
+        const n = faceIdDevices.length;
+        return `On for ${n} other device${n === 1 ? '' : 's'} · tap to add this one`;
+    }
+    return 'Off · tap to set up on this device';
+}
 
 async function refreshFaceIdStatus() {
     const label = document.getElementById('faceIdStatusLabel');
     const toggle = document.getElementById('faceIdToggle');
-    if (!label || !toggle) return;
+    const bioLabel = document.getElementById('biometricThisDeviceLabel');
+    const bioToggle = document.getElementById('biometricDeviceToggle');
+    const dashboard = document.getElementById('dashboardApp');
+    const signedIn = dashboard && !dashboard.classList.contains('hidden');
 
-    if (!isWebAuthnSupported()) {
-        label.textContent = 'Not supported on this device';
-        return;
+    const available = await isPlatformAuthenticatorAvailable();
+    // Load the device list even where Face ID isn't available, so other
+    // devices can still be seen and removed from here.
+    if (signedIn) {
+        try { await loadFaceIdStatus(); } catch (err) { console.error('Face ID status error:', err); }
     }
-
-    try {
-        const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        if (!available) {
-            label.textContent = 'Not available on this device';
-            return;
-        }
-    } catch (err) {
-        label.textContent = 'Not available on this device';
-        return;
-    }
-
-    label.textContent = faceIdEnabledForAccount
-        ? 'Enabled for this account'
-        : 'Tap to enable on this device';
-
-    const ball = toggle.querySelector('div');
-    if (faceIdEnabledForAccount) {
-        toggle.classList.remove('bg-gray-200');
-        toggle.classList.add('bg-emerald-500');
-        ball.classList.add('translate-x-5');
-    } else {
-        toggle.classList.remove('bg-emerald-500');
-        toggle.classList.add('bg-gray-200');
-        ball.classList.remove('translate-x-5');
-    }
+    const text = faceIdStatusText(available);
+    if (label) label.textContent = text;
+    if (bioLabel) bioLabel.textContent = text;
+    setSwitch(toggle, !!faceIdOnThisDevice);
+    setSwitch(bioToggle, !!faceIdOnThisDevice);
 }
 
 async function handleFaceIdToggleClick() {
-    if (faceIdEnabledForAccount) {
-        alert('Face ID is already enabled for this account on a device. To remove it, contact support.');
+    if (!(await isPlatformAuthenticatorAvailable())) {
+        alert('Face ID / Touch ID is not available on this device or browser.');
+        return;
+    }
+    if (faceIdOnThisDevice) {
+        if (!confirm(`Turn off Face ID on ${faceIdOnThisDevice.deviceName}? You'll sign in and approve large transfers with your password or passcode instead.`)) return;
+        await removeFaceIdDevice(faceIdOnThisDevice.id, faceIdOnThisDevice.credentialId);
         return;
     }
     await enrollFaceId();
+}
+
+async function removeFaceIdDevice(rowId, credentialId) {
+    try {
+        const res = await fetch('/api/webauthn-register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'remove', credentialRowId: rowId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            alert(data.error || 'Could not turn off Face ID for that device.');
+            return;
+        }
+        if (credentialId) forgetLocalFaceId(credentialId);
+        await refreshFaceIdStatus();
+        renderBiometricDevices();
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
 }
 
 async function enrollFaceId() {
@@ -7808,12 +8012,11 @@ async function enrollFaceId() {
 
     try {
         const optionsRes = await fetch('/api/webauthn-register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ action: 'options' })
-});
-
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'options' })
+        });
         const options = await optionsRes.json();
         if (!optionsRes.ok) {
             alert(options.error || 'Could not start Face ID setup.');
@@ -7822,34 +8025,78 @@ async function enrollFaceId() {
 
         const attestationResponse = await window.SimpleWebAuthnBrowser.startRegistration(options);
 
-       const verifyRes = await fetch('/api/webauthn-register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-        action: 'verify',
-        attestationResponse,
-        deviceName: navigator.userAgentData?.platform || navigator.platform || 'This device'
-    })
-});
-
+        const verifyRes = await fetch('/api/webauthn-register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'verify', attestationResponse, deviceName: friendlyDeviceName() })
+        });
         const verifyData = await verifyRes.json();
-
         if (!verifyRes.ok) {
             alert(verifyData.error || 'Could not enable Face ID.');
             return;
         }
 
-        faceIdEnabledForAccount = true;
-        refreshFaceIdStatus();
-        alert('Face ID enabled! You can now sign in using Face ID on this device.');
+        rememberLocalFaceId(verifyData.credentialId || attestationResponse.id);
+        await refreshFaceIdStatus();
+        renderBiometricDevices();
+        alert('Face ID is on. You can now sign in and approve large transfers with Face ID on this device.');
     } catch (err) {
-        if (err.name === 'NotAllowedError') {
+        if (err.name === 'NotAllowedError') return; // user cancelled
+        if (err.name === 'InvalidStateError') {
+            alert('Face ID is already set up for your account on this device. If it stopped working, remove this device under Settings → Biometrics and set it up again.');
             return;
         }
         console.error('Face ID enrollment error:', err);
         alert('Could not set up Face ID. Please try again.');
     }
+}
+
+async function loadBiometricsView() {
+    const list = document.getElementById('biometricDevicesList');
+    if (list) list.innerHTML = '<p class="p-3.5 text-xs text-gray-400 text-center">Loading…</p>';
+    await Promise.all([refreshFaceIdStatus(), loadTxnConfirmSettings()]);
+    renderBiometricDevices();
+}
+
+function renderBiometricDevices() {
+    const list = document.getElementById('biometricDevicesList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (faceIdDevices.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'p-3.5 text-xs text-gray-400 text-center';
+        p.textContent = 'No devices yet. Turn on Face ID above to add this one.';
+        list.appendChild(p);
+        return;
+    }
+    faceIdDevices.forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'p-3.5 flex items-center justify-between gap-3';
+        const left = document.createElement('div');
+        left.className = 'min-w-0';
+        const name = document.createElement('p');
+        name.className = 'text-sm font-medium text-gray-900 truncate';
+        name.textContent = d.deviceName + (faceIdOnThisDevice && faceIdOnThisDevice.id === d.id ? ' · this device' : '');
+        const meta = document.createElement('p');
+        meta.className = 'text-[10px] text-gray-400';
+        const added = d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+        const used = d.lastUsedAt ? notifTimeAgo(d.lastUsedAt) : null;
+        meta.textContent = [added ? `Added ${added}` : null, used ? `last used ${used.toLowerCase()}` : null].filter(Boolean).join(' · ') || 'Face ID key';
+        left.appendChild(name);
+        left.appendChild(meta);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-[11px] font-semibold text-red-600 hover:underline shrink-0';
+        btn.textContent = 'Remove';
+        btn.onclick = () => {
+            if (!confirm(`Remove Face ID from ${d.deviceName}? That device will need your password to sign in.`)) return;
+            removeFaceIdDevice(d.id, d.credentialId);
+        };
+        row.appendChild(left);
+        row.appendChild(btn);
+        list.appendChild(row);
+    });
 }
 
 async function handleFaceIdLogin() {
@@ -7858,19 +8105,17 @@ async function handleFaceIdLogin() {
         return;
     }
 
-    const email = document.getElementById('loginEmailInput').value;
-    if (!email) {
-        alert('Enter your email above first, then tap "Sign in with Face ID".');
-        return;
-    }
+    // Email is optional: without it, the phone offers the Face ID key it has
+    // saved for Apex and the server works out which account it belongs to.
+    const email = (document.getElementById('loginEmailInput').value || '').trim();
 
     try {
-       const optionsRes = await fetch('/api/webauthn-login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'options', email })
-});
-
+        const optionsRes = await fetch('/api/webauthn-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(email ? { action: 'options', email } : { action: 'options' })
+        });
         const options = await optionsRes.json();
         if (!optionsRes.ok) {
             alert(options.error || 'Face ID sign-in is not available for this account yet.');
@@ -7880,20 +8125,20 @@ async function handleFaceIdLogin() {
         const assertionResponse = await window.SimpleWebAuthnBrowser.startAuthentication(options);
 
         const verifyRes = await fetch('/api/webauthn-login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ action: 'verify', assertionResponse })
-});
-
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'verify', assertionResponse })
+        });
         const data = await verifyRes.json();
-
         if (!verifyRes.ok) {
             alert(data.error || 'Face ID sign-in failed.');
             return;
         }
+        rememberLocalFaceId(assertionResponse.id);
     } catch (err) {
         if (err.name === 'NotAllowedError') {
+            if (!email) alert("Face ID didn't find a saved sign-in for Apex on this device. Enter your email and try again, or sign in with your password.");
             return;
         }
         console.error('Face ID login error:', err);
@@ -7907,6 +8152,204 @@ async function handleFaceIdLogin() {
         console.error('Post-login data load failed (Face ID sign-in itself succeeded):', err);
     }
     runLoginSequence();
+}
+
+// ===== Step-up confirmation for large transfers =====
+// The server answers { stepUpRequired: true } (HTTP 403) when a payment is at or
+// above the customer's threshold. This wrapper catches that for every money
+// screen at once, asks for Face ID or the passcode, then resends the same
+// request with the one-time token. Nothing is sent if the customer cancels.
+const STEP_UP_PATHS = ['/api/transfer', '/api/bill-pay', '/api/account-services'];
+const nativeFetchForStepUp = window.fetch.bind(window);
+
+window.fetch = async function (input, init) {
+    const response = await nativeFetchForStepUp(input, init);
+    if (response.status !== 403 || !init || typeof init.body !== 'string') return response;
+    if (String(init.method || 'GET').toUpperCase() !== 'POST') return response;
+
+    let url;
+    try { url = new URL(typeof input === 'string' ? input : input.url, window.location.href); } catch (e) { return response; }
+    if (url.origin !== window.location.origin || !STEP_UP_PATHS.includes(url.pathname)) return response;
+
+    let data;
+    try { data = await response.clone().json(); } catch (e) { return response; }
+    if (!data || !data.stepUpRequired) return response;
+
+    let body;
+    try { body = JSON.parse(init.body); } catch (e) { return response; }
+
+    const token = await requestStepUp(data);
+    if (!token) {
+        return new Response(JSON.stringify({ error: 'Cancelled. Nothing was sent.', stepUpCancelled: true }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+    body.stepUpToken = token;
+    return window.fetch(input, { ...init, body: JSON.stringify(body) });
+};
+
+let stepUpActive = null;
+
+function requestStepUp(info) {
+    if (stepUpActive) return stepUpActive;
+    stepUpActive = new Promise(resolve => openStepUpSheet(info, token => {
+        stepUpActive = null;
+        resolve(token);
+    }));
+    return stepUpActive;
+}
+
+async function openStepUpSheet(info, done) {
+    const sheet = document.getElementById('stepUpSheet');
+    const title = document.getElementById('stepUpTitle');
+    const subtitle = document.getElementById('stepUpSubtitle');
+    const faceBtn = document.getElementById('stepUpFaceIdBtn');
+    const divider = document.getElementById('stepUpDivider');
+    const form = document.getElementById('stepUpSecretForm');
+    const label = document.getElementById('stepUpSecretLabel');
+    const input = document.getElementById('stepUpSecretInput');
+    const submitBtn = document.getElementById('stepUpSecretBtn');
+    const switchBtn = document.getElementById('stepUpSwitchBtn');
+    const errorEl = document.getElementById('stepUpError');
+    const cancelBtn = document.getElementById('stepUpCancelBtn');
+
+    // Hide any "processing" overlay so the sheet is what the customer sees.
+    ['loadingOverlay', 'bubbleLoader', 'preQualLoader'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+
+    const money = v => Number(v).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    if (info.reason === 'settings') {
+        title.textContent = "Confirm it's you";
+        subtitle.textContent = 'Changing transfer protection needs a quick security check.';
+    } else {
+        title.textContent = `Confirm ${money(info.amount)}`;
+        subtitle.textContent = `For your security, payments of ${money(info.threshold)} or more need Face ID or your passcode.`;
+    }
+
+    let method = info.hasPasscode ? 'passcode' : 'password';
+    const applyMethod = () => {
+        label.textContent = method === 'passcode' ? 'App passcode' : 'Account password';
+        input.type = 'password';
+        input.inputMode = method === 'passcode' ? 'numeric' : 'text';
+        input.maxLength = method === 'passcode' ? 6 : 128;
+        input.className = method === 'passcode'
+            ? 'w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-mono tracking-widest text-center focus:outline-none focus:border-emerald-500'
+            : 'w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500';
+        switchBtn.textContent = method === 'passcode' ? 'Use password instead' : (info.hasPasscode ? 'Use app passcode instead' : '');
+        switchBtn.classList.toggle('hidden', method === 'password' && !info.hasPasscode);
+        input.value = '';
+    };
+    applyMethod();
+
+    const showError = msg => { errorEl.textContent = msg; errorEl.classList.toggle('hidden', !msg); };
+    showError('');
+
+    const canFace = info.useFaceId !== false && await isPlatformAuthenticatorAvailable();
+    faceBtn.classList.toggle('hidden', !canFace);
+    divider.classList.toggle('hidden', !canFace);
+
+    let finished = false;
+    const finish = token => {
+        if (finished) return;
+        finished = true;
+        sheet.classList.add('hidden');
+        sheet.classList.remove('flex');
+        faceBtn.onclick = null; form.onsubmit = null; switchBtn.onclick = null; cancelBtn.onclick = null;
+        document.removeEventListener('keydown', onKey);
+        done(token);
+    };
+    const onKey = e => { if (e.key === 'Escape') finish(null); };
+    document.addEventListener('keydown', onKey);
+
+    const setBusy = busy => {
+        [faceBtn, submitBtn, switchBtn, cancelBtn].forEach(b => { b.disabled = busy; });
+        input.disabled = busy;
+    };
+    setBusy(false); // a previous confirmation may have left the controls disabled
+
+    faceBtn.onclick = async () => {
+        showError('');
+        setBusy(true);
+        try {
+            const optRes = await nativeFetchForStepUp('/api/webauthn-register', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'stepup-options', amount: info.amount })
+            });
+            const opts = await optRes.json().catch(() => ({}));
+            if (!optRes.ok) {
+                if (opts.noFaceId) {
+                    faceBtn.classList.add('hidden');
+                    divider.classList.add('hidden');
+                    showError('Face ID isn\'t set up for your account yet. Use your passcode, or turn Face ID on in Settings.');
+                } else {
+                    showError(opts.error || 'Face ID is unavailable right now.');
+                }
+                return;
+            }
+            const assertion = await window.SimpleWebAuthnBrowser.startAuthentication(opts);
+            const verRes = await nativeFetchForStepUp('/api/webauthn-register', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'stepup-verify', assertionResponse: assertion })
+            });
+            const ver = await verRes.json().catch(() => ({}));
+            if (!verRes.ok || !ver.stepUpToken) {
+                showError(ver.error || 'Face ID did not match. Try again or use your passcode.');
+                return;
+            }
+            rememberLocalFaceId(assertion.id);
+            finish(ver.stepUpToken);
+        } catch (err) {
+            showError(err && err.name === 'NotAllowedError'
+                ? 'Face ID was cancelled. Try again or use your passcode.'
+                : 'Face ID is unavailable right now. Use your passcode instead.');
+        } finally {
+            if (!finished) setBusy(false);
+        }
+    };
+
+    form.onsubmit = async e => {
+        e.preventDefault();
+        const secret = input.value;
+        if (!secret) { showError(method === 'passcode' ? 'Enter your app passcode.' : 'Enter your password.'); return; }
+        showError('');
+        setBusy(true);
+        try {
+            const res = await nativeFetchForStepUp('/api/account-services', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resource: 'step-up', method, secret, amount: info.amount })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.stepUpToken) {
+                if (data.noPasscode) { info.hasPasscode = false; method = 'password'; applyMethod(); }
+                showError(data.error || 'Could not confirm. Please try again.');
+                input.value = '';
+                return;
+            }
+            finish(data.stepUpToken);
+        } catch (err) {
+            showError('Network error. Please try again.');
+        } finally {
+            if (!finished) { setBusy(false); input.focus(); }
+        }
+    };
+
+    switchBtn.onclick = () => {
+        method = method === 'passcode' ? 'password' : 'passcode';
+        applyMethod();
+        showError('');
+        input.focus();
+    };
+    cancelBtn.onclick = () => finish(null);
+
+    sheet.classList.remove('hidden');
+    sheet.classList.add('flex');
+    if (!canFace) setTimeout(() => input.focus(), 50);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9169,19 +9612,22 @@ setInterval(pollForIncomingMoney, 8000);
   }
 
   // 4. Form field shake on validation error — watches every *ErrorBanner element
+  // Only shake when the error *appears* (its class list lost "hidden"). The
+  // shake itself changes the class list, so reacting to every class change
+  // made the observer re-trigger itself forever and froze the page.
   var errorShakeObserver = new MutationObserver(function (mutations) {
     mutations.forEach(function (m) {
       var el = m.target;
       if (!(el instanceof HTMLElement)) return;
       if (!/error/i.test(el.id || '')) return;
-      if (!el.classList.contains('hidden')) {
-        el.classList.remove('ahb-shake');
-        void el.offsetWidth;
-        el.classList.add('ahb-shake');
-      }
+      var wasHidden = /(^|\s)hidden(\s|$)/.test(m.oldValue || '');
+      if (!wasHidden || el.classList.contains('hidden')) return;
+      el.classList.remove('ahb-shake');
+      void el.offsetWidth;
+      el.classList.add('ahb-shake');
     });
   });
-  errorShakeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+  errorShakeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'], attributeOldValue: true, subtree: true });
 
   // 5. Low balance warning glow
   var LOW_BALANCE_THRESHOLD = 100;

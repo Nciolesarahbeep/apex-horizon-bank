@@ -5,7 +5,7 @@ const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const MAX_ACH_DAILY_LIMIT = 25000;
 
 module.exports = async function handler(req, res) {
-  const session = getUserFromRequest(req);
+  const session = await getUserFromRequest(req);
   if (!session) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
