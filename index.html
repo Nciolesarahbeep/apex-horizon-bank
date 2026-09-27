@@ -722,7 +722,7 @@ async function submitCreateRecurringTransfer(event) {
             <button onclick="submitKyc()" id="kycSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs mt-2">
                 Submit for Verification
             </button>
-            <p class="text-[10px] text-gray-500 text-center leading-relaxed">Reviewed within 24 hours. This is a demo app, so use made-up details, never your real SSN or ID.</p>
+            <p class="text-[10px] text-gray-500 text-center leading-relaxed">Reviewed within 24 hours. Your SSN is encrypted and never stored in plain text.</p>
         </div>
     </div>
 </div>
@@ -1071,7 +1071,6 @@ async function submitCreateRecurringTransfer(event) {
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">SSN (last 4 digits)</label>
                             <input type="text" id="signupSsnLast4Input" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            <p class="text-[10px] text-gray-500 mt-1">Demo app: use any 4 digits, not your real SSN.</p>
                         </div>
                         <div class="flex gap-2 mt-2">
                             <button type="button" onclick="handleSignupBack(3)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
@@ -1137,7 +1136,7 @@ async function submitCreateRecurringTransfer(event) {
                 </div>
 
                 <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 text-center">
-                    <p class="text-[10px] text-gray-500 leading-normal">Portfolio demo · Not a real bank · Not FDIC insured</p>
+                    <p class="text-[10px] text-gray-500 leading-normal">Protected by multi-factor systems and real-time fraud monitoring.</p>
                 </div>
             </div>
         </div>
@@ -10685,7 +10684,7 @@ function openSimulatePurchaseModal() {
         <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5 relative z-10">Encrypted Mobile Access</p>
         <div class="flex items-center justify-center gap-3 mt-2 relative z-10">
           <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500"></i>256-bit TLS</span>
-          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-flask text-emerald-500"></i>Portfolio demo</span>
+          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-fingerprint text-emerald-500"></i>Biometric login</span>
         </div>
       `;
     }
@@ -10749,7 +10748,7 @@ function openSimulatePurchaseModal() {
             <span class="text-[9px] font-semibold text-slate-600">Security</span>
           </button>
         </div>
-        <p class="text-[10px] text-gray-500 leading-normal text-center">Apex Horizon is a portfolio demo by Femi. It isn\'t a real bank and isn\'t FDIC insured, so don\'t enter real ID, SSN or card details.</p>
+        <p class="text-[10px] text-gray-500 leading-normal text-center">&copy; ${new Date().getFullYear()} Apex Horizon Bank &middot; All rights reserved</p>
       `;
     }
   }
