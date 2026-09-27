@@ -9868,3 +9868,63 @@ function openSimulatePurchaseModal() {
 })();
 </script>
 <!-- ===== End Realistic Login Screen Enhancement ===== -->
+<!-- Apex: demo disclaimer banner + "Try the demo" button -->
+<style>
+#apex-demo-banner{position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 10px;padding:calc(env(safe-area-inset-top,0px) + 6px) 40px 6px;background:#111827;color:#f9fafb;font:500 12px/1.4 'Space Grotesk',system-ui,sans-serif;text-align:center}
+#apex-demo-banner .apex-demo-btn{background:#f97316;color:#fff;border:0;border-radius:999px;padding:4px 12px;font:600 12px/1.4 'Space Grotesk',system-ui,sans-serif;cursor:pointer}
+#apex-demo-banner .apex-demo-btn[disabled]{opacity:.6;cursor:default}
+#apex-demo-banner .apex-demo-close{position:absolute;right:8px;bottom:2px;background:none;border:0;color:inherit;font-size:18px;line-height:1;padding:6px;cursor:pointer;opacity:.7}
+</style>
+<script>
+(function(){
+  var closed = false;
+  try { closed = !!sessionStorage.getItem('apexDemoBannerClosed'); } catch(e){}
+  if (closed) return;
+
+  var b = document.createElement('div');
+  b.id = 'apex-demo-banner';
+  b.setAttribute('role','note');
+  b.innerHTML =
+    '<span>Portfolio demo by Femi \u2014 not a real bank. Don\u2019t enter real card or bank details.</span>' +
+    '<button class="apex-demo-btn" type="button" hidden>Try the demo</button>' +
+    '<button class="apex-demo-close" type="button" aria-label="Dismiss">\u00d7</button>';
+  document.body.appendChild(b);
+
+  function pad(){ document.body.style.paddingTop = b.offsetHeight + 'px'; }
+  pad();
+  window.addEventListener('resize', pad);
+
+  var btn = b.querySelector('.apex-demo-btn');
+
+  // Only show "Try the demo" to visitors who aren't signed in.
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then(function(r){ if (!r.ok) { btn.hidden = false; pad(); } })
+    .catch(function(){});
+
+  function resetBtn(){ btn.disabled = false; btn.textContent = 'Try the demo'; }
+
+  btn.onclick = function(){
+    btn.disabled = true;
+    btn.textContent = 'Signing in\u2026';
+    fetch('/api/auth-session', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'demo' })
+    })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(x){
+      if (x.ok) { location.reload(); }
+      else { alert(x.d.error || 'Demo is unavailable right now.'); resetBtn(); }
+    })
+    .catch(function(){ alert('Network error. Please try again.'); resetBtn(); });
+  };
+
+  b.querySelector('.apex-demo-close').onclick = function(){
+    try { sessionStorage.setItem('apexDemoBannerClosed','1'); } catch(e){}
+    window.removeEventListener('resize', pad);
+    document.body.style.paddingTop = '';
+    b.remove();
+  };
+})();
+</script>
