@@ -174,6 +174,7 @@
       <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-money-check-dollar text-emerald-600 mr-1"></i>Mobile Check Deposits</h2>
       <div class="flex items-center gap-3">
         <button onclick="runInterestNowAdmin()" class="text-sm text-emerald-700 hover:text-emerald-800"><i class="fa-solid fa-percent mr-1"></i>Pay savings interest now</button>
+        <button onclick="runRoundupsNowAdmin()" class="text-sm text-emerald-700 hover:text-emerald-800"><i class="fa-solid fa-coins mr-1"></i>Move round-ups now</button>
         <button onclick="loadPendingChecks()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
       </div>
     </div>
@@ -799,6 +800,17 @@ async function rejectCheckAdmin(checkId) {
     const data = await api('rejectCheck', { method: 'POST', body: { checkId, reason } });
     showToast(data.message, false);
     loadPendingChecks();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function runRoundupsNowAdmin() {
+  if (!confirm('Move all pending card round-ups into savings goals now? (The daily job also does this automatically.)')) return;
+  try {
+    const data = await api('runRoundupsNow', { method: 'POST' });
+    showToast(data.message, false);
+    loadTransactions();
   } catch (e) {
     showToast(e.message, true);
   }

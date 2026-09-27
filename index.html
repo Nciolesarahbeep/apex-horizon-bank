@@ -94,6 +94,32 @@
         .ahb-tabbar-clearance {
             padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
         }
+        /* The floating Help button steps aside while a bottom sheet is open, so it
+           never covers the sheet's buttons. */
+        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden)) #ahb-help-widget {
+            display: none !important;
+        }
+        /* Savings goals: progress rings, on/off switch, account choice cards. */
+        .ahb-ring { position: relative; }
+        .ahb-ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+        .ahb-ring-track { stroke: #e5e7eb; }
+        .ahb-ring-fill { stroke: #10b981; transition: stroke-dasharray 0.6s ease; }
+        .ahb-ring-fill.ahb-ring-done { stroke: #059669; }
+        #appShellRoot.theme-dark .ahb-ring-track { stroke: #334155; }
+        #appShellRoot.theme-dark .ahb-ring-fill.ahb-ring-done { stroke: #34d399; }
+        .ahb-switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: #94a3b8; transition: background 0.2s ease; }
+        .ahb-switch span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.2s ease; }
+        .ahb-switch[aria-checked="true"] { background: #059669; }
+        .ahb-switch[aria-checked="true"] span { transform: translateX(18px); }
+        .ahb-switch:disabled { opacity: 0.5; }
+        .ahb-switch:focus-visible { outline: 2px solid #34d399; outline-offset: 2px; }
+        #appShellRoot.theme-dark .ahb-switch { background: #475569; }
+        #appShellRoot.theme-dark .ahb-switch[aria-checked="true"] { background: #10b981; }
+        .ahb-choice { display: block; cursor: pointer; border: 1.5px solid #e5e7eb; border-radius: 0.75rem; padding: 0.6rem 0.75rem; background: #ffffff; }
+        .ahb-choice:has(input:checked) { border-color: #059669; background: #ecfdf5; }
+        .ahb-choice:has(input:focus-visible) { outline: 2px solid #34d399; outline-offset: 2px; }
+        #appShellRoot.theme-dark .ahb-choice { border-color: #334155; background: #0f172a; }
+        #appShellRoot.theme-dark .ahb-choice:has(input:checked) { border-color: #34d399; background: rgba(16,185,129,0.12); }
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -226,7 +252,8 @@
         #appShellRoot.theme-dark .border-red-200 { border-color: rgba(239,68,68,0.35) !important; }
         #appShellRoot.theme-dark .border-amber-200 { border-color: rgba(245,158,11,0.35) !important; }
         #appShellRoot.theme-dark .border-purple-100 { border-color: rgba(168,85,247,0.3) !important; }
-        #appShellRoot.theme-dark .divide-gray-100 > * + *, #appShellRoot.theme-dark .divide-gray-200 > * + * { border-color: #334155 !important; }
+        /* Tailwind v4 draws dividers as bottom borders on every child but the last, so recolor all children. */
+        #appShellRoot.theme-dark .divide-gray-100 > *, #appShellRoot.theme-dark .divide-gray-200 > * { border-color: #334155 !important; }
         #appShellRoot.theme-dark input, #appShellRoot.theme-dark select, #appShellRoot.theme-dark textarea { background-color: #0f172a !important; color: #f1f5f9 !important; border-color: #334155 !important; }
         #appShellRoot.theme-dark option { background-color: #1e293b; color: #f1f5f9; }
         #appShellRoot.theme-dark input::placeholder, #appShellRoot.theme-dark textarea::placeholder { color: #7c8aa0 !important; }
@@ -1283,6 +1310,125 @@ async function submitCreateRecurringTransfer(event) {
     </div>
 </div>
 
+<div id="goalDetailSheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalDetail()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="goalDetailTitle">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <span id="goalDetailIcon" class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-piggy-bank"></i></span>
+                <div class="min-w-0">
+                    <h3 id="goalDetailTitle" class="text-sm font-bold text-gray-900 truncate">Goal</h3>
+                    <p id="goalDetailDate" class="text-[11px] text-gray-500"></p>
+                </div>
+            </div>
+            <button type="button" onclick="closeGoalDetail()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="goalDetailRing" class="w-24 h-24 shrink-0"></div>
+            <div class="min-w-0">
+                <p id="goalDetailBalance" class="ahb-money text-2xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
+                <p id="goalDetailTarget" class="text-[11px] text-gray-500"></p>
+                <p id="goalDetailPace" class="text-[11px] font-semibold text-gray-600 mt-1"></p>
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+            <button type="button" id="goalDetailAddBtn" onclick="openGoalMoney('deposit')" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i>Add</button>
+            <button type="button" id="goalDetailWithdrawBtn" onclick="openGoalMoney('withdraw')" class="bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-bold py-2.5 rounded-lg transition disabled:opacity-50"><i class="fa-solid fa-arrow-up mr-1"></i>Move out</button>
+            <button type="button" id="goalDetailEditBtn" onclick="openGoalEditor(goalsUi.currentId)" class="bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-bold py-2.5 rounded-lg transition"><i class="fa-solid fa-pen mr-1"></i>Edit</button>
+        </div>
+        <div class="flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div class="min-w-0">
+                <p class="text-xs font-bold text-gray-900">Send round-ups here</p>
+                <p id="goalDetailRoundupsHint" class="text-[10px] text-gray-500">Spare change from your card purchases</p>
+            </div>
+            <button type="button" id="goalDetailRoundupsToggle" role="switch" aria-checked="false" aria-label="Send round-ups to this goal" onclick="toggleGoalRoundups()" class="ahb-switch shrink-0"><span></span></button>
+        </div>
+        <p id="goalDetailMsg" class="hidden text-[11px] font-semibold rounded-lg px-3 py-2" role="status" aria-live="polite"></p>
+        <div>
+            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">Activity</h4>
+            <div id="goalDetailActivity" class="border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
+                <p class="p-3 text-xs text-gray-500 text-center">Loading…</p>
+            </div>
+        </div>
+        <button type="button" id="goalDetailCloseGoalBtn" onclick="confirmCloseGoal()" class="w-full text-xs font-bold text-red-600 hover:bg-red-50 py-2.5 rounded-lg transition">Close goal</button>
+    </div>
+</div>
+
+<div id="goalMoneySheet" class="hidden fixed inset-0 z-[9987] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalMoney()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="goalMoneyTitle">
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h3 id="goalMoneyTitle" class="text-sm font-bold text-gray-900 truncate">Add money</h3>
+                <p id="goalMoneySub" class="text-[11px] text-gray-500"></p>
+            </div>
+            <button type="button" onclick="closeGoalMoney()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="goalMoneyForm" class="space-y-3" onsubmit="submitGoalMoney(event)" novalidate>
+            <div>
+                <label for="goalMoneyAmount" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">Amount</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <input type="number" id="goalMoneyAmount" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                </div>
+                <div id="goalMoneyChips" class="flex flex-wrap gap-2 mt-2"></div>
+            </div>
+            <fieldset>
+                <legend id="goalMoneyLegend" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">From</legend>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="ahb-choice">
+                        <input type="radio" name="goalMoneyAccount" value="checking" class="sr-only" checked>
+                        <span class="block text-xs font-bold text-gray-900">Checking</span>
+                        <span id="goalMoneyCheckingBal" class="ahb-money block text-[10px] text-gray-500 font-mono">$0.00</span>
+                    </label>
+                    <label class="ahb-choice">
+                        <input type="radio" name="goalMoneyAccount" value="savings" class="sr-only">
+                        <span class="block text-xs font-bold text-gray-900">Savings</span>
+                        <span id="goalMoneySavingsBal" class="ahb-money block text-[10px] text-gray-500 font-mono">$0.00</span>
+                    </label>
+                </div>
+            </fieldset>
+            <p id="goalMoneyError" class="hidden text-[11px] text-red-600 font-semibold" role="alert"></p>
+            <button type="submit" id="goalMoneySubmit" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition disabled:opacity-60">Add money</button>
+        </form>
+    </div>
+</div>
+
+<div id="goalEditorSheet" class="hidden fixed inset-0 z-[9987] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalEditor()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="goalEditorTitle">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h3 id="goalEditorTitle" class="text-sm font-bold text-gray-900">New goal</h3>
+                <p class="text-[11px] text-gray-500">What are you saving for?</p>
+            </div>
+            <button type="button" onclick="closeGoalEditor()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="goalEditorForm" class="space-y-3" onsubmit="submitGoalEditor(event)" novalidate>
+            <div>
+                <label for="goalNameInput" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">Name</label>
+                <input type="text" id="goalNameInput" maxlength="40" autocomplete="off" placeholder="New laptop" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label for="goalTargetInput" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">Target</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <input type="number" id="goalTargetInput" inputmode="decimal" min="1" max="1000000" step="0.01" placeholder="1,200" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="goalDateInput" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">By (optional)</label>
+                    <input type="date" id="goalDateInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+            <fieldset>
+                <legend class="block text-[9px] font-bold uppercase text-gray-500 mb-1">Icon</legend>
+                <div id="goalIconPicker" class="grid grid-cols-5 gap-2"></div>
+            </fieldset>
+            <p id="goalEditorError" class="hidden text-[11px] text-red-600 font-semibold" role="alert"></p>
+            <button type="submit" id="goalEditorSubmit" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition disabled:opacity-60">Create goal</button>
+        </form>
+    </div>
+</div>
+
 <div id="dashboardApp" class="hidden flex-1 flex flex-col">
             
             <header id="appHeaderBar" class="ahb-appbar bg-slate-900 text-white h-16 flex items-center justify-between px-4 shadow-md">
@@ -1349,7 +1495,7 @@ async function submitCreateRecurringTransfer(event) {
                             </button>
                         </div>
                         <p id="homeTotalBalance" class="ahb-money text-3xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
-                        <p class="text-[10px] text-gray-500 mt-0.5">Checking and savings</p>
+                        <p id="homeTotalSubtitle" class="text-[10px] text-gray-500 mt-0.5">Checking and savings</p>
                         <div class="horizon-line"></div>
                     </div>
 
@@ -1405,6 +1551,16 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
+                    <div id="homeGoalsSection">
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <h2 class="text-sm font-bold text-gray-900">Savings goals</h2>
+                            <button type="button" onclick="triggerViewSwitch('goals')" class="text-[11px] font-semibold text-emerald-700 hover:underline">See all</button>
+                        </div>
+                        <div id="homeGoals" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-4 text-xs text-gray-500 text-center">Loading…</p>
+                        </div>
+                    </div>
+
                     <div>
                         <div class="flex items-center justify-between mb-2 px-1">
                             <h2 class="text-sm font-bold text-gray-900">Recent activity</h2>
@@ -1435,6 +1591,33 @@ async function submitCreateRecurringTransfer(event) {
                         </span>
                         <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
                     </button>
+                </section>
+
+                <section id="view-goals" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2">
+                            <button type="button" onclick="navigateBackward()" aria-label="Back" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h1 class="text-md font-bold text-gray-900">Savings goals</h1>
+                        </div>
+                        <button type="button" id="goalsNewBtn" onclick="openGoalEditor()" class="text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg transition"><i class="fa-solid fa-plus mr-1"></i>New goal</button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-gray-200 p-4">
+                        <p class="text-[11px] font-semibold text-gray-500">Saved in goals</p>
+                        <p id="goalsTotalSaved" class="ahb-money text-2xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
+                        <p id="goalsTotalSub" class="text-[10px] text-gray-500 mt-0.5">Loading…</p>
+                    </div>
+
+                    <p id="goalsViewMsg" class="hidden text-[11px] font-semibold rounded-lg px-3 py-2" role="status" aria-live="polite"></p>
+
+                    <div id="goalsRoundupsCard" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3"></div>
+
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 mb-2 px-1">Your goals</h2>
+                        <div id="goalsList" class="space-y-2.5">
+                            <p class="p-4 text-xs text-gray-500 text-center bg-white rounded-xl border border-gray-200">Loading…</p>
+                        </div>
+                    </div>
                 </section>
 
                 <section id="view-offers" class="hidden space-y-4">
@@ -3440,6 +3623,9 @@ if (activeLoanBalanceEl) {
                     resetCheckDepositForm();
                     renderCheckDepositHistory();
                 }
+                if (targetViewId === 'goals' && typeof loadGoals === 'function') {
+                    loadGoals().catch(() => {});
+                }
             }, realisticLoaderDelay(targetViewId)); 
         }
 
@@ -3459,7 +3645,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -5872,6 +6058,9 @@ fetchAndApplyProfilePhoto();
 
             const checkingAcct = data.accounts.find(a => a.account_type === 'checking');
             const savingsAcct = data.accounts.find(a => a.account_type === 'savings');
+            // Money set aside in savings goals counts toward the home total.
+            window.ahbGoalsTotal = Number(data.goalsTotal) || 0;
+            if (typeof resetGoalsForUser === 'function') resetGoalsForUser(data.user.id);
 
             if (checkingAcct) {
                 checkingAccountId = checkingAcct.id;
@@ -6581,6 +6770,12 @@ fetchAndApplyProfilePhoto();
 
         const OUTGOING_TYPES = ['p2p_out', 'wire_out', 'transfer_out', 'debit'];
 
+        // Moving money into (or back out of) your own savings goal isn't spending.
+        const GOAL_MOVE_PATTERN = /^(To goal|From goal|Round-ups|Goal closed):/;
+        function isSpendingTxn(t) {
+            return OUTGOING_TYPES.includes(t.type) && !GOAL_MOVE_PATTERN.test(String(t.description || ''));
+        }
+
         function categorizeTransaction(description, type) {
             if (type === 'p2p_in' || type === 'transfer_in' || type === 'ach_in' || type === 'credit') {
                 return { name: 'Income', color: '#16a766' };
@@ -7036,7 +7231,7 @@ fetchAndApplyProfilePhoto();
             const now = new Date();
             const thisMonthTxns = allTransactions.filter(t => {
                 const d = new Date(t.created_at);
-                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && OUTGOING_TYPES.includes(t.type);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && isSpendingTxn(t);
             });
 
             const totals = {};
@@ -7052,7 +7247,7 @@ fetchAndApplyProfilePhoto();
             const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const lastMonthTxns = allTransactions.filter(t => {
                 const d = new Date(t.created_at);
-                return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear() && OUTGOING_TYPES.includes(t.type);
+                return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear() && isSpendingTxn(t);
             });
             const lastMonthTotal = lastMonthTxns.reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
 
@@ -7141,7 +7336,7 @@ fetchAndApplyProfilePhoto();
                 monthBuckets[key] = 0;
             }
             allTransactions.forEach(t => {
-                if (!OUTGOING_TYPES.includes(t.type)) return;
+                if (!isSpendingTxn(t)) return;
                 const d = new Date(t.created_at);
                 const key = d.toLocaleDateString('en-US', { month: 'short' });
                 if (key in monthBuckets) monthBuckets[key] += Math.abs(parseFloat(t.amount));
@@ -10964,7 +11159,12 @@ const TXN_KEYWORD_ICONS = [
     { words: ['wire', 'external transfer'], icon: 'fa-building-columns', tone: 'blue' }
 ];
 
+const GOAL_TXN_PATTERN = /^(To goal|From goal|Round-ups|Goal closed):/;
+
 function txnCategory(t) {
+    if ((t.type === 'transfer_out' || t.type === 'transfer_in') && GOAL_TXN_PATTERN.test(String(t.description || ''))) {
+        return { icon: 'fa-bullseye', tone: 'emerald' };
+    }
     const byType = TXN_TYPE_ICONS[t.type];
     if (byType) return byType;
     const text = String(t.description || '').toLowerCase();
@@ -11061,8 +11261,11 @@ function homeRow({ iconEl, title, sub, amount, amountClass, onClick }) {
 function updateHomeTotals() {
     const checking = Number(typeof rawBalanceValue !== 'undefined' ? rawBalanceValue : 0) || 0;
     const savings = Number(typeof savingsBalanceValue !== 'undefined' ? savingsBalanceValue : 0) || 0;
+    const inGoals = Number(window.ahbGoalsTotal) || 0;
     const totalEl = document.getElementById('homeTotalBalance');
-    if (totalEl) totalEl.textContent = homeMoney(checking + savings);
+    if (totalEl) totalEl.textContent = homeMoney(checking + savings + inGoals);
+    const totalSub = document.getElementById('homeTotalSubtitle');
+    if (totalSub) totalSub.textContent = inGoals > 0 ? 'Checking, savings and goals' : 'Checking and savings';
 
     const checkingSub = document.getElementById('homeCheckingSub');
     if (checkingSub && typeof myCheckingAccountNumber !== 'undefined') checkingSub.textContent = homeMaskedNumber(myCheckingAccountNumber);
@@ -11173,6 +11376,7 @@ function refreshHomeScreen() {
     updateHomeTotals();
     renderHomeActivity();
     loadHomeUpcoming();
+    if (typeof loadGoals === 'function') loadGoals().catch(() => {});
 }
 
 // Keep the total in step with balance changes and the live interest estimate.
@@ -11223,6 +11427,7 @@ const MORE_ITEMS = [
     { label: 'Direct deposit', icon: 'fa-building-columns', tone: 'emerald', view: 'direct-deposit' },
     { label: 'Scheduled', icon: 'fa-calendar-days', tone: 'blue', run: () => openRecurringTransfersModal() },
     { label: 'Savings', icon: 'fa-piggy-bank', tone: 'emerald', view: 'savings-summary' },
+    { label: 'Goals', icon: 'fa-bullseye', tone: 'emerald', view: 'goals' },
     { label: 'Loans', icon: 'fa-hand-holding-dollar', tone: 'blue', view: 'loans' },
     { label: 'Statements', icon: 'fa-file-lines', tone: 'gray', view: 'statements' },
     { label: 'Insights', icon: 'fa-chart-pie', tone: 'purple', view: 'spending-insights' },
@@ -11394,5 +11599,878 @@ document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     closeMoreSheet();
     closeRequestMoneySheet();
+    if (typeof closeTopGoalSheet === 'function') closeTopGoalSheet();
 });
+</script>
+<script>
+// ===== Savings goals + round-ups: home card, Goals screen, and the detail,
+// money and editor sheets. Talks to /api/account-services?resource=savings-goals
+// (lib/goals.js on the server, where every money move is one atomic statement).
+// Goal names are user text, so everything here is built with textContent.
+
+const GOAL_ICON_MAP = {
+    piggy: { icon: 'fa-piggy-bank', label: 'Piggy bank' },
+    plane: { icon: 'fa-plane', label: 'Travel' },
+    laptop: { icon: 'fa-laptop', label: 'Tech' },
+    car: { icon: 'fa-car', label: 'Car' },
+    house: { icon: 'fa-house', label: 'Home' },
+    school: { icon: 'fa-graduation-cap', label: 'Education' },
+    gift: { icon: 'fa-gift', label: 'Gift' },
+    heart: { icon: 'fa-heart', label: 'Health' },
+    ring: { icon: 'fa-ring', label: 'Wedding' },
+    shield: { icon: 'fa-shield-heart', label: 'Emergency fund' }
+};
+
+const GOAL_BTN = {
+    primary: 'bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-lg transition disabled:opacity-50',
+    secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-bold px-3 py-2 rounded-lg transition disabled:opacity-50',
+    chip: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-3 py-1.5 rounded-full transition'
+};
+
+const GOAL_PACE_TONE = {
+    done: 'text-emerald-700 font-semibold',
+    late: 'text-amber-700 font-semibold',
+    plan: 'text-gray-500',
+    plain: 'text-gray-500'
+};
+
+const goalsUi = {
+    data: null,          // last payload: { goals, totalSaved, roundups, maxGoals }
+    userId: null,
+    currentId: null,     // goal open in the detail sheet
+    moneyMode: 'deposit',
+    editingId: null,
+    iconChoice: 'piggy',
+    enableRoundupsAfterCreate: false,
+    inflight: null,
+    busy: false
+};
+
+// ----- Small helpers -----
+function gEl(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+}
+
+function gIconCircle(icon, tone) {
+    const s = gEl('span', `w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${TXN_TONES[tone] || TXN_TONES.emerald}`);
+    s.setAttribute('aria-hidden', 'true');
+    s.appendChild(gEl('i', `fa-solid ${icon} text-sm`));
+    return s;
+}
+
+function gChevron() {
+    const i = gEl('i', 'fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0');
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+}
+
+function gButton(label, variant) {
+    const b = gEl('button', GOAL_BTN[variant] || GOAL_BTN.primary, label);
+    b.type = 'button';
+    return b;
+}
+
+function goalIconClass(key) {
+    return (GOAL_ICON_MAP[key] || GOAL_ICON_MAP.piggy).icon;
+}
+
+function goalById(id) {
+    if (!goalsUi.data || id === null || id === undefined) return null;
+    return goalsUi.data.goals.find(g => g.id === Number(id)) || null;
+}
+
+function goalPercent(g) {
+    if (g.balance >= g.targetAmount) return 100;
+    return Math.min(99, Math.floor((g.targetAmount > 0 ? g.balance / g.targetAmount : 0) * 100));
+}
+
+function goalDateLabel(ymd) {
+    const [y, m, d] = String(ymd || '').split('-').map(Number);
+    if (!y || !m || !d) return '';
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function goalTodayYmd() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+function goalPace(g) {
+    const left = Math.round(Math.max(0, g.targetAmount - g.balance) * 100) / 100;
+    if (left <= 0) return { tone: 'done', text: 'Goal reached' };
+    if (!g.targetDate) return { tone: 'plain', text: `${homeMoney(left)} to go` };
+    const [y, m, d] = g.targetDate.split('-').map(Number);
+    const due = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((due - today) / 86400000);
+    if (days < 0) return { tone: 'late', text: `${homeMoney(left)} to go · target date passed` };
+    if (days === 0) return { tone: 'late', text: `${homeMoney(left)} to go · due today` };
+    const weeks = Math.max(1, Math.ceil(days / 7));
+    const perWeek = Math.ceil((left / weeks) * 100) / 100;
+    return { tone: 'plan', text: `Save ${homeMoney(perWeek)}/week to reach it by ${goalDateLabel(g.targetDate)}` };
+}
+
+const GOAL_SVG_NS = 'http://www.w3.org/2000/svg';
+
+function buildGoalRing(fraction, iconKey, opts) {
+    const o = opts || {};
+    const wrap = gEl('div', `ahb-ring relative shrink-0 ${o.size || 'w-11 h-11'}`);
+    wrap.setAttribute('aria-hidden', 'true');
+    const svg = document.createElementNS(GOAL_SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 36 36');
+    const circle = (cls) => {
+        const c = document.createElementNS(GOAL_SVG_NS, 'circle');
+        c.setAttribute('cx', '18');
+        c.setAttribute('cy', '18');
+        c.setAttribute('r', '15.9155'); // circumference of 100, so the dash length is the percent
+        c.setAttribute('fill', 'none');
+        c.setAttribute('stroke-width', o.stroke || '3.4');
+        c.setAttribute('class', cls);
+        return c;
+    };
+    svg.appendChild(circle('ahb-ring-track'));
+    const pct = Math.max(0, Math.min(1, Number(fraction) || 0)) * 100;
+    if (pct > 0) {
+        const fill = circle(pct >= 100 ? 'ahb-ring-fill ahb-ring-done' : 'ahb-ring-fill');
+        fill.setAttribute('stroke-linecap', 'round');
+        fill.setAttribute('stroke-dasharray', `${Math.max(pct, 2).toFixed(2)} 100`);
+        svg.appendChild(fill);
+    }
+    wrap.appendChild(svg);
+    const center = gEl('span', 'absolute inset-0 flex items-center justify-center');
+    if (o.centerText) {
+        center.className += ' text-sm font-bold font-mono text-gray-900';
+        center.textContent = o.centerText;
+    } else {
+        center.appendChild(gEl('i', `fa-solid ${goalIconClass(iconKey)} ${o.iconSize || 'text-xs'} text-emerald-700`));
+    }
+    wrap.appendChild(center);
+    return wrap;
+}
+
+function showGoalMsg(id, kind, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!text) {
+        el.textContent = '';
+        el.className = 'hidden';
+        return;
+    }
+    el.textContent = text;
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    el.className = 'text-[11px] font-semibold rounded-lg px-3 py-2 border ' + (kind === 'error'
+        ? 'bg-red-50 text-red-700 border-red-200'
+        : 'bg-emerald-50 text-emerald-800 border-emerald-200');
+}
+
+function isGoalSheetOpen(id) {
+    const el = document.getElementById(id);
+    return !!el && !el.classList.contains('hidden');
+}
+
+function showGoalSheet(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+}
+
+function hideGoalSheet(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+}
+
+// ----- Talking to the server -----
+async function goalsApi(body) {
+    const res = await fetch('/api/account-services', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ resource: 'savings-goals' }, body))
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const err = new Error(data.error || 'Something went wrong. Please try again.');
+        err.status = res.status;
+        err.data = data;
+        throw err;
+    }
+    return data;
+}
+
+function applyGoalsPayload(data) {
+    goalsUi.data = {
+        goals: Array.isArray(data.goals) ? data.goals : [],
+        totalSaved: Number(data.totalSaved) || 0,
+        roundups: data.roundups || { enabled: false, pendingAmount: 0, pendingPurchases: 0, lifetimeSaved: 0 },
+        maxGoals: Number(data.maxGoals) || 10
+    };
+    window.ahbGoalsTotal = goalsUi.data.totalSaved;
+    renderAllGoals();
+}
+
+function loadGoals() {
+    if (goalsUi.inflight) return goalsUi.inflight;
+    goalsUi.inflight = fetch('/api/account-services?resource=savings-goals', { credentials: 'include', cache: 'no-store' })
+        .then(async res => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Couldn't load your goals.");
+            applyGoalsPayload(data);
+            return goalsUi.data;
+        })
+        .catch(err => {
+            renderGoalsError();
+            throw err;
+        })
+        .finally(() => { goalsUi.inflight = null; });
+    return goalsUi.inflight;
+}
+
+// Balances, the ledger and the goals all changed together on the server, so
+// reload them. The shared data loader scrolls to the top; keep the person's place.
+async function afterGoalMoneyChange() {
+    const y = window.scrollY;
+    if (typeof loadRealAccountData === 'function') {
+        try { await loadRealAccountData(); } catch (err) {}
+        window.scrollTo(0, y);
+    }
+    await loadGoals().catch(() => {});
+    if (goalsUi.currentId !== null && isGoalSheetOpen('goalDetailSheet')) loadGoalActivity();
+}
+
+// A different person signed in on this device: drop the previous goals.
+function resetGoalsForUser(userId) {
+    if (goalsUi.userId !== null && goalsUi.userId !== userId) {
+        goalsUi.data = null;
+        goalsUi.currentId = null;
+        ['goalDetailSheet', 'goalMoneySheet', 'goalEditorSheet'].forEach(hideGoalSheet);
+        const home = document.getElementById('homeGoals');
+        if (home) home.replaceChildren(gEl('p', 'p-4 text-xs text-gray-500 text-center', 'Loading…'));
+    }
+    goalsUi.userId = userId;
+}
+
+// ----- Rendering -----
+function renderAllGoals() {
+    renderHomeGoals();
+    renderGoalsView();
+    if (goalsUi.currentId !== null && isGoalSheetOpen('goalDetailSheet')) renderGoalDetail();
+    if (typeof updateHomeTotals === 'function') updateHomeTotals();
+}
+
+function renderGoalsError() {
+    if (goalsUi.data) return; // keep showing the last good data
+    const retry = () => {
+        const b = gEl('button', 'w-full p-4 text-xs text-gray-500 text-center hover:bg-gray-50 transition', "Couldn't load your goals. Tap to try again.");
+        b.type = 'button';
+        b.onclick = () => loadGoals().catch(() => {});
+        return b;
+    };
+    const home = document.getElementById('homeGoals');
+    if (home) home.replaceChildren(retry());
+    const list = document.getElementById('goalsList');
+    if (list) {
+        const wrap = gEl('div', 'bg-white rounded-xl border border-gray-200 overflow-hidden');
+        wrap.appendChild(retry());
+        list.replaceChildren(wrap);
+    }
+    const sub = document.getElementById('goalsTotalSub');
+    if (sub) sub.textContent = '';
+}
+
+function goalRow(g) {
+    const btn = gEl('button', 'w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition');
+    btn.type = 'button';
+    btn.onclick = () => openGoalDetail(g.id);
+    const mid = gEl('span', 'flex-1 min-w-0');
+    mid.appendChild(gEl('span', 'block text-sm font-semibold text-gray-900 truncate', g.name));
+    let subText = g.balance >= g.targetAmount ? `Reached · ${homeMoney(g.targetAmount)} goal` : `${goalPercent(g)}% of ${homeMoney(g.targetAmount)}`;
+    if (g.roundupsEnabled) subText += ' · Round-ups';
+    mid.appendChild(gEl('span', 'block text-[10px] text-gray-500', subText));
+    btn.append(
+        buildGoalRing(g.progress, g.icon),
+        mid,
+        gEl('span', 'ahb-money ahb-money-right text-sm font-bold font-mono text-gray-900 shrink-0', homeMoney(g.balance)),
+        gChevron()
+    );
+    return btn;
+}
+
+function renderHomeGoals() {
+    const box = document.getElementById('homeGoals');
+    if (!box || !goalsUi.data) return;
+    const { goals, roundups } = goalsUi.data;
+    box.replaceChildren();
+    if (!goals.length) {
+        const btn = gEl('button', 'w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition');
+        btn.type = 'button';
+        btn.onclick = () => openGoalEditor();
+        const mid = gEl('span', 'flex-1 min-w-0');
+        mid.append(
+            gEl('span', 'block text-sm font-semibold text-gray-900', 'Start a savings goal'),
+            gEl('span', 'block text-[10px] text-gray-500', 'Put money aside for the things you want, and save your spare change.')
+        );
+        btn.append(gIconCircle('fa-bullseye', 'emerald'), mid, gChevron());
+        box.appendChild(btn);
+        return;
+    }
+    goals.slice(0, 3).forEach(g => box.appendChild(goalRow(g)));
+    if (goals.length > 3) {
+        const more = gEl('button', 'w-full p-3 text-[11px] font-semibold text-emerald-700 hover:bg-gray-50 transition text-center', `See all ${goals.length} goals`);
+        more.type = 'button';
+        more.onclick = () => triggerViewSwitch('goals');
+        box.appendChild(more);
+    }
+    if (roundups && roundups.enabled) {
+        const row = gEl('button', 'w-full flex items-center gap-2 px-3.5 py-2.5 text-left hover:bg-gray-50 transition');
+        row.type = 'button';
+        row.onclick = () => triggerViewSwitch('goals');
+        const icon = gEl('i', 'fa-solid fa-coins text-amber-700 text-xs');
+        icon.setAttribute('aria-hidden', 'true');
+        const text = roundups.pendingAmount >= 0.01
+            ? `Round-ups on · ${homeMoney(roundups.pendingAmount)} waiting to move`
+            : 'Round-ups on';
+        row.append(icon, gEl('span', 'flex-1 text-[11px] text-gray-600', text), gChevron());
+        box.appendChild(row);
+    }
+}
+
+function goalCard(g) {
+    const card = gEl('button', 'w-full bg-white rounded-xl border border-gray-200 p-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition');
+    card.type = 'button';
+    card.onclick = () => openGoalDetail(g.id);
+    const mid = gEl('span', 'flex-1 min-w-0 space-y-0.5');
+    const top = gEl('span', 'flex items-center gap-2 min-w-0');
+    top.appendChild(gEl('span', 'text-sm font-semibold text-gray-900 truncate', g.name));
+    if (g.roundupsEnabled) {
+        top.appendChild(gEl('span', 'shrink-0 text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded', 'Round-ups'));
+    }
+    const amounts = gEl('span', 'block text-[11px] text-gray-600');
+    amounts.append(gEl('span', 'ahb-money font-mono font-bold text-gray-900', homeMoney(g.balance)), document.createTextNode(` of ${homeMoney(g.targetAmount)}`));
+    const pace = goalPace(g);
+    mid.append(top, amounts, gEl('span', `block text-[10px] ${GOAL_PACE_TONE[pace.tone]}`, pace.text));
+    card.append(buildGoalRing(g.progress, g.icon, { size: 'w-14 h-14', iconSize: 'text-base' }), mid, gChevron());
+    return card;
+}
+
+function renderGoalsView() {
+    if (!goalsUi.data) return;
+    const { goals, totalSaved, maxGoals } = goalsUi.data;
+    const total = document.getElementById('goalsTotalSaved');
+    if (total) total.textContent = homeMoney(totalSaved);
+    const sub = document.getElementById('goalsTotalSub');
+    if (sub) sub.textContent = goals.length ? `Across ${goals.length} goal${goals.length === 1 ? '' : 's'}` : 'No goals yet';
+    const newBtn = document.getElementById('goalsNewBtn');
+    if (newBtn) {
+        const full = goals.length >= maxGoals;
+        newBtn.disabled = full;
+        newBtn.title = full ? `You can have up to ${maxGoals} goals at a time` : '';
+        newBtn.classList.toggle('opacity-50', full);
+    }
+    renderRoundupsCard();
+
+    const list = document.getElementById('goalsList');
+    if (!list) return;
+    list.replaceChildren();
+    if (!goals.length) {
+        const empty = gEl('div', 'bg-white rounded-xl border border-gray-200 p-6 text-center space-y-3');
+        const icon = gEl('span', 'w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 inline-flex items-center justify-center');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.appendChild(gEl('i', 'fa-solid fa-bullseye'));
+        const create = gButton('Create your first goal', 'primary');
+        create.onclick = () => openGoalEditor();
+        empty.append(
+            icon,
+            gEl('p', 'text-sm font-bold text-gray-900', 'No goals yet'),
+            gEl('p', 'text-[11px] text-gray-500', 'A trip, a laptop, an emergency fund: give it a name and a target, and watch it fill up.'),
+            create
+        );
+        list.appendChild(empty);
+        return;
+    }
+    goals.forEach(g => list.appendChild(goalCard(g)));
+}
+
+function renderRoundupsCard() {
+    const card = document.getElementById('goalsRoundupsCard');
+    if (!card || !goalsUi.data) return;
+    const { goals, roundups } = goalsUi.data;
+    card.replaceChildren();
+
+    const head = gEl('div', 'flex items-start gap-3');
+    const text = gEl('div', 'min-w-0 flex-1');
+    const title = gEl('div', 'flex items-center gap-2');
+    title.appendChild(gEl('p', 'text-sm font-bold text-gray-900', 'Round-ups'));
+    title.appendChild(gEl('span', `text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${roundups.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`, roundups.enabled ? 'On' : 'Off'));
+    text.appendChild(title);
+    if (roundups.enabled) {
+        const target = goalById(roundups.goalId);
+        text.appendChild(gEl('p', 'text-[11px] text-gray-500', `Saving into ${target ? target.name : 'your goal'}`));
+    } else {
+        text.appendChild(gEl('p', 'text-[11px] text-gray-500', 'Every purchase on your Apex card rounds up to the next dollar, and the change goes into a goal. A $4.35 coffee saves $0.65.'));
+    }
+    head.append(gIconCircle('fa-coins', 'amber'), text);
+    card.appendChild(head);
+
+    if (roundups.enabled) {
+        const stats = gEl('div', 'grid grid-cols-2 gap-2');
+        const stat = (label, value, note) => {
+            const box = gEl('div', 'bg-gray-50 border border-gray-200 rounded-xl p-2.5');
+            box.append(
+                gEl('p', 'text-[9px] font-bold uppercase tracking-wider text-gray-500', label),
+                gEl('p', 'ahb-money text-sm font-bold font-mono text-gray-900', value),
+                gEl('p', 'text-[10px] text-gray-500', note)
+            );
+            return box;
+        };
+        const n = roundups.pendingPurchases;
+        stats.append(
+            stat('Waiting to move', homeMoney(roundups.pendingAmount), `from ${n} purchase${n === 1 ? '' : 's'}`),
+            stat('Saved so far', homeMoney(roundups.lifetimeSaved), 'with round-ups')
+        );
+        card.appendChild(stats);
+        const actions = gEl('div', 'flex gap-2');
+        const move = gButton('Move now', 'primary');
+        move.id = 'goalsSweepBtn';
+        move.className += ' flex-1';
+        move.disabled = !(roundups.pendingAmount >= 0.01);
+        move.onclick = () => sweepRoundupsNow(move);
+        const off = gButton('Turn off', 'secondary');
+        off.onclick = () => setRoundupsEnabled(false);
+        actions.append(move, off);
+        card.appendChild(actions);
+        card.appendChild(gEl('p', 'text-[10px] text-gray-500', "Round-ups move from checking once a day. To send them to a different goal, open that goal and switch round-ups on there."));
+        return;
+    }
+
+    if (!goals.length) {
+        const start = gButton('Create a goal to start', 'primary');
+        start.onclick = () => openGoalEditor(null, { enableRoundups: true });
+        card.appendChild(start);
+    } else if (goals.length === 1) {
+        const on = gButton(`Turn on for ${goals[0].name}`, 'primary');
+        on.onclick = () => setRoundupsEnabled(true, goals[0].id);
+        card.appendChild(on);
+    } else {
+        card.appendChild(gEl('p', 'text-[11px] font-semibold text-gray-700', 'Which goal should get your round-ups?'));
+        const wrap = gEl('div', 'flex flex-wrap gap-2');
+        goals.forEach(g => {
+            const b = gButton(g.name, 'chip');
+            b.onclick = () => setRoundupsEnabled(true, g.id);
+            wrap.appendChild(b);
+        });
+        card.appendChild(wrap);
+    }
+}
+
+// ----- Goal detail sheet -----
+function openGoalDetail(goalId) {
+    if (!goalById(goalId)) return;
+    goalsUi.currentId = Number(goalId);
+    showGoalMsg('goalDetailMsg', null, '');
+    if (typeof closeNotificationPanel === 'function') closeNotificationPanel();
+    renderGoalDetail();
+    const box = document.getElementById('goalDetailActivity');
+    if (box) box.replaceChildren(gEl('p', 'p-3 text-xs text-gray-500 text-center', 'Loading…'));
+    showGoalSheet('goalDetailSheet');
+    return loadGoalActivity();
+}
+
+function closeGoalDetail() {
+    hideGoalSheet('goalDetailSheet');
+    goalsUi.currentId = null;
+}
+
+function renderGoalDetail() {
+    const g = goalById(goalsUi.currentId);
+    if (!g) { closeGoalDetail(); return; }
+    const icon = document.getElementById('goalDetailIcon');
+    if (icon) icon.replaceChildren(gEl('i', `fa-solid ${goalIconClass(g.icon)}`));
+    document.getElementById('goalDetailTitle').textContent = g.name;
+    const started = new Date(g.createdAt);
+    document.getElementById('goalDetailDate').textContent = g.targetDate
+        ? `Target date: ${goalDateLabel(g.targetDate)}`
+        : (isNaN(started.getTime()) ? '' : `Started ${started.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+    document.getElementById('goalDetailRing').replaceChildren(
+        buildGoalRing(g.progress, g.icon, { size: 'w-24 h-24', stroke: '3', centerText: `${goalPercent(g)}%` })
+    );
+    document.getElementById('goalDetailBalance').textContent = homeMoney(g.balance);
+    document.getElementById('goalDetailTarget').textContent = `saved of ${homeMoney(g.targetAmount)}`;
+    const pace = goalPace(g);
+    const paceEl = document.getElementById('goalDetailPace');
+    paceEl.textContent = pace.text;
+    paceEl.className = `text-[11px] mt-1 ${GOAL_PACE_TONE[pace.tone]}`;
+    document.getElementById('goalDetailWithdrawBtn').disabled = !(g.balance > 0);
+
+    const toggle = document.getElementById('goalDetailRoundupsToggle');
+    toggle.setAttribute('aria-checked', g.roundupsEnabled ? 'true' : 'false');
+    const r = goalsUi.data.roundups || {};
+    const other = !g.roundupsEnabled && r.enabled ? goalById(r.goalId) : null;
+    document.getElementById('goalDetailRoundupsHint').textContent = g.roundupsEnabled
+        ? 'Spare change from your card purchases lands here'
+        : (other ? `Now going to ${other.name}. Switch on to move them here.` : 'Save the spare change from your card purchases');
+}
+
+async function loadGoalActivity() {
+    const id = goalsUi.currentId;
+    const box = document.getElementById('goalDetailActivity');
+    if (!box || id === null) return;
+    try {
+        const res = await fetch(`/api/account-services?resource=savings-goals&goalId=${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Couldn't load this goal's activity.");
+        if (goalsUi.currentId !== id) return; // they've moved on
+        applyGoalsPayload(data); // the same response carries the latest goals
+        renderGoalActivity(data.activity || []);
+    } catch (err) {
+        if (goalsUi.currentId === id) box.replaceChildren(gEl('p', 'p-3 text-xs text-gray-500 text-center', err.message));
+    }
+}
+
+function goalActivityLabel(a) {
+    const acct = a.accountType === 'savings' ? 'savings' : 'checking';
+    if (a.kind === 'deposit') return `Added from ${acct}`;
+    if (a.kind === 'withdrawal') return `Moved to ${acct}`;
+    if (a.kind === 'roundup') {
+        const n = Number(a.purchaseCount) || 0;
+        return `Round-ups from ${n} purchase${n === 1 ? '' : 's'}`;
+    }
+    if (a.kind === 'closed') return `Goal closed, moved to ${acct}`;
+    return 'Activity';
+}
+
+function renderGoalActivity(items) {
+    const box = document.getElementById('goalDetailActivity');
+    if (!box) return;
+    box.replaceChildren();
+    if (!items.length) {
+        box.appendChild(gEl('p', 'p-3 text-xs text-gray-500 text-center', 'No activity yet. Add money to get started.'));
+        return;
+    }
+    items.slice(0, 15).forEach(a => {
+        const row = gEl('div', 'flex items-center justify-between gap-3 px-3 py-2.5');
+        const left = gEl('div', 'min-w-0');
+        left.append(
+            gEl('p', 'text-xs font-semibold text-gray-900 truncate', goalActivityLabel(a)),
+            gEl('p', 'text-[10px] text-gray-500', typeof txnDateLabel === 'function' ? txnDateLabel(a.createdAt) : '')
+        );
+        const incoming = a.kind === 'deposit' || a.kind === 'roundup';
+        row.append(left, gEl('span', `ahb-money ahb-money-right text-xs font-bold font-mono shrink-0 ${incoming ? 'text-emerald-700' : 'text-gray-900'}`, `${incoming ? '+' : '−'}${homeMoney(a.amount)}`));
+        box.appendChild(row);
+    });
+}
+
+// ----- Add / move money -----
+function openGoalMoney(mode) {
+    const g = goalById(goalsUi.currentId);
+    if (!g) return;
+    goalsUi.moneyMode = mode === 'withdraw' ? 'withdraw' : 'deposit';
+    const deposit = goalsUi.moneyMode === 'deposit';
+    document.getElementById('goalMoneyTitle').textContent = deposit ? `Add money to ${g.name}` : `Move money out of ${g.name}`;
+    document.getElementById('goalMoneySub').textContent = deposit
+        ? `${homeMoney(g.balance)} saved of ${homeMoney(g.targetAmount)}`
+        : `${homeMoney(g.balance)} in this goal`;
+    document.getElementById('goalMoneyLegend').textContent = deposit ? 'From' : 'To';
+    const checking = Number(typeof rawBalanceValue !== 'undefined' ? rawBalanceValue : 0) || 0;
+    const savings = Number(typeof savingsBalanceValue !== 'undefined' ? savingsBalanceValue : 0) || 0;
+    document.getElementById('goalMoneyCheckingBal').textContent = homeMoney(checking);
+    document.getElementById('goalMoneySavingsBal').textContent = homeMoney(savings);
+    const checkingRadio = document.querySelector('input[name="goalMoneyAccount"][value="checking"]');
+    if (checkingRadio) checkingRadio.checked = true;
+
+    const amountEl = document.getElementById('goalMoneyAmount');
+    amountEl.value = '';
+    const chips = document.getElementById('goalMoneyChips');
+    chips.replaceChildren();
+    const addChip = (label, value) => {
+        const b = gButton(label, 'chip');
+        b.onclick = () => { amountEl.value = value.toFixed(2); amountEl.focus(); };
+        chips.appendChild(b);
+    };
+    if (deposit) {
+        [25, 50, 100].forEach(v => addChip(homeMoney(v).replace('.00', ''), v));
+        const remaining = Math.round((g.targetAmount - g.balance) * 100) / 100;
+        if (remaining > 0) addChip(`Fill it: ${homeMoney(remaining)}`, remaining);
+    } else {
+        [25, 50].filter(v => v < g.balance).forEach(v => addChip(homeMoney(v).replace('.00', ''), v));
+        if (g.balance > 0) addChip(`All: ${homeMoney(g.balance)}`, g.balance);
+    }
+    const err = document.getElementById('goalMoneyError');
+    err.textContent = '';
+    err.classList.add('hidden');
+    document.getElementById('goalMoneySubmit').textContent = deposit ? 'Add money' : 'Move money';
+    showGoalSheet('goalMoneySheet');
+    setTimeout(() => amountEl.focus(), 60);
+}
+
+function closeGoalMoney() {
+    hideGoalSheet('goalMoneySheet');
+}
+
+async function submitGoalMoney(event) {
+    if (event) event.preventDefault();
+    if (goalsUi.busy) return;
+    const g = goalById(goalsUi.currentId);
+    if (!g) return;
+    const amountEl = document.getElementById('goalMoneyAmount');
+    const errEl = document.getElementById('goalMoneyError');
+    const fail = (msg) => { errEl.textContent = msg; errEl.classList.remove('hidden'); };
+    const amount = Math.round(parseFloat(amountEl.value) * 100) / 100;
+    const picked = document.querySelector('input[name="goalMoneyAccount"]:checked');
+    const accountType = picked ? picked.value : 'checking';
+    const deposit = goalsUi.moneyMode === 'deposit';
+    if (!Number.isFinite(amount) || amount <= 0) { fail('Enter an amount.'); amountEl.focus(); return; }
+    if (!deposit && amount > g.balance) { fail(`This goal has ${homeMoney(g.balance)}.`); amountEl.focus(); return; }
+    errEl.classList.add('hidden');
+
+    const btn = document.getElementById('goalMoneySubmit');
+    const original = btn.textContent;
+    goalsUi.busy = true;
+    btn.disabled = true;
+    btn.textContent = deposit ? 'Adding…' : 'Moving…';
+    try {
+        const data = await goalsApi({ goalAction: goalsUi.moneyMode, goalId: g.id, amount, accountType });
+        closeGoalMoney();
+        if (deposit) {
+            showGoalMsg('goalDetailMsg', 'success', data.justReached
+                ? `You reached your goal! ${homeMoney(amount)} added from ${accountType}.`
+                : `${homeMoney(amount)} added from ${accountType}.`);
+            if (data.justReached && typeof fireConfetti === 'function') fireConfetti(80);
+        } else {
+            showGoalMsg('goalDetailMsg', 'success', `${homeMoney(amount)} moved to ${accountType}.`);
+        }
+        await afterGoalMoneyChange();
+    } catch (err) {
+        fail(err.message);
+    } finally {
+        goalsUi.busy = false;
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+// ----- Create / edit -----
+function renderGoalIconPicker(focusKey) {
+    const box = document.getElementById('goalIconPicker');
+    if (!box) return;
+    box.replaceChildren();
+    Object.entries(GOAL_ICON_MAP).forEach(([key, info]) => {
+        const selected = goalsUi.iconChoice === key;
+        const b = gEl('button', `h-11 rounded-xl border flex items-center justify-center transition ${selected ? 'bg-emerald-100 text-emerald-700 border-emerald-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`);
+        b.type = 'button';
+        b.dataset.icon = key;
+        b.setAttribute('aria-label', info.label);
+        b.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        b.appendChild(gEl('i', `fa-solid ${info.icon}`));
+        b.onclick = () => { goalsUi.iconChoice = key; renderGoalIconPicker(key); };
+        box.appendChild(b);
+        if (focusKey === key) b.focus();
+    });
+}
+
+function openGoalEditor(goalId, opts) {
+    const g = goalId !== undefined && goalId !== null ? goalById(goalId) : null;
+    if (!g && goalsUi.data && goalsUi.data.goals.length >= goalsUi.data.maxGoals) {
+        showGoalMsg('goalsViewMsg', 'error', `You can have up to ${goalsUi.data.maxGoals} goals at a time. Close one to start another.`);
+        return;
+    }
+    goalsUi.editingId = g ? g.id : null;
+    goalsUi.enableRoundupsAfterCreate = !!(opts && opts.enableRoundups);
+    goalsUi.iconChoice = g ? g.icon : 'piggy';
+    document.getElementById('goalEditorTitle').textContent = g ? 'Edit goal' : 'New goal';
+    document.getElementById('goalNameInput').value = g ? g.name : '';
+    document.getElementById('goalTargetInput').value = g ? String(g.targetAmount) : '';
+    const dateEl = document.getElementById('goalDateInput');
+    dateEl.value = g && g.targetDate ? g.targetDate : '';
+    dateEl.min = goalTodayYmd();
+    document.getElementById('goalEditorSubmit').textContent = g ? 'Save changes' : 'Create goal';
+    const err = document.getElementById('goalEditorError');
+    err.textContent = '';
+    err.classList.add('hidden');
+    renderGoalIconPicker();
+    if (typeof closeMoreSheet === 'function') closeMoreSheet();
+    showGoalSheet('goalEditorSheet');
+    setTimeout(() => document.getElementById('goalNameInput').focus(), 60);
+}
+
+function closeGoalEditor() {
+    hideGoalSheet('goalEditorSheet');
+}
+
+async function submitGoalEditor(event) {
+    if (event) event.preventDefault();
+    if (goalsUi.busy) return;
+    const nameEl = document.getElementById('goalNameInput');
+    const targetEl = document.getElementById('goalTargetInput');
+    const dateEl = document.getElementById('goalDateInput');
+    const errEl = document.getElementById('goalEditorError');
+    const fail = (msg, el) => { errEl.textContent = msg; errEl.classList.remove('hidden'); if (el) el.focus(); };
+    const name = nameEl.value.replace(/\s+/g, ' ').trim();
+    const target = Math.round(parseFloat(targetEl.value) * 100) / 100;
+    const date = dateEl.value;
+    if (!name) return fail('Give your goal a name.', nameEl);
+    if (!Number.isFinite(target) || target < 1) return fail('Set a target of at least $1.', targetEl);
+    if (target > 1000000) return fail('Targets can be up to $1,000,000.', targetEl);
+    if (date && date < goalTodayYmd()) return fail('Pick a target date that is still ahead.', dateEl);
+    errEl.classList.add('hidden');
+
+    const btn = document.getElementById('goalEditorSubmit');
+    const original = btn.textContent;
+    goalsUi.busy = true;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    const editing = goalsUi.editingId;
+    try {
+        const data = await goalsApi(editing
+            ? { goalAction: 'update', goalId: editing, name, targetAmount: target, targetDate: date || null, icon: goalsUi.iconChoice }
+            : { goalAction: 'create', name, targetAmount: target, targetDate: date || null, icon: goalsUi.iconChoice });
+        closeGoalEditor();
+        const goalId = editing || (data.goal && data.goal.id);
+        let note = editing ? 'Goal updated.' : `"${name}" is ready. Add money whenever you like.`;
+        if (!editing && goalId && goalsUi.enableRoundupsAfterCreate) {
+            try {
+                await goalsApi({ goalAction: 'roundups', goalId, enabled: true });
+                note = `"${name}" is ready, and round-ups are on.`;
+            } catch (e) {}
+        }
+        goalsUi.busy = false;
+        await loadGoals().catch(() => {});
+        if (goalId && goalById(goalId)) {
+            await openGoalDetail(goalId);
+            showGoalMsg('goalDetailMsg', 'success', note);
+        }
+    } catch (err) {
+        fail(err.message);
+    } finally {
+        goalsUi.busy = false;
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+// ----- Round-ups and closing -----
+async function toggleGoalRoundups() {
+    const g = goalById(goalsUi.currentId);
+    if (!g || goalsUi.busy) return;
+    const toggle = document.getElementById('goalDetailRoundupsToggle');
+    const turnOn = !g.roundupsEnabled;
+    goalsUi.busy = true;
+    toggle.disabled = true;
+    try {
+        const data = await goalsApi({ goalAction: 'roundups', goalId: g.id, enabled: turnOn });
+        const moved = data.swept && data.swept.moved > 0 ? data.swept.moved : 0;
+        showGoalMsg('goalDetailMsg', 'success', turnOn
+            ? `Round-ups will go to "${g.name}".`
+            : (moved ? `Round-ups off. ${homeMoney(moved)} of waiting change was moved in first.` : 'Round-ups off.'));
+        goalsUi.busy = false;
+        if (moved) await afterGoalMoneyChange();
+        else await loadGoals().catch(() => {});
+    } catch (err) {
+        showGoalMsg('goalDetailMsg', 'error', err.message);
+    } finally {
+        goalsUi.busy = false;
+        toggle.disabled = false;
+    }
+}
+
+async function setRoundupsEnabled(enabled, goalId) {
+    if (goalsUi.busy) return;
+    goalsUi.busy = true;
+    try {
+        const data = await goalsApi({ goalAction: 'roundups', goalId, enabled });
+        const g = goalById(goalId);
+        const moved = data.swept && data.swept.moved > 0 ? data.swept.moved : 0;
+        showGoalMsg('goalsViewMsg', 'success', enabled
+            ? `Round-ups are on. Spare change will go to "${g ? g.name : 'your goal'}".`
+            : (moved ? `Round-ups off. ${homeMoney(moved)} of waiting change was moved in first.` : 'Round-ups off.'));
+        goalsUi.busy = false;
+        if (moved) await afterGoalMoneyChange();
+        else await loadGoals().catch(() => {});
+    } catch (err) {
+        showGoalMsg('goalsViewMsg', 'error', err.message);
+    } finally {
+        goalsUi.busy = false;
+    }
+}
+
+async function sweepRoundupsNow(btn) {
+    if (goalsUi.busy) return;
+    goalsUi.busy = true;
+    if (btn) { btn.disabled = true; btn.textContent = 'Moving…'; }
+    try {
+        const data = await goalsApi({ goalAction: 'sweep' });
+        goalsUi.busy = false;
+        if (data.moved > 0) {
+            const n = data.purchases;
+            showGoalMsg('goalsViewMsg', 'success', `Moved ${homeMoney(data.moved)} from ${n} purchase${n === 1 ? '' : 's'} into "${data.goalName}".`);
+            if (data.justReached && typeof fireConfetti === 'function') fireConfetti(80);
+            await afterGoalMoneyChange();
+        } else {
+            showGoalMsg('goalsViewMsg', 'success', 'No round-ups are waiting right now.');
+            await loadGoals().catch(() => {});
+        }
+    } catch (err) {
+        showGoalMsg('goalsViewMsg', 'error', err.message);
+    } finally {
+        goalsUi.busy = false;
+        renderRoundupsCard();
+    }
+}
+
+async function confirmCloseGoal() {
+    const g = goalById(goalsUi.currentId);
+    if (!g || goalsUi.busy) return;
+    const question = g.balance > 0
+        ? `Close "${g.name}"? The ${homeMoney(g.balance)} in it moves back to checking.`
+        : `Close "${g.name}"?`;
+    if (!confirm(question)) return;
+    const btn = document.getElementById('goalDetailCloseGoalBtn');
+    goalsUi.busy = true;
+    btn.disabled = true;
+    try {
+        const data = await goalsApi({ goalAction: 'close', goalId: g.id, accountType: 'checking' });
+        closeGoalDetail();
+        showGoalMsg('goalsViewMsg', 'success', data.movedAmount > 0
+            ? `Closed "${g.name}". ${homeMoney(data.movedAmount)} moved to checking.`
+            : `Closed "${g.name}".`);
+        goalsUi.busy = false;
+        await afterGoalMoneyChange();
+    } catch (err) {
+        showGoalMsg('goalDetailMsg', 'error', err.message);
+    } finally {
+        goalsUi.busy = false;
+        btn.disabled = false;
+    }
+}
+
+// Escape closes the topmost goal sheet first.
+function closeTopGoalSheet() {
+    if (isGoalSheetOpen('goalMoneySheet')) closeGoalMoney();
+    else if (isGoalSheetOpen('goalEditorSheet')) closeGoalEditor();
+    else if (isGoalSheetOpen('goalDetailSheet')) closeGoalDetail();
+}
+
+// Signing out clears goals from the screen.
+(function hookGoalsSignOut() {
+    const previous = window.showLoginScreen;
+    if (typeof previous !== 'function') return;
+    window.showLoginScreen = function () {
+        const result = previous.apply(this, arguments);
+        try {
+            goalsUi.data = null;
+            goalsUi.currentId = null;
+            window.ahbGoalsTotal = 0;
+            ['goalDetailSheet', 'goalMoneySheet', 'goalEditorSheet'].forEach(hideGoalSheet);
+            const home = document.getElementById('homeGoals');
+            if (home) home.replaceChildren(gEl('p', 'p-4 text-xs text-gray-500 text-center', 'Loading…'));
+        } catch (err) {}
+        return result;
+    };
+})();
 </script>

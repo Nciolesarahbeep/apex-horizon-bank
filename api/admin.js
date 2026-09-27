@@ -3,6 +3,7 @@ const { getQuery } = require('../lib/query');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const { creditSavingsInterest } = require('../lib/interest');
+const goals = require('../lib/goals');
 
 // Same table definition as api/account-services.js, so the admin queue works
 // even before any customer has deposited a check.
@@ -565,6 +566,32 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // ---------- runRoundupsNow: sweep card round-ups into savings goals ----------
+    if (action === 'runRoundupsNow') {
+      await goals.ensureGoalsSchema(sql);
+      const result = await goals.sweepAllRoundups(sql);
+      for (const hit of result.reached) {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${hit.userId}, 'Goal reached', ${goals.goalReachedMessage(hit.goalName, hit.targetAmount)}, FALSE, NOW())
+        `;
+      }
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('runRoundupsNow', NULL, ${result.totalMoved}, ${'Manual round-up sweep: ' + result.usersSwept + ' customer(s)'}, NOW())
+      `;
+      const parts = [];
+      if (result.usersSwept > 0) parts.push(`Moved $${result.totalMoved.toFixed(2)} of round-ups for ${result.usersSwept} customer(s).`);
+      if (result.failed > 0) parts.push(`${result.failed} couldn't be swept (usually not enough in checking) and will retry tomorrow.`);
+      return res.status(200).json({
+        success: true,
+        usersSwept: result.usersSwept,
+        totalMoved: result.totalMoved,
+        failed: result.failed,
+        message: parts.join(' ') || 'No round-ups were waiting to be moved.',
+      });
+    }
+
     // ---------- listDisputes (transaction dispute review queue) ----------
     if (action === 'listDisputes') {
       const disputes = await sql`
@@ -1047,7 +1074,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "listAccounts", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", "toggleAccountStatus", "setAccountRestriction", "seedTransactionHistory", "listPendingChecks", "approveCheck", "rejectCheck", or "runInterestNow".',
+      error: 'Invalid or missing action. Use "listUsers", "listAccounts", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", "toggleAccountStatus", "setAccountRestriction", "seedTransactionHistory", "listPendingChecks", "approveCheck", "rejectCheck", "runInterestNow", or "runRoundupsNow".',
     });
   } catch (err) {
     console.error('Admin API error:', err);

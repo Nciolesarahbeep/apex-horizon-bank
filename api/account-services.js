@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const PDFDocument = require('pdfkit');
 const { creditSavingsInterest } = require('../lib/interest');
 const { getStepUpSettings, saveStepUpSettings, issueStepUpToken, requireStepUp, ensureStepUpSchema } = require('../lib/stepUp');
+const goals = require('../lib/goals');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -378,7 +379,20 @@ module.exports = async function handler(req, res) {
         console.error('Savings interest run error:', interestErr);
       }
 
-      return res.status(200).json({ success: true, processed, failed, skipped, interest });
+      // Round-ups from card purchases move into savings goals on the same cron.
+      let roundups = { usersSwept: 0, totalMoved: 0, failed: 0 };
+      try {
+        await goals.ensureGoalsSchema(sql);
+        const sweep = await goals.sweepAllRoundups(sql);
+        for (const hit of sweep.reached) {
+          await createNotification(hit.userId, 'Goal reached', goals.goalReachedMessage(hit.goalName, hit.targetAmount));
+        }
+        roundups = { usersSwept: sweep.usersSwept, totalMoved: sweep.totalMoved, failed: sweep.failed };
+      } catch (roundupErr) {
+        console.error('Round-up sweep error:', roundupErr);
+      }
+
+      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups });
     } catch (err) {
       console.error('Process recurring transfers error:', err);
       return res.status(500).json({ error: 'Failed to process recurring transfers.' });
@@ -1931,6 +1945,75 @@ module.exports = async function handler(req, res) {
   }
 
   // ---------- Recurring Transfers (user-facing CRUD) ----------
+  // ---------- Savings goals + round-ups (see lib/goals.js) ----------
+  if (resource === 'savings-goals') {
+    try {
+      await goals.ensureGoalsSchema(sql);
+
+      if (req.method === 'GET') {
+        const data = await goals.listGoals(sql, session.userId);
+        if (query.goalId) {
+          data.activity = await goals.getGoalActivity(sql, session.userId, query.goalId);
+        }
+        return res.status(200).json(data);
+      }
+
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+
+      const body = req.body || {};
+      const notifyIfReached = async (result) => {
+        if (result && result.justReached) {
+          await createNotification(session.userId, 'Goal reached', goals.goalReachedMessage(result.goalName, result.targetAmount));
+        }
+      };
+
+      switch (body.goalAction) {
+        case 'create': {
+          const goal = await goals.createGoal(sql, session.userId, body);
+          return res.status(201).json({ success: true, goal });
+        }
+        case 'update': {
+          const goal = await goals.updateGoal(sql, session.userId, body);
+          return res.status(200).json({ success: true, goal });
+        }
+        case 'deposit': {
+          const result = await goals.moveIntoGoal(sql, session.userId, body);
+          await notifyIfReached(result);
+          return res.status(200).json({ success: true, ...result });
+        }
+        case 'withdraw': {
+          const result = await goals.moveOutOfGoal(sql, session.userId, body);
+          return res.status(200).json({ success: true, ...result });
+        }
+        case 'roundups': {
+          const result = await goals.setRoundups(sql, session.userId, body);
+          if (result.swept) await notifyIfReached(result.swept);
+          return res.status(200).json({ success: true, ...result });
+        }
+        case 'sweep': {
+          const result = await goals.sweepRoundups(sql, session.userId);
+          await notifyIfReached(result);
+          return res.status(200).json({ success: true, ...result });
+        }
+        case 'close': {
+          const result = await goals.closeGoal(sql, session.userId, body);
+          return res.status(200).json({ success: true, ...result });
+        }
+        default:
+          return res.status(400).json({ error: 'Unknown goal action.' });
+      }
+    } catch (err) {
+      if (err instanceof goals.GoalError) {
+        return res.status(err.status).json({ error: err.message, ...err.extra });
+      }
+      console.error('Savings goals error:', err);
+      return res.status(500).json({ error: 'Something went wrong with your goals. Please try again.' });
+    }
+  }
+
   if (resource === 'recurring-transfers') {
     if (req.method === 'GET') {
       try {

@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { getUserFromRequest, clearSessionCookie } = require('../lib/auth');
+const { getGoalsTotal } = require('../lib/goals');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -34,7 +35,17 @@ module.exports = async function handler(req, res) {
       WHERE user_id = ${user.id}
     `;
 
+    // Money set aside in savings goals counts toward the home screen total.
+    let goalsSummary = { total: 0, count: 0 };
+    try {
+      goalsSummary = await getGoalsTotal(sql, user.id);
+    } catch (goalErr) {
+      console.error('Goals total error (non-fatal):', goalErr);
+    }
+
     return res.status(200).json({
+      goalsTotal: goalsSummary.total,
+      goalsCount: goalsSummary.count,
       user: {
         id: user.id,
         email: user.email,
