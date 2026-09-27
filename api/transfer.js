@@ -22,8 +22,95 @@ async function ensureMoneyRequestsTable() {
   await sql`CREATE INDEX IF NOT EXISTS money_requests_requester_idx ON money_requests (requester_user_id, status)`;
 }
 
-const DAILY_P2P_LIMIT = Infinity;
+const DAILY_P2P_LIMIT = 10000;
 const MAX_WIRE_AMOUNT = 25000;
+const SPENDABLE_ACCOUNT_TYPES = ['checking', 'savings'];
+
+// ---------------------------------------------------------------------------
+// Atomic money movement
+//
+// Every money movement below runs as ONE SQL statement. Postgres treats a
+// single statement as all-or-nothing, so the debit, the credit, and both
+// ledger rows either all happen or none of them do.
+//
+// Each statement ends with a guard like `1 / COUNT(*)`. If any step matched
+// zero rows (not enough balance, request already paid, account missing),
+// the guard divides by zero, Postgres raises an error, and the whole
+// statement rolls back. isGuardFailure() recognises that case.
+// ---------------------------------------------------------------------------
+function isGuardFailure(err) {
+  if (!err) return false;
+  // 22012 = division_by_zero (our guard), 23502 = not_null_violation
+  // (a ledger insert whose account step matched nothing).
+  return err.code === '22012' || err.code === '23502' || /division by zero/i.test(String(err.message || ''));
+}
+
+// Debit one Apex account and credit another, with both ledger rows.
+async function atomicTransfer({ fromAccountId, toAccountId, amount, outType, outDescription, inType, inDescription }) {
+  const rows = await sql`
+    WITH debit AS (
+      UPDATE accounts SET balance = balance - ${amount}
+      WHERE id = ${fromAccountId} AND balance >= ${amount}
+      RETURNING id, balance
+    ),
+    credit AS (
+      UPDATE accounts SET balance = balance + ${amount}
+      WHERE id = ${toAccountId} AND EXISTS (SELECT 1 FROM debit)
+      RETURNING id, balance
+    ),
+    out_txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM debit), ${outType}, ${amount}, ${outDescription}, NOW())
+      RETURNING id, created_at
+    ),
+    in_txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM credit), ${inType}, ${amount}, ${inDescription}, NOW())
+      RETURNING id
+    )
+    SELECT
+      (SELECT balance FROM debit) AS from_balance,
+      (SELECT balance FROM credit) AS to_balance,
+      (SELECT id FROM out_txn) AS transaction_id,
+      (SELECT created_at FROM out_txn) AS transaction_timestamp,
+      (SELECT COUNT(*) FROM in_txn) AS in_rows,
+      1 / ((SELECT COUNT(*) FROM debit) * (SELECT COUNT(*) FROM credit)) AS guard
+  `;
+  return rows[0];
+}
+
+// Debit one Apex account (money leaving the bank, e.g. a wire).
+async function atomicDebit({ accountId, amount, type, description }) {
+  const rows = await sql`
+    WITH debit AS (
+      UPDATE accounts SET balance = balance - ${amount}
+      WHERE id = ${accountId} AND balance >= ${amount}
+      RETURNING id, balance
+    ),
+    txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM debit), ${type}, ${amount}, ${description}, NOW())
+      RETURNING id, created_at
+    )
+    SELECT
+      (SELECT balance FROM debit) AS from_balance,
+      (SELECT id FROM txn) AS transaction_id,
+      (SELECT created_at FROM txn) AS transaction_timestamp,
+      1 / (SELECT COUNT(*) FROM debit) AS guard
+  `;
+  return rows[0];
+}
+
+// Demo account (set via the DEMO_EMAIL env var) can't send money to or
+// request money from real users.
+async function isDemoUser(userId) {
+  const demoEmail = String(process.env.DEMO_EMAIL || '').trim().toLowerCase();
+  if (!demoEmail) return false;
+  const rows = await sql`SELECT email FROM users WHERE id = ${userId} LIMIT 1`;
+  return rows.length > 0 && String(rows[0].email || '').trim().toLowerCase() === demoEmail;
+}
+
+const DEMO_BLOCKED_MESSAGE = 'Sending or requesting money from other people is turned off on the demo account. Try a transfer between your own accounts instead.';
 
 module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
@@ -94,6 +181,7 @@ module.exports = async function handler(req, res) {
     const { action } = body;
 
     if (action === 'create_money_request') {
+      if (await isDemoUser(session.userId)) return res.status(403).json({ error: DEMO_BLOCKED_MESSAGE, demoAccount: true });
       await ensureMoneyRequestsTable();
       const { recipientIdentifier, amount, note } = body;
       const requestAmount = Number(amount);
@@ -147,13 +235,16 @@ module.exports = async function handler(req, res) {
       if (moneyReq.status !== 'pending') return res.status(400).json({ error: 'This request was already ' + moneyReq.status + '.' });
 
       if (decision === 'decline') {
-        await sql`UPDATE money_requests SET status = 'declined', responded_at = NOW() WHERE id = ${moneyReq.id}`;
+        const declined = await sql`UPDATE money_requests SET status = 'declined', responded_at = NOW() WHERE id = ${moneyReq.id} AND status = 'pending' RETURNING id`;
+        if (declined.length === 0) return res.status(409).json({ error: 'This request was already handled.' });
         try {
           await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at)
             VALUES (${moneyReq.requester_user_id}, 'Request Declined', 'Your money request was declined.', FALSE, NOW())`;
         } catch (e) {}
         return res.status(200).json({ success: true, status: 'declined' });
       }
+
+      if (await isDemoUser(session.userId)) return res.status(403).json({ error: DEMO_BLOCKED_MESSAGE, demoAccount: true });
 
       const amount = Number(moneyReq.amount);
       const fromRows = await sql`SELECT id, balance, restriction_level FROM accounts WHERE user_id = ${session.userId} AND account_type = 'checking' LIMIT 1`;
@@ -172,13 +263,50 @@ module.exports = async function handler(req, res) {
       const requesterName = (requesterUserRows[0] && requesterUserRows[0].full_name) || 'Apex user';
       const note = moneyReq.note ? `Paid request: ${moneyReq.note}` : `Paid money request to ${requesterName.split(' ')[0]}`;
       const noteIn = moneyReq.note ? `Request paid by ${payerName.split(' ')[0]}: ${moneyReq.note}` : `Money request paid by ${payerName.split(' ')[0]}`;
-      await sql`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromAccount.id}`;
-      await sql`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toAccount.id}`;
-      const outTxn = await sql`INSERT INTO transactions (account_id, type, amount, description, created_at)
-        VALUES (${fromAccount.id}, 'p2p_out', ${amount}, ${note}, NOW()) RETURNING id, created_at`;
-      await sql`INSERT INTO transactions (account_id, type, amount, description, created_at)
-        VALUES (${toAccount.id}, 'p2p_in', ${amount}, ${noteIn}, NOW())`;
-      await sql`UPDATE money_requests SET status = 'paid', responded_at = NOW() WHERE id = ${moneyReq.id}`;
+
+      // Mark the request paid AND move the money in one statement, so a
+      // double-tap can never pay the same request twice.
+      let paidRows;
+      try {
+        paidRows = await sql`
+          WITH claim AS (
+            UPDATE money_requests SET status = 'paid', responded_at = NOW()
+            WHERE id = ${moneyReq.id} AND status = 'pending' AND payer_user_id = ${session.userId}
+            RETURNING id
+          ),
+          debit AS (
+            UPDATE accounts SET balance = balance - ${amount}
+            WHERE id = ${fromAccount.id} AND balance >= ${amount} AND EXISTS (SELECT 1 FROM claim)
+            RETURNING id, balance
+          ),
+          credit AS (
+            UPDATE accounts SET balance = balance + ${amount}
+            WHERE id = ${toAccount.id} AND EXISTS (SELECT 1 FROM debit)
+            RETURNING id, balance
+          ),
+          out_txn AS (
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES ((SELECT id FROM debit), 'p2p_out', ${amount}, ${note}, NOW())
+            RETURNING id, created_at
+          ),
+          in_txn AS (
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES ((SELECT id FROM credit), 'p2p_in', ${amount}, ${noteIn}, NOW())
+            RETURNING id
+          )
+          SELECT
+            (SELECT id FROM out_txn) AS transaction_id,
+            (SELECT COUNT(*) FROM in_txn) AS in_rows,
+            1 / ((SELECT COUNT(*) FROM claim) * (SELECT COUNT(*) FROM debit) * (SELECT COUNT(*) FROM credit)) AS guard
+        `;
+      } catch (moveErr) {
+        if (isGuardFailure(moveErr)) {
+          console.error('Money request payment guard tripped:', moveErr.message);
+          return res.status(409).json({ error: 'This request was already handled or your balance changed. Nothing was sent.' });
+        }
+        throw moveErr;
+      }
+
       const amountFormatted = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       try {
         await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at)
@@ -186,16 +314,18 @@ module.exports = async function handler(req, res) {
         await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at)
           VALUES (${session.userId}, 'Payment Sent', ${'You paid $' + amountFormatted + ' to ' + requesterName + '.'}, FALSE, NOW())`;
       } catch (e) {}
-      return res.status(200).json({ success: true, status: 'paid', transactionId: outTxn[0].id, amount });
+      return res.status(200).json({ success: true, status: 'paid', transactionId: paidRows[0].transaction_id, amount });
     }
 
     const { fromAccountType, toAccountType, recipientIdentifier, routingNumber, beneficiaryNumber, targetBank, amount, description } = body;
     if (!fromAccountType || !amount) return res.status(400).json({ error: 'From account and amount are required.' });
+    if (!SPENDABLE_ACCOUNT_TYPES.includes(fromAccountType)) return res.status(400).json({ error: 'Transfers can only be sent from checking or savings.' });
     const transferAmount = Number(amount);
     if (!Number.isFinite(transferAmount) || transferAmount <= 0) return res.status(400).json({ error: 'Enter a valid transfer amount greater than zero.' });
     const isP2P = !!recipientIdentifier;
     const isWire = !!routingNumber;
     if (isP2P && isWire) return res.status(400).json({ error: 'Choose either a wire or a P2P transfer, not both.' });
+    if (isP2P && await isDemoUser(session.userId)) return res.status(403).json({ error: DEMO_BLOCKED_MESSAGE, demoAccount: true });
     if (isWire) {
       const cleanRouting = String(routingNumber).trim();
       if (!/^\d{9}$/.test(cleanRouting)) return res.status(400).json({ error: 'Routing number must be exactly 9 digits.' });
@@ -203,6 +333,7 @@ module.exports = async function handler(req, res) {
       if (transferAmount > MAX_WIRE_AMOUNT) return res.status(400).json({ error: `Online wires are limited to $${MAX_WIRE_AMOUNT.toLocaleString()} per transaction. For larger amounts, contact support.` });
     }
     if (!isP2P && !isWire && !toAccountType) return res.status(400).json({ error: 'To account is required for internal transfers.' });
+    if (!isP2P && !isWire && !SPENDABLE_ACCOUNT_TYPES.includes(toAccountType)) return res.status(400).json({ error: 'Internal transfers can only go between checking and savings. To pay your card, use Cards → Make a Payment.' });
     if (!isP2P && !isWire && fromAccountType === toAccountType) return res.status(400).json({ error: 'Choose two different accounts to transfer between.' });
 
     const fromRows = await sql`SELECT id, balance, restriction_level FROM accounts WHERE user_id = ${session.userId} AND account_type = ${fromAccountType} LIMIT 1`;
@@ -257,18 +388,34 @@ module.exports = async function handler(req, res) {
     }
 
     if (Number(fromAccount.balance) < transferAmount) return res.status(400).json({ error: 'Insufficient funds in the source account.' });
-    const updatedFrom = await sql`UPDATE accounts SET balance = balance - ${transferAmount} WHERE id = ${fromAccount.id} AND balance >= ${transferAmount} RETURNING id, balance`;
-    if (updatedFrom.length === 0) return res.status(409).json({ error: 'Balance changed before the transfer completed. Please try again.' });
+
     const outType = isWire ? 'wire_out' : (isP2P ? 'p2p_out' : 'transfer_out');
-    const outboundTxnRows = await sql`INSERT INTO transactions (account_id, type, amount, description, created_at) VALUES (${fromAccount.id}, ${outType}, ${transferAmount}, ${note}, NOW()) RETURNING id, created_at`;
-    const outboundTransactionId = outboundTxnRows[0].id;
-    await flagLargeTransfer({ userId: session.userId, amount: transferAmount, transactionId: outboundTransactionId, transferType: isWire ? 'wire' : (isP2P ? 'P2P' : 'internal') });
-    let updatedTo = null;
-    if (!isWire) {
-      updatedTo = await sql`UPDATE accounts SET balance = balance + ${transferAmount} WHERE id = ${toAccount.id} RETURNING id, balance`;
-      const inType = isP2P ? 'p2p_in' : 'transfer_in';
-      await sql`INSERT INTO transactions (account_id, type, amount, description, created_at) VALUES (${toAccount.id}, ${inType}, ${transferAmount}, ${noteIncoming}, NOW())`;
+    let moved;
+    try {
+      if (isWire) {
+        moved = await atomicDebit({ accountId: fromAccount.id, amount: transferAmount, type: outType, description: note });
+      } else {
+        const inType = isP2P ? 'p2p_in' : 'transfer_in';
+        moved = await atomicTransfer({
+          fromAccountId: fromAccount.id,
+          toAccountId: toAccount.id,
+          amount: transferAmount,
+          outType,
+          outDescription: note,
+          inType,
+          inDescription: noteIncoming,
+        });
+      }
+    } catch (moveErr) {
+      if (isGuardFailure(moveErr)) {
+        console.error('Transfer guard tripped:', moveErr.message);
+        return res.status(409).json({ error: 'Your balance changed before the transfer completed. Nothing was sent. Please try again.' });
+      }
+      throw moveErr;
     }
+
+    const outboundTransactionId = moved.transaction_id;
+    await flagLargeTransfer({ userId: session.userId, amount: transferAmount, transactionId: outboundTransactionId, transferType: isWire ? 'wire' : (isP2P ? 'P2P' : 'internal') });
 
     if (isWire) {
       try {
@@ -298,13 +445,13 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       success: true, isP2P, isWire,
       transactionId: outboundTransactionId,
-      transactionTimestamp: outboundTxnRows[0].created_at,
+      transactionTimestamp: moved.transaction_timestamp,
       description: note,
       recipientDisplayName: isP2P && recipientInfo ? (() => { const parts = (recipientInfo.full_name || '').trim().split(/\s+/); const first = parts[0] || 'Apex user'; const lastInitial = parts.length > 1 ? parts[parts.length - 1][0] + '.' : ''; return lastInitial ? `${first} ${lastInitial}` : first; })() : undefined,
       wireBankName: isWire ? ((targetBank && String(targetBank).trim()) || 'External Bank') : undefined,
       wireMaskedBeneficiary: maskedBeneficiary,
-      from: { accountType: fromAccountType, balance: updatedFrom[0].balance },
-      to: (isP2P || isWire) ? { balance: undefined } : { accountType: toAccountType, balance: updatedTo[0].balance },
+      from: { accountType: fromAccountType, balance: moved.from_balance },
+      to: (isP2P || isWire) ? { balance: undefined } : { accountType: toAccountType, balance: moved.to_balance },
     });
   } catch (err) {
     console.error('Transfer error:', err);
