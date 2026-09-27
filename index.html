@@ -1130,6 +1130,24 @@ async function submitCreateRecurringTransfer(event) {
     <span id="pullToRefreshLabel">Pull to refresh</span>
 </div>
 
+<div id="notifDetailSheet" class="hidden fixed inset-0 z-[9990] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeNotificationDetail()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3 shadow-2xl animate-fade-in" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="notifDetailTitle">
+        <div class="flex items-start gap-3">
+            <div id="notifDetailIcon" class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"></div>
+            <div class="min-w-0 flex-1">
+                <h3 id="notifDetailTitle" class="text-sm font-bold text-gray-900"></h3>
+                <p id="notifDetailTime" class="text-[10px] text-gray-400 mt-0.5"></p>
+            </div>
+            <button type="button" onclick="closeNotificationDetail()" aria-label="Close" class="text-gray-400 hover:text-gray-600 p-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p id="notifDetailMessage" class="text-xs text-gray-700 leading-relaxed whitespace-pre-line break-words"></p>
+        <div class="flex gap-2 pt-1">
+            <button id="notifDetailActionBtn" type="button" class="hidden flex-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-lg transition"></button>
+            <button type="button" onclick="closeNotificationDetail()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-bold py-2.5 rounded-lg transition">Close</button>
+        </div>
+    </div>
+</div>
+
 <div id="dashboardApp" class="hidden flex-1 flex flex-col">
             
             <header class="bg-slate-900 text-white h-16 sticky top-0 z-50 flex items-center justify-between px-4 shadow-md">
@@ -1144,25 +1162,31 @@ async function submitCreateRecurringTransfer(event) {
                 </div>
                 
                 <div class="flex items-center space-x-3 text-sm relative">
-                    <div class="relative">
-                        <div class="flex flex-col items-end mr-1 leading-tight">
-    <span id="headerUserName" class="text-xs font-bold text-white truncate max-w-[90px] sm:max-w-[110px]">—</span>
-    <span id="headerClock" class="text-[9px] font-mono text-emerald-400">--:--:-- --</span>
-</div>
+                    <div class="flex flex-col items-end leading-tight">
+                        <span id="headerUserName" class="text-xs font-bold text-white truncate max-w-[90px] sm:max-w-[110px]">—</span>
+                        <span id="headerClock" class="text-[9px] font-mono text-emerald-400">--:--:-- --</span>
+                    </div>
 
-<button onclick="toggleNotificationDropdown(event)" class="relative cursor-pointer focus:outline-none block pt-1">
-                            <i class="fa-regular fa-bell text-lg text-gray-300 hover:text-white transition"></i>
-                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-[9px] text-white font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center"></span>
+                    <div class="relative" id="notifBellWrap">
+                        <button id="notifBellBtn" type="button" onclick="toggleNotificationDropdown(event)" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-800 active:bg-slate-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
+                            <i class="fa-regular fa-bell text-lg text-gray-300"></i>
+                            <span id="notifBadge" class="hidden absolute top-0.5 right-0 min-w-[16px] h-4 px-1 bg-red-500 text-[9px] leading-4 text-white font-bold rounded-full text-center ring-2 ring-slate-900"></span>
                         </button>
-                        
-                        <div id="notifDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-xl border border-gray-200 text-gray-800 z-50 overflow-hidden">
-                            <div class="bg-slate-900 px-3 py-2 text-white flex justify-between items-center">
-                                <span class="text-[10px] font-bold font-mono tracking-wider uppercase">Notifications</span>
-                                <button onclick="clearAllNotifications()" class="text-[9px] text-emerald-400 font-semibold hover:underline">Clear</button>
+
+                        <div id="notifDropdown" onclick="event.stopPropagation()" role="dialog" aria-label="Notifications" class="hidden absolute right-0 top-11 w-[min(20rem,calc(100vw-1.5rem))] bg-white rounded-xl shadow-2xl border border-gray-200 text-gray-800 z-50 overflow-hidden">
+                            <div class="bg-slate-900 px-3 py-2.5 text-white flex justify-between items-center">
+                                <span class="text-[11px] font-bold tracking-wider uppercase">Notifications</span>
+                                <div class="flex items-center gap-3">
+                                    <button id="notifMarkAllBtn" type="button" onclick="markAllNotificationsRead()" class="text-[10px] text-emerald-400 font-semibold hover:underline">Mark all read</button>
+                                    <button type="button" onclick="clearAllNotifications()" class="text-[10px] text-gray-300 font-semibold hover:underline">Clear all</button>
+                                </div>
                             </div>
-                            <div id="notifContainer" class="divide-y divide-gray-100 max-h-48 overflow-y-auto"></div>
-                            <div id="notifEmptyState" class="hidden p-4 text-center text-xs text-gray-400 font-medium">
-                                <i class="fa-regular fa-bell-slash text-lg block mb-1 text-gray-300"></i> Empty.
+                            <div id="notifRequestsSection" class="hidden border-b border-gray-200"></div>
+                            <div id="notifContainer" class="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto overscroll-contain"></div>
+                            <div id="notifEmptyState" class="hidden px-4 py-8 text-center">
+                                <i class="fa-regular fa-bell-slash text-2xl text-gray-400 mb-2 block"></i>
+                                <p class="text-xs font-semibold text-gray-700">You're all caught up</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Alerts about payments, deposits and your account show up here.</p>
                             </div>
                         </div>
                     </div>
@@ -3305,14 +3329,18 @@ if (activeLoanBalanceEl) {
                 }
             });
 
-            document.getElementById('notifDropdown').classList.add('hidden');
+            closeNotificationPanel();
             window.scrollTo(0, 0);
         }
 
         function toggleNotificationDropdown(event) {
-            event.stopPropagation();
+            if (event) event.stopPropagation();
             const notifMenu = document.getElementById('notifDropdown');
-            notifMenu.classList.toggle('hidden');
+            if (notifMenu.classList.contains('hidden')) {
+                openNotificationPanel();
+            } else {
+                closeNotificationPanel();
+            }
         }
 
         // Ensures a minimum realistic processing time even when the network is fast —
@@ -3421,10 +3449,18 @@ if (activeLoanBalanceEl) {
         let notifPollIntervalId = null;
 
         function startNotificationPolling() {
+            latestKnownNotifId = 0;
+            loadToastPreference();
             fetchAndRenderNotifications(false);
             if (notifPollIntervalId) clearInterval(notifPollIntervalId);
-            notifPollIntervalId = setInterval(() => fetchAndRenderNotifications(true), 30000);
+            notifPollIntervalId = setInterval(() => fetchAndRenderNotifications(true), 20000);
         }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && notifPollIntervalId) {
+                fetchAndRenderNotifications(true);
+            }
+        });
 
         // Single source of truth for which screen is visible — every login/logout/
         // reload path routes through these two functions so the two screens can
@@ -3516,6 +3552,80 @@ if (activeLoanBalanceEl) {
     showLoginScreen();
 }
 
+        // ===== Notification centre =====
+        // Server is the source of truth (/api/account-services?resource=notifications).
+        // Everything user-supplied (titles, messages, request notes) is rendered with
+        // textContent, never innerHTML, so a crafted note can't inject markup.
+        let notificationsCache = [];
+        let pendingMoneyRequests = [];
+        let showNotificationToasts = true;
+
+        const NOTIF_TONES = {
+            emerald: 'bg-emerald-100 text-emerald-700',
+            amber: 'bg-amber-100 text-amber-700',
+            red: 'bg-red-100 text-red-600',
+            blue: 'bg-blue-50 text-blue-600',
+            gray: 'bg-gray-100 text-gray-600'
+        };
+
+        const NOTIF_CATEGORIES = [
+            { test: /check deposit/i, icon: 'fa-money-check-dollar', tone: 'emerald', view: 'check-deposit', action: 'View mobile deposits' },
+            { test: /money request|request (paid|declined)/i, icon: 'fa-hand-holding-dollar', tone: 'amber', view: 'checking', action: 'View activity' },
+            { test: /card|charge|pin\b/i, icon: 'fa-credit-card', tone: 'blue', view: 'credit', action: 'Open card' },
+            { test: /loan/i, icon: 'fa-building-columns', tone: 'blue', view: 'loans', action: 'View loans' },
+            { test: /dispute/i, icon: 'fa-scale-balanced', tone: 'amber', view: 'checking', action: 'View activity' },
+            { test: /verif|identity|kyc/i, icon: 'fa-id-card', tone: 'emerald', view: 'profile', action: 'View profile' },
+            { test: /password|passcode|device|sign.?in|email address|restrict/i, icon: 'fa-shield-halved', tone: 'red', view: 'settings', action: 'Security settings' },
+            { test: /interest/i, icon: 'fa-percent', tone: 'emerald', view: 'savings-summary', action: 'View savings' },
+            { test: /fail|paused|not accepted|declined|rejected/i, icon: 'fa-circle-exclamation', tone: 'red', view: 'checking', action: 'View activity' },
+            { test: /wire|transfer|payment|received|sent|deposit|bill|paid/i, icon: 'fa-arrow-right-arrow-left', tone: 'emerald', view: 'checking', action: 'View activity' }
+        ];
+
+        function notificationCategory(n) {
+            const text = `${n.title || ''} ${n.message || ''}`;
+            const title = n.title || '';
+            return NOTIF_CATEGORIES.find(c => c.test.test(title)) ||
+                NOTIF_CATEGORIES.find(c => c.test.test(text)) ||
+                { icon: 'fa-bell', tone: 'gray', view: null, action: null };
+        }
+
+        function notifTimeAgo(value) {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return '';
+            const secs = Math.max(0, (Date.now() - d.getTime()) / 1000);
+            if (secs < 60) return 'Just now';
+            if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+            if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+            if (secs < 172800) return 'Yesterday';
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        function notifFullTime(value) {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+        }
+
+        function notifIconEl(category, sizeClasses) {
+            const wrap = document.createElement('div');
+            wrap.className = `${sizeClasses} rounded-full flex items-center justify-center shrink-0 ${NOTIF_TONES[category.tone] || NOTIF_TONES.gray}`;
+            const icon = document.createElement('i');
+            icon.className = `fa-solid ${category.icon} text-xs`;
+            wrap.appendChild(icon);
+            return wrap;
+        }
+
+        async function loadToastPreference() {
+            try {
+                const res = await fetch('/api/account-services?resource=notification-prefs', { credentials: 'include', cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                showNotificationToasts = !(data.prefs && data.prefs.push === false);
+            } catch (err) {
+                // Keep the default (toasts on) if preferences can't load.
+            }
+        }
+
         async function fetchAndRenderNotifications(isPoll) {
             try {
                 const res = await fetch('/api/account-services?resource=notifications', {
@@ -3526,141 +3636,366 @@ if (activeLoanBalanceEl) {
                 const data = await res.json();
                 const notifications = data.notifications || [];
 
-                if (isPoll && notifications.length > 0 && latestKnownNotifId) {
-                    const freshOnes = notifications.filter(n => n.id > latestKnownNotifId);
-                    freshOnes.forEach(n => showNotificationToast(n.title, n.message));
+                if (isPoll && latestKnownNotifId && showNotificationToasts) {
+                    notifications
+                        .filter(n => n.id > latestKnownNotifId)
+                        .slice(0, 3)
+                        .reverse()
+                        .forEach(n => showNotificationToast(n.title, n.message));
                 }
                 if (notifications.length > 0) {
-                    latestKnownNotifId = Math.max(...notifications.map(n => n.id));
+                    latestKnownNotifId = Math.max(latestKnownNotifId, ...notifications.map(n => n.id));
                 }
 
+                notificationsCache = notifications;
                 renderNotifications(notifications);
             } catch (err) {
                 console.error('Failed to fetch notifications:', err);
             }
         }
 
-        function renderNotifications(notifications) {
-            const container = document.getElementById('notifContainer');
+        function updateNotifBadge() {
             const badge = document.getElementById('notifBadge');
-            const emptyState = document.getElementById('notifEmptyState');
-
-            container.innerHTML = '';
-
-            notifications.forEach(n => {
-                const el = document.createElement('div');
-                el.id = `notif-item-${n.id}`;
-                el.className = "p-2.5 hover:bg-gray-50 flex justify-between items-start space-x-1 cursor-pointer" + (n.is_read ? '' : ' bg-emerald-50');
-
-                const p = document.createElement('p');
-                p.className = "text-[10px] leading-relaxed";
-                const strong = document.createElement('strong');
-                strong.className = "text-gray-900 block text-xs";
-                strong.innerText = n.title;
-                p.appendChild(strong);
-                p.appendChild(document.createTextNode(n.message));
-
-                const btn = document.createElement('button');
-                btn.className = "text-gray-400 hover:text-red-500 text-xs";
-                btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                btn.onclick = function (event) {
-                    removeNotification(event, n.id);
-                };
-
-                el.onclick = function () {
-                    showNotificationDetail(n.title, n.message);
-                    markNotificationRead(n.id);
-                };
-
-                el.appendChild(p);
-                el.appendChild(btn);
-                container.appendChild(el);
-            });
-
-            const unreadCount = notifications.filter(n => !n.is_read).length;
-
-            if (notifications.length > 0) {
-                emptyState.classList.add('hidden');
-            } else {
-                emptyState.classList.remove('hidden');
-            }
-
-            if (unreadCount > 0) {
-                badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        async function markNotificationRead(notificationId) {
-            try {
-                await fetch('/api/account-services', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ resource: 'notifications', notifAction: 'markRead', notificationId })
-                });
-                const badge = document.getElementById('notifBadge');
-                const current = parseInt(badge.innerText, 10);
-                if (!isNaN(current) && current > 1) {
-                    badge.innerText = current - 1;
+            const bellBtn = document.getElementById('notifBellBtn');
+            const markAllBtn = document.getElementById('notifMarkAllBtn');
+            const unreadCount = notificationsCache.filter(n => !n.is_read).length;
+            if (badge) {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+                    badge.classList.remove('hidden');
                 } else {
                     badge.classList.add('hidden');
                 }
+            }
+            if (bellBtn) bellBtn.setAttribute('aria-label', unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications');
+            if (markAllBtn) markAllBtn.classList.toggle('hidden', unreadCount === 0);
+        }
+
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notifContainer');
+            const emptyState = document.getElementById('notifEmptyState');
+            if (!container) return;
+            container.innerHTML = '';
+
+            notifications.forEach(n => {
+                const category = notificationCategory(n);
+                const row = document.createElement('div');
+                row.id = `notif-item-${n.id}`;
+                row.setAttribute('role', 'button');
+                row.tabIndex = 0;
+                row.className = 'px-3 py-2.5 flex items-start gap-2.5 cursor-pointer hover:bg-gray-50 transition' + (n.is_read ? '' : ' bg-emerald-50/50');
+
+                row.appendChild(notifIconEl(category, 'w-8 h-8'));
+
+                const body = document.createElement('div');
+                body.className = 'min-w-0 flex-1';
+                const top = document.createElement('div');
+                top.className = 'flex items-center gap-1.5';
+                if (!n.is_read) {
+                    const dot = document.createElement('span');
+                    dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0';
+                    top.appendChild(dot);
+                }
+                const title = document.createElement('p');
+                title.className = 'text-xs text-gray-900 truncate ' + (n.is_read ? 'font-medium' : 'font-bold');
+                title.textContent = n.title || 'Notification';
+                top.appendChild(title);
+                const msg = document.createElement('p');
+                msg.className = 'text-[11px] text-gray-600 leading-snug mt-0.5 line-clamp-2 break-words';
+                msg.textContent = n.message || '';
+                const when = document.createElement('p');
+                when.className = 'text-[9px] text-gray-400 mt-1';
+                when.textContent = notifTimeAgo(n.created_at);
+                body.appendChild(top);
+                body.appendChild(msg);
+                body.appendChild(when);
+                row.appendChild(body);
+
+                const dismiss = document.createElement('button');
+                dismiss.type = 'button';
+                dismiss.setAttribute('aria-label', 'Dismiss notification');
+                dismiss.className = 'text-gray-400 hover:text-red-500 text-xs p-1 -mr-1 shrink-0';
+                dismiss.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                dismiss.onclick = function (event) { removeNotification(event, n.id); };
+                row.appendChild(dismiss);
+
+                row.onclick = function () { openNotificationDetail(n); };
+                row.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNotificationDetail(n); } };
+                container.appendChild(row);
+            });
+
+            if (emptyState) emptyState.classList.toggle('hidden', notifications.length > 0 || pendingMoneyRequests.length > 0);
+            updateNotifBadge();
+        }
+
+        // ----- Incoming money requests: pay or decline straight from the panel -----
+        async function loadPendingMoneyRequests() {
+            try {
+                const res = await fetch('/api/transfer?moneyRequests=1', { credentials: 'include', cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                pendingMoneyRequests = (data.incoming || []).filter(r => r.status === 'pending');
+                renderMoneyRequests();
+            } catch (err) {
+                console.error('Failed to load money requests:', err);
+            }
+        }
+
+        function renderMoneyRequests() {
+            const section = document.getElementById('notifRequestsSection');
+            const emptyState = document.getElementById('notifEmptyState');
+            if (!section) return;
+            section.innerHTML = '';
+            section.classList.toggle('hidden', pendingMoneyRequests.length === 0);
+            if (emptyState) emptyState.classList.toggle('hidden', notificationsCache.length > 0 || pendingMoneyRequests.length > 0);
+            if (pendingMoneyRequests.length === 0) return;
+
+            const heading = document.createElement('p');
+            heading.className = 'px-3 pt-2.5 text-[9px] font-bold uppercase tracking-wider text-gray-400';
+            heading.textContent = 'Money requests';
+            section.appendChild(heading);
+
+            pendingMoneyRequests.forEach(r => {
+                const amount = Number(r.amount).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                const card = document.createElement('div');
+                card.className = 'px-3 py-2.5 flex items-start gap-2.5';
+                card.appendChild(notifIconEl({ icon: 'fa-hand-holding-dollar', tone: 'amber' }, 'w-8 h-8'));
+
+                const body = document.createElement('div');
+                body.className = 'min-w-0 flex-1';
+                const line = document.createElement('p');
+                line.className = 'text-xs text-gray-900';
+                const who = document.createElement('span');
+                who.className = 'font-bold';
+                who.textContent = r.requester_name || 'An Apex user';
+                line.appendChild(who);
+                line.appendChild(document.createTextNode(` requested ${amount}`));
+                body.appendChild(line);
+                if (r.note) {
+                    const note = document.createElement('p');
+                    note.className = 'text-[11px] text-gray-600 mt-0.5 break-words';
+                    note.textContent = `“${r.note}”`;
+                    body.appendChild(note);
+                }
+                const when = document.createElement('p');
+                when.className = 'text-[9px] text-gray-400 mt-1';
+                when.textContent = notifTimeAgo(r.created_at);
+                body.appendChild(when);
+
+                const actions = document.createElement('div');
+                actions.className = 'flex gap-2 mt-2';
+                const payBtn = document.createElement('button');
+                payBtn.type = 'button';
+                payBtn.className = 'flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition';
+                payBtn.textContent = `Pay ${amount}`;
+                const declineBtn = document.createElement('button');
+                declineBtn.type = 'button';
+                declineBtn.className = 'flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 text-[11px] font-bold py-1.5 rounded-lg transition';
+                declineBtn.textContent = 'Decline';
+                const errorEl = document.createElement('p');
+                errorEl.className = 'hidden text-[10px] text-red-600 font-semibold mt-1.5';
+
+                payBtn.onclick = () => respondToMoneyRequest(r, 'accept', payBtn, declineBtn, errorEl, amount);
+                declineBtn.onclick = () => respondToMoneyRequest(r, 'decline', payBtn, declineBtn, errorEl, amount);
+                actions.appendChild(payBtn);
+                actions.appendChild(declineBtn);
+                body.appendChild(actions);
+                body.appendChild(errorEl);
+                card.appendChild(body);
+                section.appendChild(card);
+            });
+        }
+
+        async function respondToMoneyRequest(request, decision, payBtn, declineBtn, errorEl, amountLabel) {
+            const name = request.requester_name || 'this person';
+            const question = decision === 'accept'
+                ? `Pay ${amountLabel} to ${name} from your checking account?`
+                : `Decline ${name}'s request for ${amountLabel}?`;
+            if (!confirm(question)) return;
+
+            payBtn.disabled = true;
+            declineBtn.disabled = true;
+            errorEl.classList.add('hidden');
+            const busyBtn = decision === 'accept' ? payBtn : declineBtn;
+            const originalLabel = busyBtn.textContent;
+            busyBtn.textContent = decision === 'accept' ? 'Paying…' : 'Declining…';
+
+            try {
+                const res = await fetch('/api/transfer', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'respond_money_request', requestId: request.id, decision })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                pendingMoneyRequests = pendingMoneyRequests.filter(r => r.id !== request.id);
+                renderMoneyRequests();
+                fetchAndRenderNotifications(false);
+                if (decision === 'accept' && typeof loadRealAccountData === 'function') loadRealAccountData();
+            } catch (err) {
+                errorEl.textContent = 'Network error. Please check your connection and try again.';
+                errorEl.classList.remove('hidden');
+            } finally {
+                payBtn.disabled = false;
+                declineBtn.disabled = false;
+                busyBtn.textContent = originalLabel;
+            }
+        }
+
+        // ----- Panel open / close -----
+        function openNotificationPanel() {
+            const menu = document.getElementById('notifDropdown');
+            const bellBtn = document.getElementById('notifBellBtn');
+            if (!menu) return;
+            menu.classList.remove('hidden');
+            if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
+            fetchAndRenderNotifications(false);
+            loadPendingMoneyRequests();
+        }
+
+        function closeNotificationPanel() {
+            const menu = document.getElementById('notifDropdown');
+            const bellBtn = document.getElementById('notifBellBtn');
+            if (menu) menu.classList.add('hidden');
+            if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        // ----- Detail sheet -----
+        function openNotificationDetail(n) {
+            const category = notificationCategory(n);
+            const sheet = document.getElementById('notifDetailSheet');
+            const iconWrap = document.getElementById('notifDetailIcon');
+            const actionBtn = document.getElementById('notifDetailActionBtn');
+            if (!sheet) return;
+
+            iconWrap.className = `w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${NOTIF_TONES[category.tone] || NOTIF_TONES.gray}`;
+            iconWrap.innerHTML = '';
+            const icon = document.createElement('i');
+            icon.className = `fa-solid ${category.icon} text-sm`;
+            iconWrap.appendChild(icon);
+
+            document.getElementById('notifDetailTitle').textContent = n.title || 'Notification';
+            document.getElementById('notifDetailTime').textContent = notifFullTime(n.created_at);
+            document.getElementById('notifDetailMessage').textContent = n.message || '';
+
+            if (category.view && category.action && document.getElementById('view-' + category.view)) {
+                actionBtn.textContent = category.action;
+                actionBtn.classList.remove('hidden');
+                actionBtn.onclick = function () {
+                    closeNotificationDetail();
+                    closeNotificationPanel();
+                    triggerViewSwitch(category.view);
+                };
+            } else {
+                actionBtn.classList.add('hidden');
+                actionBtn.onclick = null;
+            }
+
+            sheet.classList.remove('hidden');
+            sheet.classList.add('flex');
+            if (n.id && !n.is_read) markNotificationRead(n.id);
+        }
+
+        function closeNotificationDetail() {
+            const sheet = document.getElementById('notifDetailSheet');
+            if (!sheet) return;
+            sheet.classList.add('hidden');
+            sheet.classList.remove('flex');
+        }
+
+        // ----- Server actions (optimistic: update the screen first, then sync) -----
+        async function postNotificationAction(payload) {
+            const res = await fetch('/api/account-services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ resource: 'notifications', ...payload })
+            });
+            if (!res.ok) throw new Error('Notification update failed');
+        }
+
+        async function markNotificationRead(notificationId) {
+            notificationsCache = notificationsCache.map(n => n.id === notificationId ? { ...n, is_read: true } : n);
+            renderNotifications(notificationsCache);
+            try {
+                await postNotificationAction({ notifAction: 'markRead', notificationId });
             } catch (err) {
                 console.error('Failed to mark notification read:', err);
+                fetchAndRenderNotifications(false);
+            }
+        }
+
+        async function markAllNotificationsRead() {
+            notificationsCache = notificationsCache.map(n => ({ ...n, is_read: true }));
+            renderNotifications(notificationsCache);
+            try {
+                await postNotificationAction({ notifAction: 'markAllRead' });
+            } catch (err) {
+                console.error('Failed to mark all notifications read:', err);
+                fetchAndRenderNotifications(false);
             }
         }
 
         async function removeNotification(event, notificationId) {
-            event.stopPropagation();
+            if (event) event.stopPropagation();
+            notificationsCache = notificationsCache.filter(n => n.id !== notificationId);
+            renderNotifications(notificationsCache);
             try {
-                await fetch('/api/account-services', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ resource: 'notifications', notifAction: 'dismiss', notificationId })
-                });
+                await postNotificationAction({ notifAction: 'dismiss', notificationId });
             } catch (err) {
                 console.error('Failed to dismiss notification:', err);
+                fetchAndRenderNotifications(false);
             }
-            fetchAndRenderNotifications(false);
         }
 
         async function clearAllNotifications() {
+            if (notificationsCache.length === 0) return;
+            if (!confirm('Clear all notifications? This can\'t be undone.')) return;
+            notificationsCache = [];
+            renderNotifications(notificationsCache);
             try {
-                await fetch('/api/account-services', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ resource: 'notifications', notifAction: 'clearAll' })
-                });
+                await postNotificationAction({ notifAction: 'clearAll' });
             } catch (err) {
                 console.error('Failed to clear notifications:', err);
+                fetchAndRenderNotifications(false);
             }
-            fetchAndRenderNotifications(false);
         }
 
+        // ----- Pop-up toast for new alerts -----
         function showNotificationToast(title, message) {
+            document.querySelectorAll('.ahb-notif-toast').forEach(t => t.remove());
             const toast = document.createElement('div');
-            toast.className = "fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white rounded-xl shadow-2xl px-4 py-3 w-[90%] max-w-sm animate-fade-in cursor-pointer";
-            toast.innerHTML = `
-                <p class="text-xs font-bold text-emerald-400">${title}</p>
-                <p class="text-[11px] text-gray-200 mt-0.5">${message}</p>
-            `;
-            toast.onclick = function () {
+            toast.setAttribute('role', 'status');
+            toast.className = 'ahb-notif-toast fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white rounded-xl shadow-2xl px-4 py-3 w-[90%] max-w-sm animate-fade-in cursor-pointer border border-slate-700';
+            const t = document.createElement('p');
+            t.className = 'text-xs font-bold text-emerald-400';
+            t.textContent = title || 'Notification';
+            const m = document.createElement('p');
+            m.className = 'text-[11px] text-gray-200 mt-0.5 break-words';
+            m.textContent = message || '';
+            toast.appendChild(t);
+            toast.appendChild(m);
+            toast.onclick = function (e) {
+                e.stopPropagation();
                 toast.remove();
+                const dashboard = document.getElementById('dashboardApp');
+                if (dashboard && !dashboard.classList.contains('hidden')) openNotificationPanel();
             };
             document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.remove();
-            }, 6000);
+            setTimeout(() => toast.remove(), 6000);
         }
 
-        window.addEventListener('click', () => {
-            const dropdown = document.getElementById('notifDropdown');
-            if (dropdown) dropdown.classList.add('hidden');
+        window.addEventListener('click', () => closeNotificationPanel());
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const sheet = document.getElementById('notifDetailSheet');
+            if (sheet && !sheet.classList.contains('hidden')) closeNotificationDetail();
+            else closeNotificationPanel();
         });
 
         document.addEventListener('click', function (e) {
@@ -5792,7 +6127,7 @@ fetchAndApplyProfilePhoto();
         }
 
         function showNotificationDetail(title, message) {
-            alert(`${title}\n\n${message}`);
+            openNotificationDetail({ title, message, is_read: true });
         }
 
         function showTrackInfo(type) {
