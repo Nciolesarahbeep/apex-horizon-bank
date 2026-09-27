@@ -8,6 +8,7 @@ const PDFDocument = require('pdfkit');
 const { creditSavingsInterest } = require('../lib/interest');
 const { getStepUpSettings, saveStepUpSettings, issueStepUpToken, requireStepUp, ensureStepUpSchema } = require('../lib/stepUp');
 const goals = require('../lib/goals');
+const budgets = require('../lib/budgets');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -392,7 +393,18 @@ module.exports = async function handler(req, res) {
         console.error('Round-up sweep error:', roundupErr);
       }
 
-      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups });
+      // Budget alerts (80% / 100%) for anyone whose spending crossed a line today.
+      let budgetCheck = { usersChecked: 0, alertsSent: 0, failed: 0 };
+      try {
+        await budgets.ensureBudgetsSchema(sql);
+        const check = await budgets.checkAllBudgets(sql);
+        for (const a of check.alerts) await createNotification(a.userId, a.title, a.message);
+        budgetCheck = { usersChecked: check.usersChecked, alertsSent: check.alerts.length, failed: check.failed };
+      } catch (budgetErr) {
+        console.error('Budget check error:', budgetErr);
+      }
+
+      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups, budgets: budgetCheck });
     } catch (err) {
       console.error('Process recurring transfers error:', err);
       return res.status(500).json({ error: 'Failed to process recurring transfers.' });
@@ -1944,7 +1956,36 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ---------- Recurring Transfers (user-facing CRUD) ----------
+  // ---------- Monthly budgets (see lib/budgets.js) ----------
+  if (resource === 'budgets') {
+    try {
+      await budgets.ensureBudgetsSchema(sql);
+      if (req.method === 'GET') {
+        const overview = await budgets.getBudgetOverview(sql, session.userId, { tzOffset: query.tzOffset });
+        for (const a of overview.alerts) await createNotification(session.userId, a.title, a.message);
+        return res.status(200).json(overview);
+      }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const body = req.body || {};
+      if (body.budgetAction === 'set') {
+        const budget = await budgets.setBudget(sql, session.userId, body);
+        return res.status(200).json({ success: true, budget });
+      }
+      if (body.budgetAction === 'delete') {
+        const result = await budgets.deleteBudget(sql, session.userId, body);
+        return res.status(200).json({ success: true, ...result });
+      }
+      return res.status(400).json({ error: 'Unknown budget action.' });
+    } catch (err) {
+      if (err instanceof budgets.BudgetError) return res.status(err.status).json({ error: err.message });
+      console.error('Budgets error:', err);
+      return res.status(500).json({ error: 'Something went wrong with your budgets. Please try again.' });
+    }
+  }
+
   // ---------- Savings goals + round-ups (see lib/goals.js) ----------
   if (resource === 'savings-goals') {
     try {
@@ -2014,6 +2055,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ---------- Recurring Transfers (user-facing CRUD) ----------
   if (resource === 'recurring-transfers') {
     if (req.method === 'GET') {
       try {

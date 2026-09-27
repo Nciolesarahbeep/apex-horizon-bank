@@ -96,7 +96,7 @@
         }
         /* The floating Help button steps aside while a bottom sheet is open, so it
            never covers the sheet's buttons. */
-        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden)) #ahb-help-widget {
+        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden)) #ahb-help-widget {
             display: none !important;
         }
         /* Savings goals: progress rings, on/off switch, account choice cards. */
@@ -1310,6 +1310,37 @@ async function submitCreateRecurringTransfer(event) {
     </div>
 </div>
 
+<div id="budgetEditorSheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeBudgetEditor()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="budgetEditorTitle">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h3 id="budgetEditorTitle" class="text-sm font-bold text-gray-900">New budget</h3>
+                <p id="budgetEditorSub" class="text-[11px] text-gray-500">Pick a category and a monthly limit.</p>
+            </div>
+            <button type="button" onclick="closeBudgetEditor()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="budgetEditorForm" class="space-y-3" onsubmit="submitBudgetEditor(event)" novalidate>
+            <fieldset id="budgetCategoryFieldset">
+                <legend class="block text-[9px] font-bold uppercase text-gray-500 mb-1.5">Category</legend>
+                <div id="budgetCategoryPicker" class="grid grid-cols-2 gap-2"></div>
+            </fieldset>
+            <div id="budgetCategoryFixed" class="hidden items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3"></div>
+            <p id="budgetEditorHint" class="hidden text-[11px] text-gray-600"></p>
+            <div>
+                <label for="budgetLimitInput" class="block text-[9px] font-bold uppercase text-gray-500 mb-1">Monthly limit</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                    <input type="number" id="budgetLimitInput" inputmode="decimal" min="1" max="1000000" step="0.01" placeholder="300" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                </div>
+                <div id="budgetLimitChips" class="flex flex-wrap gap-2 mt-2"></div>
+            </div>
+            <p id="budgetEditorError" class="hidden text-[11px] text-red-600 font-semibold" role="alert"></p>
+            <button type="submit" id="budgetEditorSubmit" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition disabled:opacity-60">Save budget</button>
+            <button type="button" id="budgetEditorDelete" onclick="deleteBudgetFromEditor()" class="hidden w-full text-xs font-bold text-red-600 hover:bg-red-50 py-2.5 rounded-lg transition">Remove budget</button>
+        </form>
+    </div>
+</div>
+
 <div id="ledgerFiltersSheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeLedgerFilters()">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="ledgerFiltersTitle">
         <div class="flex items-center justify-between gap-3">
@@ -1620,6 +1651,16 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
+                    <div id="homeBudgetsSection">
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <h2 class="text-sm font-bold text-gray-900">Budgets</h2>
+                            <button type="button" onclick="triggerViewSwitch('budgets')" class="text-[11px] font-semibold text-emerald-700 hover:underline">See all</button>
+                        </div>
+                        <div id="homeBudgets" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-4 text-xs text-gray-500 text-center">Loading…</p>
+                        </div>
+                    </div>
+
                     <div>
                         <div class="flex items-center justify-between mb-2 px-1">
                             <h2 class="text-sm font-bold text-gray-900">Recent activity</h2>
@@ -1650,6 +1691,30 @@ async function submitCreateRecurringTransfer(event) {
                         </span>
                         <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
                     </button>
+                </section>
+
+                <section id="view-budgets" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2">
+                            <button type="button" onclick="navigateBackward()" aria-label="Back" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h1 class="text-md font-bold text-gray-900">Budgets</h1>
+                        </div>
+                        <button type="button" id="budgetsAddBtn" onclick="openBudgetEditor()" class="text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"><i class="fa-solid fa-plus mr-1"></i>Add budget</button>
+                    </div>
+                    <div id="budgetsSummary" class="bg-white rounded-2xl border border-gray-200 p-4 space-y-2">
+                        <p class="text-xs text-gray-500">Loading…</p>
+                    </div>
+                    <p id="budgetsViewMsg" class="hidden" role="status" aria-live="polite"></p>
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 mb-2 px-1">Your budgets</h2>
+                        <div id="budgetsList" class="space-y-2.5"></div>
+                    </div>
+                    <div id="budgetsUnbudgetedWrap" class="hidden">
+                        <h2 class="text-sm font-bold text-gray-900 mb-1 px-1">Not budgeted yet</h2>
+                        <p class="text-[11px] text-gray-500 mb-2 px-1">Where your money went this month without a limit.</p>
+                        <div id="budgetsUnbudgeted" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500 px-1">Budgets count purchases, bills and money sent to people. Moving money between your own accounts, into savings goals, or paying off your Apex card doesn't count. You'll get an alert at 80% and at 100%.</p>
                 </section>
 
                 <section id="view-goals" class="hidden space-y-4 animate-fade-in">
@@ -2262,6 +2327,7 @@ async function submitCreateRecurringTransfer(event) {
                     <div class="flex items-center space-x-2">
                         <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
                         <h1 class="text-md font-bold text-gray-900">Spending Insights</h1>
+                        <button type="button" onclick="triggerViewSwitch('budgets')" class="ml-auto text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition"><i class="fa-solid fa-chart-simple mr-1" aria-hidden="true"></i>Budgets</button>
                     </div>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
@@ -3703,6 +3769,10 @@ if (activeLoanBalanceEl) {
                 if (targetViewId === 'goals' && typeof loadGoals === 'function') {
                     loadGoals().catch(() => {});
                 }
+                if (targetViewId === 'budgets' && typeof loadBudgets === 'function') {
+                    if (typeof showBudgetsMsg === 'function') showBudgetsMsg(null, '');
+                    loadBudgets().catch(() => {});
+                }
             }, realisticLoaderDelay(targetViewId)); 
         }
 
@@ -3722,7 +3792,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals', 'budgets'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -6812,15 +6882,35 @@ fetchAndApplyProfilePhoto();
 
         let allTransactions = [];
 
-        const CATEGORY_RULES = [
-            { name: 'Food & Dining', color: '#10b981', keywords: ['starbucks', 'restaurant', 'trader joe', 'whole foods', 'costco', 'grocery', 'cafe', 'dining', 'mcdonald'] },
-            { name: 'Transport', color: '#4a86e8', keywords: ['uber', 'lyft', 'shell', 'fuel', 'gas', 'transit', 'parking'] },
-            { name: 'Shopping', color: '#a479e2', keywords: ['amazon', 'target', 'walmart', 'ebay', 'store', 'marketplace', 'retail'] },
-            { name: 'Subscriptions', color: '#f2c960', keywords: ['netflix', 'apple', 'subscription', 'streaming', 'gym', 'membership', 'steam'] },
-            { name: 'Bills & Utilities', color: '#e07798', keywords: ['fedex', 'utility', 'electric', 'water', 'internet', 'phone'] },
-            { name: 'Income', color: '#16a766', keywords: ['payroll', 'deposit', 'freelance', 'dividend', 'refund'] },
-            { name: 'Transfers', color: '#666666', keywords: ['wire', 'transfer', 'interbank'] },
+        // Spending categories: an exact copy of lib/categories.js (Budgets uses the
+        // server copy), so Insights and Budgets put every transaction in the same
+        // bucket. If you change one, change the other (a test compares them).
+        const AHB_SPEND_CATEGORIES = [
+            {id: "groceries", name: "Groceries", icon: "fa-cart-shopping", color: "#10b981", keywords: ["grocer", "supermarket", "whole foods", "trader joe", "kroger", "safeway", "aldi", "publix", "costco wholesale"]},
+            {id: "dining", name: "Dining & coffee", icon: "fa-utensils", color: "#f59e0b", keywords: ["restaurant", "dining", "coffee", "starbucks", "cafe", "café", "dunkin", "peet", "chipotle", "mcdonald", "pizza", "burger", "uber eats", "doordash", "grubhub", "chick-fil-a", "panera", "diner", "bistro", "sushi", "taco"]},
+            {id: "travel", name: "Travel", icon: "fa-plane", color: "#0ea5e9", keywords: ["airline", "flight", "delta air", "united air", "southwest", "hotel", "airbnb", "marriott", "hilton", "expedia", "travel"]},
+            {id: "transport", name: "Transport", icon: "fa-car", color: "#3b82f6", keywords: ["uber", "lyft", "fuel", "gas", "shell", "chevron", "exxon", "transit", "parking", "metro", "toll", "taxi"]},
+            {id: "subscriptions", name: "Subscriptions", icon: "fa-rotate", color: "#a855f7", keywords: ["netflix", "spotify", "hulu", "disney", "subscription", "streaming", "icloud", "adobe", "youtube", "gym", "membership"]},
+            {id: "entertainment", name: "Entertainment", icon: "fa-film", color: "#ec4899", keywords: ["entertainment", "movie", "cinema", "amc", "concert", "ticketmaster", "steam", "playstation", "xbox"]},
+            {id: "health", name: "Health", icon: "fa-heart-pulse", color: "#ef4444", keywords: ["pharmacy", "cvs", "walgreens", "health", "clinic", "doctor", "dental", "hospital", "medical"]},
+            {id: "housing", name: "Housing", icon: "fa-house", color: "#8b5cf6", keywords: ["rent payment", "mortgage", "apartments", "landlord"]},
+            {id: "bills", name: "Bills & utilities", icon: "fa-bolt", color: "#e11d48", keywords: ["utilit", "electric", "water", "internet", "comcast", "verizon", "at&t", "t-mobile", "phone", "pg&e", "monthly bill", "insurance", "premium", "geico", "state farm", "allstate", "progressive", "bill pay"]},
+            {id: "shopping", name: "Shopping", icon: "fa-bag-shopping", color: "#6366f1", keywords: ["amazon", "target", "walmart", "best buy", "ebay", "etsy", "nike", "home depot", "store", "shop", "mall", "retail", "marketplace"]},
+            {id: "cash", name: "Cash & ATM", icon: "fa-money-bill-wave", color: "#64748b", keywords: ["atm withdrawal", "cash withdrawal", "atm fee"]},
+            {id: "loans", name: "Loan payments", icon: "fa-hand-holding-dollar", color: "#0f766e", keywords: ["loan payment"]},
+            {id: "people", name: "Money to people", icon: "fa-user", color: "#14b8a6", keywords: []},
+            {id: "other", name: "Everything else", icon: "fa-receipt", color: "#94a3b8", keywords: []}
         ];
+        const AHB_SPEND_OUT_TYPES = ['debit', 'credit_purchase', 'p2p_out', 'wire_out', 'admin_debit'];
+        const AHB_NOT_SPENDING_PATTERN = /^(to goal|from goal|round-ups|goal closed):|^credit card payment|^external transfer/i;
+        const CATEGORY_RULES = AHB_SPEND_CATEGORIES;
+
+        function ahbSpendCategory(t) {
+            if (t.type === 'p2p_out' || t.type === 'wire_out') return AHB_SPEND_CATEGORIES.find(c => c.id === 'people');
+            const text = String(t.description || '').toLowerCase();
+            return AHB_SPEND_CATEGORIES.find(c => c.keywords.length && c.keywords.some(k => text.includes(k)))
+                || AHB_SPEND_CATEGORIES.find(c => c.id === 'other');
+        }
 
         function formatTxnType(rawType) {
             if (!rawType) return 'Transaction';
@@ -6845,27 +6935,18 @@ fetchAndApplyProfilePhoto();
             return txn.description || 'Apex Horizon Account Holder';
         }
 
-        const OUTGOING_TYPES = ['p2p_out', 'wire_out', 'transfer_out', 'debit'];
-
-        // Moving money into (or back out of) your own savings goal isn't spending.
-        const GOAL_MOVE_PATTERN = /^(To goal|From goal|Round-ups|Goal closed):/;
+        // Spending = money going out to someone else. Moves between your own
+        // accounts, into savings goals, and paying off the Apex card (those
+        // purchases were counted when you made them) don't count.
         function isSpendingTxn(t) {
-            return OUTGOING_TYPES.includes(t.type) && !GOAL_MOVE_PATTERN.test(String(t.description || ''));
+            return AHB_SPEND_OUT_TYPES.includes(t.type) && !AHB_NOT_SPENDING_PATTERN.test(String(t.description || ''));
         }
 
         function categorizeTransaction(description, type) {
             if (type === 'p2p_in' || type === 'transfer_in' || type === 'ach_in' || type === 'credit') {
-                return { name: 'Income', color: '#16a766' };
+                return { id: 'income', name: 'Income', color: '#16a766' };
             }
-            if (type === 'p2p_out' || type === 'wire_out' || type === 'transfer_out') {
-                return { name: 'Transfers', color: '#666666' };
-            }
-
-            const desc = (description || '').toLowerCase();
-            for (const cat of CATEGORY_RULES) {
-                if (cat.keywords.some(k => desc.includes(k))) return cat;
-            }
-            return { name: 'Other', color: '#999999' };
+            return ahbSpendCategory({ description, type });
         }
 
         async function fetchTransactions() {
@@ -7383,7 +7464,8 @@ fetchAndApplyProfilePhoto();
             }
 
             const chartCanvas = document.getElementById('spendingCategoryChart');
-            if (chartCanvas && labels.length > 0) {
+            // Chart.js comes from a CDN; if it didn't load, skip the charts but keep the legend and totals.
+            if (chartCanvas && labels.length > 0 && typeof Chart === 'function') {
                 if (categoryChartInstance) categoryChartInstance.destroy();
                 categoryChartInstance = new Chart(chartCanvas, {
                     type: 'doughnut',
@@ -7406,13 +7488,16 @@ fetchAndApplyProfilePhoto();
 
             const legendContainer = document.getElementById('spendingCategoryLegend');
             if (legendContainer) {
-                legendContainer.innerHTML = labels.map((l, i) => `
-                    <div class="flex items-center space-x-1.5 text-[10px] animate-fade-in" style="animation-delay: ${i * 80}ms; opacity: 0; animation-fill-mode: forwards;">
-                        <span class="w-2 h-2 rounded-full" style="background:${colors[i]}"></span>
+                // Category names come from AHB_SPEND_CATEGORIES (fixed strings), never user text.
+                legendContainer.innerHTML = labels.map((l, i) => {
+                    const cat = AHB_SPEND_CATEGORIES.find(c => c.name === l);
+                    return `
+                    <button type="button" ${cat ? `onclick="openBudgetFromInsights('${cat.id}')" title="Set a budget for ${l}"` : 'disabled'} class="flex items-center space-x-1.5 text-[10px] text-left rounded-md px-1 py-0.5 hover:bg-gray-50 animate-fade-in" style="animation-delay: ${i * 80}ms; opacity: 0; animation-fill-mode: forwards;">
+                        <span class="w-2 h-2 rounded-full shrink-0" style="background:${colors[i]}"></span>
                         <span class="text-gray-600 truncate">${l}</span>
                         <span class="font-mono font-bold text-gray-900 ml-auto">$${values[i].toFixed(0)}</span>
-                    </div>
-                `).join('');
+                    </button>`;
+                }).join('') + '<p class="col-span-2 text-[10px] text-gray-500 pt-1">Tap a category to set a monthly budget for it.</p>';
             }
 
             const monthBuckets = {};
@@ -7429,7 +7514,7 @@ fetchAndApplyProfilePhoto();
             });
 
             const trendCanvas = document.getElementById('spendingTrendChart');
-            if (trendCanvas) {
+            if (trendCanvas && typeof Chart === 'function') {
                 if (trendChartInstance) trendChartInstance.destroy();
                 trendChartInstance = new Chart(trendCanvas, {
                     type: 'bar',
@@ -11463,6 +11548,7 @@ function refreshHomeScreen() {
     renderHomeActivity();
     loadHomeUpcoming();
     if (typeof loadGoals === 'function') loadGoals().catch(() => {});
+    if (typeof loadBudgets === 'function') loadBudgets().catch(() => {});
 }
 
 // Keep the total in step with balance changes and the live interest estimate.
@@ -11514,6 +11600,7 @@ const MORE_ITEMS = [
     { label: 'Scheduled', icon: 'fa-calendar-days', tone: 'blue', run: () => openRecurringTransfersModal() },
     { label: 'Savings', icon: 'fa-piggy-bank', tone: 'emerald', view: 'savings-summary' },
     { label: 'Goals', icon: 'fa-bullseye', tone: 'emerald', view: 'goals' },
+    { label: 'Budgets', icon: 'fa-chart-simple', tone: 'amber', view: 'budgets' },
     { label: 'Loans', icon: 'fa-hand-holding-dollar', tone: 'blue', view: 'loans' },
     { label: 'Statements', icon: 'fa-file-lines', tone: 'gray', view: 'statements' },
     { label: 'Insights', icon: 'fa-chart-pie', tone: 'purple', view: 'spending-insights' },
@@ -13088,6 +13175,447 @@ syncLedgerControls();
     window.showLoginScreen = function () {
         const result = previous.apply(this, arguments);
         try { resetLedgerState(); closeLedgerFilters(); showLedgerDownloadMsg(null, ''); } catch (err) {}
+        return result;
+    };
+})();
+</script>
+<script>
+// ===== Monthly budgets: home card, Budgets screen and the add/edit sheet.
+// The server works out spending per category for this month in the person's
+// timezone and sends 80% / 100% alerts (lib/budgets.js, lib/categories.js).
+
+const BUDGET_BAR = { ok: 'bg-emerald-500', close: 'bg-amber-500', over: 'bg-red-500' };
+const budgetsUi = { data: null, inflight: null, userId: null, editing: null, picked: null, busy: false };
+
+function bEl(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+}
+
+function bMoney(n) {
+    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+function bWholeMoney(n) {
+    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
+
+function budgetIcon(icon, color, size) {
+    const s = bEl('span', `${size || 'w-9 h-9'} rounded-full flex items-center justify-center shrink-0 text-white`);
+    s.style.background = color;
+    s.setAttribute('aria-hidden', 'true');
+    s.appendChild(bEl('i', `fa-solid ${icon} text-sm`));
+    return s;
+}
+
+function budgetBar(pct, status, height) {
+    const track = bEl('div', `w-full ${height || 'h-2'} rounded-full bg-gray-100 overflow-hidden`);
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', '100');
+    track.setAttribute('aria-valuenow', String(Math.min(100, Math.round(pct))));
+    const fill = bEl('div', `h-full rounded-full ${BUDGET_BAR[status] || BUDGET_BAR.ok}`);
+    fill.style.width = `${Math.max(pct > 0 ? 3 : 0, Math.min(100, pct))}%`;
+    fill.style.transition = 'width 0.6s ease';
+    track.appendChild(fill);
+    return track;
+}
+
+function budgetLeftText(b, daysLeft) {
+    if (b.remaining < 0) return `${bMoney(-b.remaining)} over`;
+    if (b.remaining === 0) return 'All used';
+    return `${bMoney(b.remaining)} left · ${bMoney(b.safePerDay)}/day for ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+}
+
+function budgetLeftTone(b) {
+    return b.status === 'over' ? 'text-red-600 font-semibold' : b.status === 'close' ? 'text-amber-700 font-semibold' : 'text-gray-500';
+}
+
+function showBudgetsMsg(kind, text) {
+    const el = document.getElementById('budgetsViewMsg');
+    if (!el) return;
+    if (!text) { el.className = 'hidden'; el.textContent = ''; return; }
+    el.textContent = text;
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    el.className = 'text-[11px] font-semibold rounded-lg px-3 py-2 border ' + (kind === 'error'
+        ? 'bg-red-50 text-red-700 border-red-200'
+        : 'bg-emerald-50 text-emerald-800 border-emerald-200');
+}
+
+// Confirmations show inline on the Budgets screen; from Home or Insights,
+// where that message would be out of sight, they show as a toast instead.
+function budgetsFeedback(title, text) {
+    const view = document.getElementById('view-budgets');
+    if (view && !view.classList.contains('hidden')) return showBudgetsMsg('success', text);
+    showBudgetsMsg(null, '');
+    if (typeof showNotificationToast === 'function') showNotificationToast(title, text);
+}
+
+// ----- Loading -----
+function loadBudgets() {
+    if (budgetsUi.inflight) return budgetsUi.inflight;
+    const tz = new Date().getTimezoneOffset();
+    budgetsUi.inflight = fetch(`/api/account-services?resource=budgets&tzOffset=${encodeURIComponent(tz)}`, { credentials: 'include', cache: 'no-store' })
+        .then(async res => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Couldn't load your budgets.");
+            budgetsUi.data = {
+                month: data.month, monthLabel: data.monthLabel || 'This month', daysLeft: Number(data.daysLeft) || 1,
+                budgets: Array.isArray(data.budgets) ? data.budgets : [],
+                totals: data.totals || { limit: 0, spent: 0, remaining: 0, safePerDay: 0 },
+                categories: Array.isArray(data.categories) ? data.categories : []
+            };
+            renderBudgetsEverywhere();
+            // The server just sent any 80% / 100% alerts; show them in the bell now.
+            if (Array.isArray(data.alerts) && data.alerts.length && typeof fetchAndRenderNotifications === 'function') {
+                try { fetchAndRenderNotifications(true); } catch (err) {}
+            }
+            return budgetsUi.data;
+        })
+        .catch(err => { renderBudgetsError(); throw err; })
+        .finally(() => { budgetsUi.inflight = null; });
+    return budgetsUi.inflight;
+}
+
+function renderBudgetsEverywhere() {
+    renderHomeBudgets();
+    renderBudgetsView();
+}
+
+function renderBudgetsError() {
+    if (budgetsUi.data) return;
+    const retry = () => {
+        const b = bEl('button', 'w-full p-4 text-xs text-gray-500 text-center hover:bg-gray-50 transition', "Couldn't load your budgets. Tap to try again.");
+        b.type = 'button';
+        b.onclick = () => loadBudgets().catch(() => {});
+        return b;
+    };
+    const home = document.getElementById('homeBudgets');
+    if (home) home.replaceChildren(retry());
+    const summary = document.getElementById('budgetsSummary');
+    if (summary) summary.replaceChildren(retry());
+}
+
+// ----- Home card -----
+function renderHomeBudgets() {
+    const box = document.getElementById('homeBudgets');
+    if (!box || !budgetsUi.data) return;
+    const d = budgetsUi.data;
+    box.replaceChildren();
+    if (!d.budgets.length) {
+        const btn = bEl('button', 'w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition');
+        btn.type = 'button';
+        btn.onclick = () => openBudgetEditor();
+        const mid = bEl('span', 'flex-1 min-w-0');
+        mid.append(bEl('span', 'block text-sm font-semibold text-gray-900', 'Set a monthly budget'), bEl('span', 'block text-[10px] text-gray-500', "Pick a category and a limit, and get a heads-up before you overspend."));
+        const icon = bEl('span', 'w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100 text-amber-700');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.appendChild(bEl('i', 'fa-solid fa-chart-simple text-sm'));
+        const chev = bEl('i', 'fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0');
+        chev.setAttribute('aria-hidden', 'true');
+        btn.append(icon, mid, chev);
+        box.appendChild(btn);
+        return;
+    }
+    const t = d.totals;
+    const totalPct = t.limit > 0 ? (t.spent / t.limit) * 100 : 0;
+    const totalStatus = totalPct >= 100 ? 'over' : totalPct >= 80 ? 'close' : 'ok';
+    const head = bEl('button', 'w-full p-3.5 text-left space-y-2 hover:bg-gray-50 transition');
+    head.type = 'button';
+    head.onclick = () => triggerViewSwitch('budgets');
+    const line = bEl('div', 'flex items-baseline justify-between gap-2');
+    const spent = bEl('p', 'text-sm text-gray-900');
+    spent.append(bEl('span', 'ahb-money font-bold font-mono', bMoney(t.spent)), document.createTextNode(` of ${bWholeMoney(t.limit)}`));
+    line.append(spent, bEl('span', 'text-[10px] text-gray-500 shrink-0', `${d.monthLabel} · ${d.daysLeft} day${d.daysLeft === 1 ? '' : 's'} left`));
+    head.append(line, budgetBar(totalPct, totalStatus));
+    box.appendChild(head);
+    d.budgets.slice().sort((a, b) => b.pct - a.pct).slice(0, 3).forEach(b => box.appendChild(budgetRow(b, d.daysLeft, true)));
+}
+
+function budgetRow(b, daysLeft, compact) {
+    const btn = bEl('button', `w-full flex items-center gap-3 ${compact ? 'px-3.5 py-3' : 'p-3.5'} text-left hover:bg-gray-50 transition`);
+    btn.type = 'button';
+    btn.onclick = () => openBudgetEditor(b.category);
+    const mid = bEl('span', 'flex-1 min-w-0 space-y-1');
+    const top = bEl('span', 'flex items-baseline justify-between gap-2');
+    top.append(bEl('span', 'text-sm font-semibold text-gray-900 truncate', b.name));
+    const amounts = bEl('span', 'text-[11px] text-gray-600 shrink-0');
+    amounts.append(bEl('span', 'ahb-money font-mono font-bold text-gray-900', bMoney(b.spent)), document.createTextNode(` / ${bWholeMoney(b.limit)}`));
+    top.appendChild(amounts);
+    mid.append(top, budgetBar(b.pct, b.status, 'h-1.5'), bEl('span', `block text-[10px] ${budgetLeftTone(b)}`, budgetLeftText(b, daysLeft)));
+    btn.append(budgetIcon(b.icon, b.color, compact ? 'w-8 h-8' : 'w-9 h-9'), mid);
+    return btn;
+}
+
+// ----- Budgets screen -----
+function renderBudgetsView() {
+    if (!budgetsUi.data) return;
+    const d = budgetsUi.data;
+    const summary = document.getElementById('budgetsSummary');
+    if (summary) {
+        summary.replaceChildren();
+        const t = d.totals;
+        summary.appendChild(bEl('p', 'text-[11px] font-semibold text-gray-500', `${d.monthLabel} · ${d.daysLeft} day${d.daysLeft === 1 ? '' : 's'} left`));
+        if (!d.budgets.length) {
+            summary.append(bEl('p', 'text-sm font-bold text-gray-900', 'No budgets yet'), bEl('p', 'text-[11px] text-gray-500', 'Set a limit for the categories you want to keep an eye on. Spending below is already sorted for you.'));
+        } else {
+            const pct = t.limit > 0 ? (t.spent / t.limit) * 100 : 0;
+            const status = pct >= 100 ? 'over' : pct >= 80 ? 'close' : 'ok';
+            const big = bEl('p', 'text-gray-900');
+            big.append(bEl('span', 'ahb-money text-2xl font-bold font-mono tracking-tight', bMoney(t.spent)), bEl('span', 'text-xs text-gray-500', ` of ${bMoney(t.limit)} budgeted`));
+            const note = t.remaining >= 0
+                ? `${bMoney(t.remaining)} left · about ${bMoney(t.safePerDay)} a day for the rest of ${d.monthLabel}`
+                : `${bMoney(-t.remaining)} over your total budget`;
+            summary.append(big, budgetBar(pct, status), bEl('p', `text-[11px] ${t.remaining >= 0 ? 'text-gray-600' : 'text-red-600 font-semibold'}`, note));
+        }
+    }
+
+    const list = document.getElementById('budgetsList');
+    if (list) {
+        list.replaceChildren();
+        if (!d.budgets.length) {
+            const empty = bEl('div', 'bg-white rounded-xl border border-gray-200 p-5 text-center space-y-3');
+            const icon = bEl('span', 'w-12 h-12 rounded-full bg-amber-100 text-amber-700 inline-flex items-center justify-center');
+            icon.setAttribute('aria-hidden', 'true');
+            icon.appendChild(bEl('i', 'fa-solid fa-chart-simple'));
+            const add = bEl('button', 'bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-lg transition', 'Add your first budget');
+            add.type = 'button';
+            add.onclick = () => openBudgetEditor();
+            empty.append(icon, bEl('p', 'text-[11px] text-gray-500', "You'll get an alert at 80% and at 100% of each limit."), add);
+            list.appendChild(empty);
+        } else {
+            d.budgets.forEach(b => {
+                const card = bEl('div', 'bg-white rounded-xl border border-gray-200 overflow-hidden');
+                card.appendChild(budgetRow(b, d.daysLeft, false));
+                list.appendChild(card);
+            });
+        }
+    }
+
+    const unbudgeted = d.categories.filter(c => !c.budgeted && c.spentThisMonth > 0).sort((a, b) => b.spentThisMonth - a.spentThisMonth);
+    const wrap = document.getElementById('budgetsUnbudgetedWrap');
+    const box = document.getElementById('budgetsUnbudgeted');
+    if (wrap && box) {
+        box.replaceChildren();
+        wrap.classList.toggle('hidden', !unbudgeted.length);
+        unbudgeted.forEach(c => {
+            const row = bEl('div', 'flex items-center gap-3 p-3');
+            const mid = bEl('div', 'flex-1 min-w-0');
+            mid.append(bEl('p', 'text-sm font-semibold text-gray-900 truncate', c.name), bEl('p', 'text-[10px] text-gray-500', `${bMoney(c.spentThisMonth)} this month${c.spentLastMonth ? ` · ${bMoney(c.spentLastMonth)} last month` : ''}`));
+            const set = bEl('button', 'shrink-0 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition', 'Set budget');
+            set.type = 'button';
+            set.setAttribute('aria-label', `Set a budget for ${c.name}`);
+            set.onclick = () => openBudgetEditor(c.category || c.id, { isNew: true });
+            row.append(budgetIcon(c.icon, c.color, 'w-8 h-8'), mid, set);
+            box.appendChild(row);
+        });
+    }
+
+    const addBtn = document.getElementById('budgetsAddBtn');
+    if (addBtn) addBtn.disabled = !d.categories.some(c => !c.budgeted);
+}
+
+// ----- Add / edit sheet -----
+function budgetCategory(id) {
+    return budgetsUi.data ? budgetsUi.data.categories.find(c => c.id === id) : null;
+}
+
+function clearBudgetEditorError() {
+    const err = document.getElementById('budgetEditorError');
+    if (err) { err.textContent = ''; err.classList.add('hidden'); }
+}
+
+function paintBudgetHint(catId) {
+    const hint = document.getElementById('budgetEditorHint');
+    const chips = document.getElementById('budgetLimitChips');
+    const input = document.getElementById('budgetLimitInput');
+    const c = budgetCategory(catId);
+    chips.replaceChildren();
+    if (!c) { hint.classList.add('hidden'); return; }
+    hint.textContent = `${c.name}: ${bMoney(c.spentThisMonth)} so far this month · ${bMoney(c.spentLastMonth)} last month`;
+    hint.classList.remove('hidden');
+    const add = (label, value) => {
+        const b = bEl('button', 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-3 py-1.5 rounded-full transition', label);
+        b.type = 'button';
+        b.onclick = () => { input.value = String(value); clearBudgetEditorError(); input.focus(); };
+        chips.appendChild(b);
+    };
+    const roundUp = (v, step) => Math.max(step, Math.ceil(v / step) * step);
+    if (c.spentLastMonth > 0) {
+        add(`Same as last month: ${bWholeMoney(roundUp(c.spentLastMonth, 10))}`, roundUp(c.spentLastMonth, 10));
+        add(`10% less: ${bWholeMoney(roundUp(c.spentLastMonth * 0.9, 10))}`, roundUp(c.spentLastMonth * 0.9, 10));
+    } else {
+        [100, 250, 500].forEach(v => add(bWholeMoney(v), v));
+    }
+}
+
+function paintBudgetPicker() {
+    const picker = document.getElementById('budgetCategoryPicker');
+    picker.replaceChildren();
+    const options = budgetsUi.data.categories.filter(c => !c.budgeted);
+    options.forEach(c => {
+        const on = budgetsUi.picked === c.id;
+        const b = bEl('button', `flex items-center gap-2 rounded-xl border p-2 text-left transition ${on ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`);
+        b.type = 'button';
+        b.dataset.category = c.id;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        const text = bEl('span', 'min-w-0');
+        text.append(bEl('span', 'block text-xs font-bold text-gray-900 truncate', c.name), bEl('span', 'block text-[10px] text-gray-500', c.spentThisMonth ? `${bWholeMoney(c.spentThisMonth)} so far` : 'Nothing yet'));
+        b.append(budgetIcon(c.icon, c.color, 'w-7 h-7'), text);
+        b.onclick = () => {
+            budgetsUi.picked = c.id;
+            clearBudgetEditorError();
+            paintBudgetPicker();
+            paintBudgetHint(c.id);
+            const focusBtn = document.querySelector(`#budgetCategoryPicker [data-category="${c.id}"]`);
+            if (focusBtn) focusBtn.focus();
+        };
+        picker.appendChild(b);
+    });
+}
+
+async function openBudgetEditor(categoryId, opts) {
+    if (!budgetsUi.data) {
+        try { await loadBudgets(); } catch (err) { return; }
+    }
+    const existing = categoryId ? budgetsUi.data.budgets.find(b => b.category === categoryId) : null;
+    budgetsUi.editing = existing ? existing.category : null;
+    budgetsUi.picked = existing ? existing.category : (categoryId || null);
+    document.getElementById('budgetEditorTitle').textContent = existing ? `${existing.name} budget` : 'New budget';
+    document.getElementById('budgetEditorSub').textContent = existing ? 'Change the monthly limit, or remove it.' : 'Pick a category and a monthly limit.';
+    const fieldset = document.getElementById('budgetCategoryFieldset');
+    const fixed = document.getElementById('budgetCategoryFixed');
+    if (existing) {
+        fieldset.classList.add('hidden');
+        fixed.replaceChildren();
+        const text = bEl('div', 'min-w-0');
+        text.append(bEl('p', 'text-sm font-bold text-gray-900', existing.name), bEl('p', 'text-[10px] text-gray-500', `${bMoney(existing.spent)} of ${bMoney(existing.limit)} used in ${budgetsUi.data.monthLabel}`));
+        fixed.append(budgetIcon(existing.icon, existing.color), text);
+        fixed.classList.remove('hidden');
+        fixed.classList.add('flex');
+    } else {
+        fieldset.classList.remove('hidden');
+        fixed.classList.add('hidden');
+        fixed.classList.remove('flex');
+        paintBudgetPicker();
+    }
+    document.getElementById('budgetLimitInput').value = existing ? String(existing.limit) : '';
+    paintBudgetHint(budgetsUi.picked);
+    document.getElementById('budgetEditorDelete').classList.toggle('hidden', !existing);
+    document.getElementById('budgetEditorSubmit').textContent = existing ? 'Save changes' : 'Save budget';
+    const err = document.getElementById('budgetEditorError');
+    err.textContent = '';
+    err.classList.add('hidden');
+    if (typeof closeMoreSheet === 'function') closeMoreSheet();
+    const sheet = document.getElementById('budgetEditorSheet');
+    sheet.classList.remove('hidden');
+    sheet.classList.add('flex');
+    setTimeout(() => {
+        const target = budgetsUi.picked ? document.getElementById('budgetLimitInput') : document.querySelector('#budgetCategoryPicker button');
+        if (target) target.focus();
+    }, 60);
+}
+
+function openBudgetFromInsights(categoryId) {
+    openBudgetEditor(categoryId);
+}
+
+function closeBudgetEditor() {
+    const sheet = document.getElementById('budgetEditorSheet');
+    if (!sheet) return;
+    sheet.classList.add('hidden');
+    sheet.classList.remove('flex');
+}
+
+async function budgetsApi(body) {
+    const res = await fetch('/api/account-services', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ resource: 'budgets', tzOffset: new Date().getTimezoneOffset() }, body))
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+    return data;
+}
+
+async function submitBudgetEditor(event) {
+    if (event) event.preventDefault();
+    if (budgetsUi.busy) return;
+    const errEl = document.getElementById('budgetEditorError');
+    const fail = (msg, el) => { errEl.textContent = msg; errEl.classList.remove('hidden'); if (el) el.focus(); };
+    const input = document.getElementById('budgetLimitInput');
+    const limit = Math.round(parseFloat(input.value) * 100) / 100;
+    if (!budgetsUi.picked) return fail('Pick a category first.');
+    if (!Number.isFinite(limit) || limit < 1) return fail('Set a monthly limit of at least $1.', input);
+    if (limit > 1000000) return fail('Limits can be up to $1,000,000 a month.', input);
+    errEl.classList.add('hidden');
+    const btn = document.getElementById('budgetEditorSubmit');
+    const original = btn.textContent;
+    budgetsUi.busy = true;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+        const data = await budgetsApi({ budgetAction: 'set', category: budgetsUi.picked, limit });
+        closeBudgetEditor();
+        const b = data.budget;
+        budgetsFeedback(budgetsUi.editing ? 'Budget updated' : 'Budget set', budgetsUi.editing
+            ? `${b.name} budget updated to ${bMoney(b.limit)} a month.`
+            : `${b.name} budget set: ${bMoney(b.limit)} a month. You'll get an alert at 80% and 100%.`);
+        budgetsUi.busy = false;
+        await loadBudgets().catch(() => {});
+    } catch (err) {
+        fail(err.message);
+    } finally {
+        budgetsUi.busy = false;
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+async function deleteBudgetFromEditor() {
+    const cat = budgetsUi.editing;
+    const b = cat && budgetsUi.data ? budgetsUi.data.budgets.find(x => x.category === cat) : null;
+    if (!b || budgetsUi.busy) return;
+    if (!confirm(`Remove your ${b.name} budget?`)) return;
+    budgetsUi.busy = true;
+    try {
+        await budgetsApi({ budgetAction: 'delete', category: cat });
+        closeBudgetEditor();
+        budgetsFeedback('Budget removed', `${b.name} budget removed.`);
+        budgetsUi.busy = false;
+        await loadBudgets().catch(() => {});
+    } catch (err) {
+        const errEl = document.getElementById('budgetEditorError');
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+    } finally {
+        budgetsUi.busy = false;
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeBudgetEditor();
+});
+
+(function () {
+    const input = document.getElementById('budgetLimitInput');
+    if (input) input.addEventListener('input', clearBudgetEditorError);
+})();
+
+// Signing out clears budgets from the screen.
+(function hookBudgetsSignOut() {
+    const previous = window.showLoginScreen;
+    if (typeof previous !== 'function') return;
+    window.showLoginScreen = function () {
+        const result = previous.apply(this, arguments);
+        try {
+            budgetsUi.data = null;
+            closeBudgetEditor();
+            showBudgetsMsg(null, '');
+            const home = document.getElementById('homeBudgets');
+            if (home) home.replaceChildren(bEl('p', 'p-4 text-xs text-gray-500 text-center', 'Loading…'));
+        } catch (err) {}
         return result;
     };
 })();
