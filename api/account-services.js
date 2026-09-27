@@ -17,6 +17,130 @@ function restrictedResponse(res) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Atomic money movement
+//
+// Every balance change in this file runs as ONE SQL statement. Postgres treats
+// a single statement as all-or-nothing, so balance updates and their ledger
+// rows either all happen or none of them do.
+//
+// Each statement ends with a guard like `1 / COUNT(*)`. If any step matched
+// zero rows (not enough balance, card frozen, loan already paid, etc.), the
+// guard divides by zero, Postgres raises an error, and the whole statement
+// rolls back. isGuardFailure() recognises that case.
+// ---------------------------------------------------------------------------
+function isGuardFailure(err) {
+  if (!err) return false;
+  // 22012 = division_by_zero (our guard), 23502 = not_null_violation
+  // (a ledger insert whose account step matched nothing).
+  return err.code === '22012' || err.code === '23502' || /division by zero/i.test(String(err.message || ''));
+}
+
+// Debit one Apex account and credit another, with both ledger rows.
+async function atomicTransfer({ fromAccountId, toAccountId, amount, outType, outDescription, inType, inDescription }) {
+  const rows = await sql`
+    WITH debit AS (
+      UPDATE accounts SET balance = balance - ${amount}
+      WHERE id = ${fromAccountId} AND balance >= ${amount}
+      RETURNING id, balance
+    ),
+    credit AS (
+      UPDATE accounts SET balance = balance + ${amount}
+      WHERE id = ${toAccountId} AND EXISTS (SELECT 1 FROM debit)
+      RETURNING id, balance
+    ),
+    out_txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM debit), ${outType}, ${amount}, ${outDescription}, NOW())
+      RETURNING id, created_at
+    ),
+    in_txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM credit), ${inType}, ${amount}, ${inDescription}, NOW())
+      RETURNING id
+    )
+    SELECT
+      (SELECT balance FROM debit) AS from_balance,
+      (SELECT balance FROM credit) AS to_balance,
+      (SELECT id FROM out_txn) AS transaction_id,
+      (SELECT created_at FROM out_txn) AS transaction_timestamp,
+      (SELECT COUNT(*) FROM in_txn) AS in_rows,
+      1 / ((SELECT COUNT(*) FROM debit) * (SELECT COUNT(*) FROM credit)) AS guard
+  `;
+  return rows[0];
+}
+
+// Debit one Apex account (money leaving the bank).
+async function atomicDebit({ accountId, amount, type, description }) {
+  const rows = await sql`
+    WITH debit AS (
+      UPDATE accounts SET balance = balance - ${amount}
+      WHERE id = ${accountId} AND balance >= ${amount}
+      RETURNING id, balance
+    ),
+    txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM debit), ${type}, ${amount}, ${description}, NOW())
+      RETURNING id, created_at
+    )
+    SELECT
+      (SELECT balance FROM debit) AS balance,
+      (SELECT id FROM txn) AS transaction_id,
+      (SELECT created_at FROM txn) AS transaction_timestamp,
+      1 / (SELECT COUNT(*) FROM debit) AS guard
+  `;
+  return rows[0];
+}
+
+// Credit one Apex account (money arriving from outside the bank).
+async function atomicCredit({ accountId, amount, type, description }) {
+  const rows = await sql`
+    WITH credit AS (
+      UPDATE accounts SET balance = balance + ${amount}
+      WHERE id = ${accountId}
+      RETURNING id, balance
+    ),
+    txn AS (
+      INSERT INTO transactions (account_id, type, amount, description, created_at)
+      VALUES ((SELECT id FROM credit), ${type}, ${amount}, ${description}, NOW())
+      RETURNING id, created_at
+    )
+    SELECT
+      (SELECT balance FROM credit) AS balance,
+      (SELECT id FROM txn) AS transaction_id,
+      (SELECT created_at FROM txn) AS transaction_timestamp,
+      1 / (SELECT COUNT(*) FROM credit) AS guard
+  `;
+  return rows[0];
+}
+
+// SSNs only have 1 billion possible values, so a plain SHA-256 can be reversed
+// by trying them all. A keyed HMAC can't be reversed without the secret.
+function hashSsn(cleanSSN) {
+  const secret = process.env.SSN_HASH_SECRET;
+  if (!secret) {
+    console.warn('SSN_HASH_SECRET is not set — falling back to unkeyed SHA-256. Set it in Vercel.');
+    return crypto.createHash('sha256').update(cleanSSN).digest('hex');
+  }
+  return crypto.createHmac('sha256', secret).update(cleanSSN).digest('hex');
+}
+
+// The recruiter demo account (DEMO_EMAIL env var) can't change its password,
+// email, or passcode, so it keeps working for the next visitor.
+async function isDemoUser(userId) {
+  const demoEmail = String(process.env.DEMO_EMAIL || '').trim().toLowerCase();
+  if (!demoEmail) return false;
+  const rows = await sql`SELECT email FROM users WHERE id = ${userId} LIMIT 1`;
+  return rows.length > 0 && String(rows[0].email || '').trim().toLowerCase() === demoEmail;
+}
+
+function demoBlockedResponse(res) {
+  return res.status(403).json({
+    error: 'This setting is locked on the demo account so it keeps working for the next visitor.',
+    demoAccount: true,
+  });
+}
+
 function generateStatementPdf({ accountHolder, accountType, accountNumber, periodStart, periodEnd, openingBalance, closingBalance, lineItems }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
@@ -135,15 +259,18 @@ module.exports = async function handler(req, res) {
   let resource = (req.method === 'GET' || req.method === 'DELETE') ? req.query.resource : (req.body || {}).resource;
 
   // Vercel Cron cannot use query strings in the path — detect cron invocations here.
-  if (!resource && req.headers['x-vercel-cron'] === '1') {
+  // Routing only: the request is still authenticated with CRON_SECRET below.
+  if (!resource && (req.headers['x-vercel-cron'] === '1' || /vercel-cron/i.test(String(req.headers['user-agent'] || '')))) {
     resource = 'process-recurring';
   }
 
   // ---------- Recurring Transfer Processor (cron-triggered, no user session) ----------
   if (resource === 'process-recurring') {
-    const authHeader = req.headers.authorization;
-    const isVercelCron = req.headers['x-vercel-cron'] === '1';
-    if (!isVercelCron && (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`)) {
+    // Headers like x-vercel-cron can be sent by anyone, so they are never
+    // trusted. Vercel Cron automatically sends "Authorization: Bearer <CRON_SECRET>"
+    // when the CRON_SECRET env var is set on the project.
+    const authHeader = String(req.headers.authorization || '');
+    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -161,9 +288,25 @@ module.exports = async function handler(req, res) {
         WHERE status = 'active' AND next_run_date <= CURRENT_DATE
       `;
 
-      let processed = 0, failed = 0;
+      let processed = 0, failed = 0, skipped = 0;
 
       for (const rt of dueTransfers) {
+        const originalRunDate = new Date(rt.next_run_date).toISOString().slice(0, 10);
+        const nextDate = computeNextRunDate(rt.next_run_date, rt.frequency);
+
+        // Claim this run first. If two cron invocations overlap, only one
+        // can move next_run_date forward, so the payment never runs twice.
+        const claimed = await sql`
+          UPDATE recurring_transfers
+          SET next_run_date = ${nextDate}, last_run_at = NOW()
+          WHERE id = ${rt.id} AND status = 'active' AND next_run_date <= CURRENT_DATE
+          RETURNING id
+        `;
+        if (claimed.length === 0) {
+          skipped++;
+          continue;
+        }
+
         try {
           const fromRows = await sql`SELECT id, balance, restriction_level FROM accounts WHERE id = ${rt.from_account_id} LIMIT 1`;
           if (fromRows.length === 0) throw new Error('Source account not found');
@@ -179,14 +322,22 @@ module.exports = async function handler(req, res) {
             toAccountId = toRows[0].id;
           }
 
-          await sql`UPDATE accounts SET balance = balance - ${rt.amount} WHERE id = ${fromAccount.id}`;
-          await sql`UPDATE accounts SET balance = balance + ${rt.amount} WHERE id = ${toAccountId}`;
+          try {
+            await atomicTransfer({
+              fromAccountId: fromAccount.id,
+              toAccountId,
+              amount: Number(rt.amount),
+              outType: 'transfer_out',
+              outDescription: rt.description || 'Recurring Transfer',
+              inType: 'transfer_in',
+              inDescription: rt.description || 'Recurring Transfer',
+            });
+          } catch (moveErr) {
+            if (isGuardFailure(moveErr)) throw new Error('Insufficient funds');
+            throw moveErr;
+          }
 
-          await sql`INSERT INTO transactions (account_id, type, amount, description, created_at) VALUES (${fromAccount.id}, 'transfer_out', ${rt.amount}, ${rt.description || 'Recurring Transfer'}, NOW())`;
-          await sql`INSERT INTO transactions (account_id, type, amount, description, created_at) VALUES (${toAccountId}, 'transfer_in', ${rt.amount}, ${rt.description || 'Recurring Transfer'}, NOW())`;
-
-          const nextDate = computeNextRunDate(rt.next_run_date, rt.frequency);
-          await sql`UPDATE recurring_transfers SET next_run_date = ${nextDate}, consecutive_failures = 0, last_run_at = NOW() WHERE id = ${rt.id}`;
+          await sql`UPDATE recurring_transfers SET consecutive_failures = 0 WHERE id = ${rt.id}`;
 
           await createNotification(rt.user_id, 'Recurring Transfer Sent', `Your recurring transfer of $${Number(rt.amount).toFixed(2)} (${rt.description || 'Scheduled Transfer'}) was sent successfully.`);
           processed++;
@@ -195,7 +346,12 @@ module.exports = async function handler(req, res) {
           const newFailures = (rt.consecutive_failures || 0) + 1;
           const shouldPause = newFailures >= 3;
 
-          await sql`UPDATE recurring_transfers SET consecutive_failures = ${newFailures}, status = ${shouldPause ? 'paused' : 'active'} WHERE id = ${rt.id}`;
+          // Put the run date back so tomorrow's cron retries it.
+          await sql`
+            UPDATE recurring_transfers
+            SET next_run_date = ${originalRunDate}, consecutive_failures = ${newFailures}, status = ${shouldPause ? 'paused' : 'active'}
+            WHERE id = ${rt.id}
+          `;
 
           await createNotification(
             rt.user_id,
@@ -207,7 +363,7 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ success: true, processed, failed });
+      return res.status(200).json({ success: true, processed, failed, skipped });
     } catch (err) {
       console.error('Process recurring transfers error:', err);
       return res.status(500).json({ error: 'Failed to process recurring transfers.' });
@@ -217,6 +373,11 @@ module.exports = async function handler(req, res) {
   const session = await getUserFromRequest(req);
   if (!session) {
     return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  // Demo account lockdown: settings that would break the demo for the next visitor.
+  if (['change-password', 'email-change', 'passcode'].includes(resource) && await isDemoUser(session.userId)) {
+    return demoBlockedResponse(res);
   }
 
   // ---------- KYC ----------
@@ -264,7 +425,7 @@ module.exports = async function handler(req, res) {
           return res.status(400).json({ error: 'All ID fields are required.' });
         }
 
-        const cleanSSN = ssn.replace(/-/g, '');
+        const cleanSSN = String(ssn).replace(/-/g, '');
         if (!/^\d{9}$/.test(cleanSSN)) {
           return res.status(400).json({ error: 'Invalid SSN format. Must be 9 digits.' });
         }
@@ -275,7 +436,7 @@ module.exports = async function handler(req, res) {
           return res.status(400).json({ error: 'Must be at least 18 years old.' });
         }
 
-        const ssnHash = crypto.createHash('sha256').update(cleanSSN).digest('hex');
+        const ssnHash = hashSsn(cleanSSN);
         const ssnLastFour = cleanSSN.slice(-4);
 
         const existing = await sql`
@@ -434,26 +595,44 @@ module.exports = async function handler(req, res) {
       }
 
       const traceNumber = 'AHB' + Math.random().toString().slice(2, 12);
+      const depositDescription = description || 'Direct Deposit';
 
-      await sql`
-        INSERT INTO ach_incoming (
-          to_account_id, from_bank_name, from_account_holder, amount,
-          description, trace_number, status, effective_date
-        )
-        VALUES (
-          ${account[0].id}, ${fromBankName}, ${fromAccountHolder}, ${depositAmount},
-          ${description || 'Direct Deposit'}, ${traceNumber}, 'settled', NOW()
-        )
-      `;
-
-      await sql`
-        UPDATE accounts SET balance = balance + ${depositAmount} WHERE id = ${account[0].id}
-      `;
-
-      await sql`
-        INSERT INTO transactions (account_id, type, amount, description, created_at)
-        VALUES (${account[0].id}, 'ach_in', ${depositAmount}, ${description || 'Direct Deposit'}, NOW())
-      `;
+      // ACH record, balance credit, and ledger row all land together or not at all.
+      try {
+        await sql`
+          WITH credit AS (
+            UPDATE accounts SET balance = balance + ${depositAmount}
+            WHERE id = ${account[0].id}
+            RETURNING id
+          ),
+          ach AS (
+            INSERT INTO ach_incoming (
+              to_account_id, from_bank_name, from_account_holder, amount,
+              description, trace_number, status, effective_date
+            )
+            VALUES (
+              (SELECT id FROM credit), ${fromBankName}, ${fromAccountHolder}, ${depositAmount},
+              ${depositDescription}, ${traceNumber}, 'settled', NOW()
+            )
+            RETURNING id
+          ),
+          txn AS (
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES ((SELECT id FROM credit), 'ach_in', ${depositAmount}, ${depositDescription}, NOW())
+            RETURNING id
+          )
+          SELECT
+            (SELECT COUNT(*) FROM ach) AS ach_rows,
+            (SELECT COUNT(*) FROM txn) AS txn_rows,
+            1 / (SELECT COUNT(*) FROM credit) AS guard
+        `;
+      } catch (moveErr) {
+        if (isGuardFailure(moveErr)) {
+          console.error('Direct deposit guard tripped:', moveErr.message);
+          return res.status(409).json({ error: 'The deposit could not be applied. Nothing was changed. Please try again.' });
+        }
+        throw moveErr;
+      }
 
       await createNotification(
         session.userId,
@@ -726,7 +905,7 @@ module.exports = async function handler(req, res) {
           if (!column) {
             return res.status(400).json({ error: 'Invalid channel. Use online, atm, or international.' });
           }
-          const enabledBool = Boolean(enabled);
+          const enabledBool = enabled === true || enabled === 'true' || enabled === 1;
 
           if (column === 'online_enabled') {
             await sql`UPDATE credit_card_details SET online_enabled = ${enabledBool} WHERE account_id = ${account.id}`;
@@ -813,16 +992,40 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'This charge would exceed your available credit.' });
           }
 
-          const updated = await sql`
-            UPDATE accounts SET balance = balance + ${chargeAmount}
-            WHERE id = ${account.id}
-            RETURNING balance
-          `;
-
-          await sql`
-            INSERT INTO transactions (account_id, type, amount, description, created_at)
-            VALUES (${account.id}, 'credit_purchase', ${chargeAmount}, ${merchant || 'Card Purchase'}, NOW())
-          `;
+          // The frozen / online / credit-limit rules are re-checked inside the
+          // statement, so two simultaneous charges can't blow past the limit.
+          const merchantLabel = merchant || 'Card Purchase';
+          let charged;
+          try {
+            const rows = await sql`
+              WITH charge AS (
+                UPDATE accounts a SET balance = a.balance + ${chargeAmount}
+                FROM credit_card_details d
+                WHERE a.id = ${account.id}
+                  AND d.account_id = a.id
+                  AND d.is_frozen = FALSE
+                  AND d.online_enabled IS NOT FALSE
+                  AND a.balance + ${chargeAmount} <= d.credit_limit
+                RETURNING a.id, a.balance
+              ),
+              txn AS (
+                INSERT INTO transactions (account_id, type, amount, description, created_at)
+                VALUES ((SELECT id FROM charge), 'credit_purchase', ${chargeAmount}, ${merchantLabel}, NOW())
+                RETURNING id
+              )
+              SELECT
+                (SELECT balance FROM charge) AS balance,
+                (SELECT id FROM txn) AS transaction_id,
+                1 / (SELECT COUNT(*) FROM charge) AS guard
+            `;
+            charged = rows[0];
+          } catch (moveErr) {
+            if (isGuardFailure(moveErr)) {
+              console.error('Card charge guard tripped:', moveErr.message);
+              return res.status(409).json({ error: 'Your card status or available credit changed. The charge was not made.' });
+            }
+            throw moveErr;
+          }
 
           await createNotification(
             session.userId,
@@ -830,7 +1033,7 @@ module.exports = async function handler(req, res) {
             `A charge of $${chargeAmount.toFixed(2)} at ${merchant || 'a merchant'} was made on your credit card.`
           );
 
-          return res.status(200).json({ success: true, balance: Number(updated[0].balance) });
+          return res.status(200).json({ success: true, balance: Number(charged.balance) });
         }
 
         if (cardAction === 'makePayment') {
@@ -865,24 +1068,45 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'Payment exceeds your current card balance.' });
           }
 
-          await sql`
-            UPDATE accounts SET balance = balance - ${paymentAmount} WHERE id = ${checking.id}
-          `;
-          const updatedCard = await sql`
-            UPDATE accounts SET balance = balance - ${paymentAmount}
-            WHERE id = ${account.id}
-            RETURNING balance
-          `;
-
-          const checkingTxnRows = await sql`
-            INSERT INTO transactions (account_id, type, amount, description, created_at)
-            VALUES (${checking.id}, 'debit', ${paymentAmount}, 'Credit Card Payment', NOW())
-            RETURNING id, created_at
-          `;
-          await sql`
-            INSERT INTO transactions (account_id, type, amount, description, created_at)
-            VALUES (${account.id}, 'credit_payment', ${-paymentAmount}, 'Payment Received - Thank You', NOW())
-          `;
+          // Checking debit and card-balance reduction happen together or not at all.
+          let paid;
+          try {
+            const rows = await sql`
+              WITH card AS (
+                UPDATE accounts SET balance = balance - ${paymentAmount}
+                WHERE id = ${account.id} AND balance >= ${paymentAmount}
+                RETURNING id, balance
+              ),
+              debit AS (
+                UPDATE accounts SET balance = balance - ${paymentAmount}
+                WHERE id = ${checking.id} AND balance >= ${paymentAmount} AND EXISTS (SELECT 1 FROM card)
+                RETURNING id, balance
+              ),
+              checking_txn AS (
+                INSERT INTO transactions (account_id, type, amount, description, created_at)
+                VALUES ((SELECT id FROM debit), 'debit', ${paymentAmount}, 'Credit Card Payment', NOW())
+                RETURNING id, created_at
+              ),
+              card_txn AS (
+                INSERT INTO transactions (account_id, type, amount, description, created_at)
+                VALUES ((SELECT id FROM card), 'credit_payment', ${-paymentAmount}, 'Payment Received - Thank You', NOW())
+                RETURNING id
+              )
+              SELECT
+                (SELECT balance FROM card) AS card_balance,
+                (SELECT id FROM checking_txn) AS transaction_id,
+                (SELECT created_at FROM checking_txn) AS transaction_timestamp,
+                (SELECT COUNT(*) FROM card_txn) AS card_rows,
+                1 / ((SELECT COUNT(*) FROM card) * (SELECT COUNT(*) FROM debit)) AS guard
+            `;
+            paid = rows[0];
+          } catch (moveErr) {
+            if (isGuardFailure(moveErr)) {
+              console.error('Card payment guard tripped:', moveErr.message);
+              return res.status(409).json({ error: 'Your balance changed before the payment completed. Nothing was paid. Please try again.' });
+            }
+            throw moveErr;
+          }
 
           await createNotification(
             session.userId,
@@ -892,32 +1116,10 @@ module.exports = async function handler(req, res) {
 
           return res.status(200).json({
             success: true,
-            cardBalance: Number(updatedCard[0].balance),
-            transactionId: checkingTxnRows[0].id,
-            transactionTimestamp: checkingTxnRows[0].created_at
+            cardBalance: Number(paid.card_balance),
+            transactionId: paid.transaction_id,
+            transactionTimestamp: paid.transaction_timestamp
           });
-        }
-
-        if (cardAction === 'setChannelLock') {
-          const { channel, enabled } = req.body || {};
-          const colMap = { online: 'online_enabled', atm: 'atm_enabled', international: 'international_enabled' };
-          const col = colMap[channel];
-          if (!col) return res.status(400).json({ error: 'channel must be online, atm, or international.' });
-          const val = enabled === true || enabled === 'true' || enabled === 1;
-          if (col === 'online_enabled') {
-            await sql`UPDATE credit_card_details SET online_enabled = ${val} WHERE account_id = ${account.id}`;
-          } else if (col === 'atm_enabled') {
-            await sql`UPDATE credit_card_details SET atm_enabled = ${val} WHERE account_id = ${account.id}`;
-          } else {
-            await sql`UPDATE credit_card_details SET international_enabled = ${val} WHERE account_id = ${account.id}`;
-          }
-          const labels = { online: 'Online purchases', atm: 'ATM withdrawals', international: 'International transactions' };
-          await createNotification(
-            session.userId,
-            val ? labels[channel] + ' Enabled' : labels[channel] + ' Disabled',
-            val ? labels[channel] + ' are now allowed on your card.' : labels[channel] + ' are blocked on your card until you re-enable them.'
-          );
-          return res.status(200).json({ success: true, channel, enabled: val });
         }
 
         return res.status(400).json({ error: 'Invalid cardAction.' });
@@ -1145,21 +1347,48 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'Insufficient funds in checking to make this payment.' });
           }
 
-          const newRemaining = Number(loan.remaining_balance) - amount;
-          const newStatus = newRemaining <= 0 ? 'paid_off' : 'active';
-
-          await sql`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${checking.id}`;
-          await sql`
-            UPDATE loans SET remaining_balance = ${newRemaining}, status = ${newStatus}, paid_off_at = ${newRemaining <= 0 ? new Date().toISOString() : null}
-            WHERE id = ${loan.id}
-          `;
-
           const paymentDescription = `Loan Payment — Loan #${loan.id}`;
-          const paymentTxnRows = await sql`
-            INSERT INTO transactions (account_id, type, amount, description, created_at)
-            VALUES (${checking.id}, 'debit', ${amount}, ${paymentDescription}, NOW())
-            RETURNING id, created_at
-          `;
+
+          // Loan balance, checking debit, and ledger row change together or not at all.
+          let payment;
+          try {
+            const rows = await sql`
+              WITH loan_upd AS (
+                UPDATE loans
+                SET remaining_balance = remaining_balance - ${amount},
+                    status = CASE WHEN remaining_balance - ${amount} <= 0 THEN 'paid_off' ELSE status END,
+                    paid_off_at = CASE WHEN remaining_balance - ${amount} <= 0 THEN NOW() ELSE paid_off_at END
+                WHERE id = ${loan.id} AND user_id = ${session.userId} AND status = 'active' AND remaining_balance >= ${amount}
+                RETURNING id, remaining_balance, status
+              ),
+              debit AS (
+                UPDATE accounts SET balance = balance - ${amount}
+                WHERE id = ${checking.id} AND balance >= ${amount} AND EXISTS (SELECT 1 FROM loan_upd)
+                RETURNING id, balance
+              ),
+              txn AS (
+                INSERT INTO transactions (account_id, type, amount, description, created_at)
+                VALUES ((SELECT id FROM debit), 'debit', ${amount}, ${paymentDescription}, NOW())
+                RETURNING id, created_at
+              )
+              SELECT
+                (SELECT remaining_balance FROM loan_upd) AS remaining_balance,
+                (SELECT status FROM loan_upd) AS status,
+                (SELECT id FROM txn) AS transaction_id,
+                (SELECT created_at FROM txn) AS transaction_timestamp,
+                1 / ((SELECT COUNT(*) FROM loan_upd) * (SELECT COUNT(*) FROM debit)) AS guard
+            `;
+            payment = rows[0];
+          } catch (moveErr) {
+            if (isGuardFailure(moveErr)) {
+              console.error('Loan payment guard tripped:', moveErr.message);
+              return res.status(409).json({ error: 'Your balance or loan changed before the payment completed. Nothing was paid. Please try again.' });
+            }
+            throw moveErr;
+          }
+
+          const newRemaining = Math.max(0, Number(payment.remaining_balance));
+          const newStatus = payment.status;
 
           await createNotification(
             session.userId,
@@ -1174,8 +1403,8 @@ module.exports = async function handler(req, res) {
             message: newStatus === 'paid_off' ? 'Payment successful — loan fully paid off!' : `Payment of $${amount.toFixed(2)} applied. Remaining balance: $${newRemaining.toFixed(2)}.`,
             remainingBalance: newRemaining,
             status: newStatus,
-            transactionId: paymentTxnRows[0].id,
-            transactionTimestamp: paymentTxnRows[0].created_at
+            transactionId: payment.transaction_id,
+            transactionTimestamp: payment.transaction_timestamp
           });
         }
 
@@ -1475,12 +1704,13 @@ module.exports = async function handler(req, res) {
           if (!['weekly', 'biweekly', 'monthly'].includes(frequency)) return res.status(400).json({ error: 'Frequency must be weekly, biweekly, or monthly.' });
           if (!['own_account', 'account_number'].includes(destinationType)) return res.status(400).json({ error: 'Invalid destination type.' });
 
-          const fromRows = await sql`SELECT id FROM accounts WHERE id = ${fromAccountId} AND user_id = ${session.userId} LIMIT 1`;
+          const fromRows = await sql`SELECT id FROM accounts WHERE id = ${fromAccountId} AND user_id = ${session.userId} AND account_type IN ('checking', 'savings') LIMIT 1`;
           if (fromRows.length === 0) return res.status(400).json({ error: 'Source account not found.' });
 
           if (destinationType === 'own_account') {
-            const toRows = await sql`SELECT id FROM accounts WHERE id = ${toAccountId} AND user_id = ${session.userId} LIMIT 1`;
+            const toRows = await sql`SELECT id FROM accounts WHERE id = ${toAccountId} AND user_id = ${session.userId} AND account_type IN ('checking', 'savings') LIMIT 1`;
             if (toRows.length === 0) return res.status(400).json({ error: 'Destination account not found.' });
+            if (String(toAccountId) === String(fromAccountId)) return res.status(400).json({ error: 'Choose two different accounts.' });
           } else {
             if (!toAccountNumber || !String(toAccountNumber).trim()) return res.status(400).json({ error: 'Recipient account number is required.' });
             const toRows = await sql`SELECT id FROM accounts WHERE account_number = ${toAccountNumber} LIMIT 1`;
@@ -1724,12 +1954,21 @@ module.exports = async function handler(req, res) {
               return res.status(400).json({ error: 'Insufficient funds in checking for this transfer.' });
             }
 
-            await sql`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${checking.id}`;
-            const txnRows = await sql`
-              INSERT INTO transactions (account_id, type, amount, description, created_at)
-              VALUES (${checking.id}, 'debit', ${amount}, ${description || `External Transfer to ${bankLabel}`}, NOW())
-              RETURNING id, created_at
-            `;
+            let moved;
+            try {
+              moved = await atomicDebit({
+                accountId: checking.id,
+                amount,
+                type: 'debit',
+                description: description || `External Transfer to ${bankLabel}`,
+              });
+            } catch (moveErr) {
+              if (isGuardFailure(moveErr)) {
+                console.error('External transfer out guard tripped:', moveErr.message);
+                return res.status(409).json({ error: 'Your balance changed before the transfer completed. Nothing was sent. Please try again.' });
+              }
+              throw moveErr;
+            }
 
             await createNotification(
               session.userId,
@@ -1740,18 +1979,27 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({
               success: true,
               message: `$${amount.toFixed(2)} sent to ${bankLabel}. Estimated arrival: 1-3 business days.`,
-              transactionId: txnRows[0].id,
-              transactionTimestamp: txnRows[0].created_at,
+              transactionId: moved.transaction_id,
+              transactionTimestamp: moved.transaction_timestamp,
             });
           }
 
           // transferIn — pulling money from the linked external account into checking
-          await sql`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${checking.id}`;
-          const txnRows = await sql`
-            INSERT INTO transactions (account_id, type, amount, description, created_at)
-            VALUES (${checking.id}, 'ach_in', ${amount}, ${description || `External Transfer from ${bankLabel}`}, NOW())
-            RETURNING id, created_at
-          `;
+          let moved;
+          try {
+            moved = await atomicCredit({
+              accountId: checking.id,
+              amount,
+              type: 'ach_in',
+              description: description || `External Transfer from ${bankLabel}`,
+            });
+          } catch (moveErr) {
+            if (isGuardFailure(moveErr)) {
+              console.error('External transfer in guard tripped:', moveErr.message);
+              return res.status(409).json({ error: 'The transfer could not be applied. Nothing was changed. Please try again.' });
+            }
+            throw moveErr;
+          }
 
           await createNotification(
             session.userId,
@@ -1762,8 +2010,8 @@ module.exports = async function handler(req, res) {
           return res.status(200).json({
             success: true,
             message: `$${amount.toFixed(2)} pulled from ${bankLabel} into your checking account.`,
-            transactionId: txnRows[0].id,
-            transactionTimestamp: txnRows[0].created_at,
+            transactionId: moved.transaction_id,
+            transactionTimestamp: moved.transaction_timestamp,
           });
         }
 
@@ -1802,8 +2050,9 @@ module.exports = async function handler(req, res) {
         ? String(userRows[0].full_name).trim().split(/\s+/)[0]
         : 'there';
 
+      // id is needed so the card lookup below can find the credit card details.
       const accounts = await sql`
-        SELECT account_type, balance, account_number FROM accounts
+        SELECT id, account_type, balance, account_number FROM accounts
         WHERE user_id = ${session.userId}
         ORDER BY account_type ASC
       `;
@@ -2033,8 +2282,4 @@ App navigation cheatsheet:
   }
 
   return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", "external-accounts", or "assistant".' });
-
-
-
-
 };
