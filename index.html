@@ -64,7 +64,8 @@
         }
         .checkingBalanceLabel,
 #hysBalanceLabel,
-#creditPortfolioBalanceLabel {
+#creditPortfolioBalanceLabel,
+#homeTotalBalance {
     font-family: 'Space Grotesk', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
@@ -92,6 +93,21 @@
 #appShellRoot.theme-dark .horizon-line {
     background: linear-gradient(90deg, #334155 0%, #F0954A 100%);
 }
+
+        /* Hide-balance mode: the eye icon on Home masks every .ahb-money amount. */
+        .ahb-money { position: relative; }
+        #appShellRoot.ahb-balances-hidden .ahb-money { visibility: hidden; }
+        #appShellRoot.ahb-balances-hidden .ahb-money::after {
+            content: '\2022\2022\2022\2022\2022\2022';
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+        #appShellRoot.ahb-balances-hidden .ahb-money-right::after { left: auto; right: 0; }
 
         /* ===== Dark mode (generated from one colour table; keep in sync) ===== */
         #appShellRoot.theme-dark { background-color: #0f172a; color: #e2e8f0; }
@@ -706,7 +722,7 @@ async function submitCreateRecurringTransfer(event) {
             <button onclick="submitKyc()" id="kycSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs mt-2">
                 Submit for Verification
             </button>
-            <p class="text-[10px] text-gray-400 text-center leading-relaxed">Reviewed within 24 hours. Your SSN is encrypted and never stored in plain text.</p>
+            <p class="text-[10px] text-gray-500 text-center leading-relaxed">Reviewed within 24 hours. This is a demo app, so use made-up details, never your real SSN or ID.</p>
         </div>
     </div>
 </div>
@@ -1055,6 +1071,7 @@ async function submitCreateRecurringTransfer(event) {
                         <div>
                             <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">SSN (last 4 digits)</label>
                             <input type="text" id="signupSsnLast4Input" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <p class="text-[10px] text-gray-500 mt-1">Demo app: use any 4 digits, not your real SSN.</p>
                         </div>
                         <div class="flex gap-2 mt-2">
                             <button type="button" onclick="handleSignupBack(3)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
@@ -1120,7 +1137,7 @@ async function submitCreateRecurringTransfer(event) {
                 </div>
 
                 <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 text-center">
-                    <p class="text-[10px] text-gray-400 leading-normal">Protected by multi-factor systems. FDIC Insured.</p>
+                    <p class="text-[10px] text-gray-500 leading-normal">Portfolio demo · Not a real bank · Not FDIC insured</p>
                 </div>
             </div>
         </div>
@@ -1128,6 +1145,54 @@ async function submitCreateRecurringTransfer(event) {
         <div id="pullToRefreshIndicator" class="hidden fixed top-2 left-1/2 z-[9998] bg-slate-900 text-white text-[10px] font-mono uppercase tracking-wider px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2">
     <div id="pullToRefreshSpinner" class="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
     <span id="pullToRefreshLabel">Pull to refresh</span>
+</div>
+
+<div id="moreSheet" class="hidden fixed inset-0 z-[9985] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeMoreSheet()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 pb-8 shadow-2xl animate-fade-in" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="moreSheetTitle">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="moreSheetTitle" class="text-sm font-bold text-gray-900">More</h3>
+            <button type="button" onclick="closeMoreSheet()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="moreSheetGrid" class="grid grid-cols-4 gap-y-4 gap-x-2"></div>
+    </div>
+</div>
+
+<div id="requestMoneySheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeRequestMoneySheet()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="requestMoneyTitle">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 id="requestMoneyTitle" class="text-sm font-bold text-gray-900">Request money</h3>
+                <p class="text-[11px] text-gray-500">They'll get an alert to pay or decline.</p>
+            </div>
+            <button type="button" onclick="closeRequestMoneySheet()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="requestMoneyForm" class="space-y-3" onsubmit="submitMoneyRequest(event)" novalidate>
+            <div>
+                <label for="requestFromInput" class="block text-[9px] font-bold uppercase text-gray-400 mb-1">From</label>
+                <input type="text" id="requestFromInput" inputmode="email" autocomplete="off" placeholder="Email or 10-digit account number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+                <label for="requestAmountInput" class="block text-[9px] font-bold uppercase text-gray-400 mb-1">Amount</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                    <input type="number" id="requestAmountInput" inputmode="decimal" min="0.01" max="10000" step="0.01" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+            <div>
+                <label for="requestNoteInput" class="block text-[9px] font-bold uppercase text-gray-400 mb-1">What's it for? (optional)</label>
+                <input type="text" id="requestNoteInput" maxlength="100" placeholder="Dinner on Friday" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <p id="requestMoneyError" class="hidden text-[11px] text-red-600 font-semibold" role="alert"></p>
+            <p id="requestMoneySuccess" class="hidden text-[11px] text-emerald-700 font-semibold" role="status"></p>
+            <button type="submit" id="requestMoneySubmitBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition">Send request</button>
+        </form>
+        <div>
+            <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Your requests</h4>
+            <div id="requestMoneyHistory" class="border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
+                <p class="p-3 text-xs text-gray-400 text-center">Loading…</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div id="stepUpSheet" class="hidden fixed inset-0 z-[10050] bg-slate-900/70 backdrop-blur-sm items-end sm:items-center justify-center">
@@ -1179,16 +1244,11 @@ async function submitCreateRecurringTransfer(event) {
                     </div>
                     <div>
                         <span class="text-sm font-bold tracking-tight block">APEX HORIZON</span>
-                        <span class="text-[9px] text-emerald-400 font-mono tracking-widest uppercase block -mt-1">Federal Mobile</span>
+                        <span class="text-[9px] text-emerald-400 font-mono tracking-widest uppercase block -mt-1">Mobile Banking</span>
                     </div>
                 </div>
                 
                 <div class="flex items-center space-x-3 text-sm relative">
-                    <div class="flex flex-col items-end leading-tight">
-                        <span id="headerUserName" class="text-xs font-bold text-white truncate max-w-[90px] sm:max-w-[110px]">—</span>
-                        <span id="headerClock" class="text-[9px] font-mono text-emerald-400">--:--:-- --</span>
-                    </div>
-
                     <div class="relative" id="notifBellWrap">
                         <button id="notifBellBtn" type="button" onclick="toggleNotificationDropdown(event)" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-800 active:bg-slate-700 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
                             <i class="fa-regular fa-bell text-lg text-gray-300"></i>
@@ -1213,11 +1273,7 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
-                    <button onclick="handleBirdIconClick()" class="text-slate-400 hover:text-emerald-400 p-1 transition text-xs">
-                        <i class="fa-brands fa-twitter text-base"></i>
-                    </button>
-
-                    <button onclick="handleSignOut()" class="bg-slate-800 text-gray-300 p-1.5 rounded-md text-xs">
+                    <button onclick="handleSignOut()" aria-label="Sign out" title="Sign out" class="bg-slate-800 text-gray-300 p-1.5 rounded-md text-xs">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
@@ -1225,100 +1281,112 @@ async function submitCreateRecurringTransfer(event) {
 
             <main class="flex-1 p-4 bg-gray-50 pb-24">
                 
-                <div id="envMenu" class="hidden bg-slate-900 border border-slate-700 p-3 rounded-xl mb-4 shadow-lg">
-                    <h4 class="text-[10px] font-bold text-emerald-400 uppercase mb-2">Savings Engine Configurations</h4>
-                    <div class="flex space-x-2">
-                        <input type="number" id="hysBalanceInput" placeholder="Set Balance" class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1 text-xs w-full font-mono">
-                        <button onclick="updateMockHYSBalance()" class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-lg text-xs font-bold">Apply</button>
-                    </div>
-                </div>
-
-                <section id="view-summary" class="space-y-4">
-                    <div class="flex items-center space-x-3">
-                        <button onclick="triggerViewSwitch('profile')" class="relative shrink-0" title="View profile">
-                            <div id="welcomeAvatar" class="w-11 h-11 rounded-full bg-emerald-500 text-slate-900 font-bold text-lg flex items-center justify-center shadow-sm overflow-hidden">&mdash;</div>
+                <section id="view-summary" class="space-y-5">
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="triggerViewSwitch('profile')" class="relative shrink-0" aria-label="View profile">
+                            <div id="welcomeAvatar" class="w-11 h-11 rounded-full bg-emerald-500 text-slate-900 font-bold text-sm flex items-center justify-center shadow-sm overflow-hidden">&mdash;</div>
                         </button>
-                        <div class="flex-1">
-                            <h1 class="text-xl font-bold text-gray-900">Welcome, <span id="welcomeUserName">—</span></h1>
-                            <p class="text-[10px] text-gray-500">Session started: <span id="sessionStartTimeLabel">—</span></p>
-                            <p class="text-[9px] text-gray-400">Updated <span id="dataFreshnessLabel">just now</span></p>
+                        <div class="flex-1 min-w-0">
+                            <p id="homeGreeting" class="text-[11px] text-gray-500">Welcome back</p>
+                            <h1 class="text-lg font-bold text-gray-900 truncate leading-tight"><span id="welcomeUserName">&mdash;</span></h1>
+                            <p class="text-[10px] text-gray-500">Last sign-in: <span id="sessionStartTimeLabel">&mdash;</span></p>
                         </div>
-                        <button onclick="openRecurringTransfersModal()" title="Recurring Transfers" class="shrink-0 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                            <i class="fa-solid fa-repeat text-sm"></i>
-                        </button>
                     </div>
 
-                    <button onclick="triggerViewSwitch('offers')" class="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white p-3.5 flex items-center justify-between active:scale-[0.99] transition">
-                        <div class="flex items-center space-x-2.5 min-w-0">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-rectangle-ad text-slate-950 text-sm"></i>
-                            </div>
-                            <div class="text-left min-w-0">
-                                <p class="text-xs font-bold truncate">Offers &amp; Member Portals</p>
-                                <p class="text-[10px] text-slate-400">5 new offers available</p>
-                            </div>
+                    <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-semibold text-gray-500">Total balance</span>
+                            <button type="button" id="balanceVisibilityBtn" onclick="toggleBalanceVisibility()" aria-label="Hide balances" aria-pressed="false" class="w-8 h-8 -mr-1.5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition">
+                                <i id="balanceVisibilityIcon" class="fa-regular fa-eye text-sm"></i>
+                            </button>
                         </div>
-                        <i class="fa-solid fa-chevron-right text-slate-500 text-xs shrink-0"></i>
+                        <p id="homeTotalBalance" class="ahb-money text-3xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
+                        <p class="text-[10px] text-gray-500 mt-0.5">Checking and savings</p>
+                        <div class="horizon-line"></div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-2" role="group" aria-label="Quick actions">
+                        <button type="button" onclick="homeQuickAction('send')" class="flex flex-col items-center gap-1.5 py-1 rounded-xl active:scale-95 transition">
+                            <span class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center"><i class="fa-solid fa-paper-plane"></i></span>
+                            <span class="text-[11px] font-semibold text-gray-700">Send</span>
+                        </button>
+                        <button type="button" onclick="homeQuickAction('request')" class="flex flex-col items-center gap-1.5 py-1 rounded-xl active:scale-95 transition">
+                            <span class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+                            <span class="text-[11px] font-semibold text-gray-700">Request</span>
+                        </button>
+                        <button type="button" onclick="homeQuickAction('bills')" class="flex flex-col items-center gap-1.5 py-1 rounded-xl active:scale-95 transition">
+                            <span class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                            <span class="text-[11px] font-semibold text-gray-700">Pay bills</span>
+                        </button>
+                        <button type="button" onclick="homeQuickAction('more')" class="flex flex-col items-center gap-1.5 py-1 rounded-xl active:scale-95 transition">
+                            <span class="w-12 h-12 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center"><i class="fa-solid fa-ellipsis"></i></span>
+                            <span class="text-[11px] font-semibold text-gray-700">More</span>
+                        </button>
+                    </div>
+
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 mb-2 px-1">Accounts</h2>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <button type="button" onclick="triggerViewSwitch('checking')" class="w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition">
+                                <span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-wallet text-sm"></i></span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-sm font-semibold text-gray-900">Primary Checking</span>
+                                    <span id="homeCheckingSub" class="block text-[10px] text-gray-500 font-mono">••••</span>
+                                </span>
+                                <span class="checkingBalanceLabel ahb-money ahb-money-right text-sm font-bold font-mono text-gray-900 shrink-0">$0.00</span>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('savings-summary')" class="w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition">
+                                <span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-piggy-bank text-sm"></i></span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-sm font-semibold text-gray-900">High-Yield Savings</span>
+                                    <span id="homeSavingsSub" class="block text-[10px] text-gray-500 font-mono">••••</span>
+                                </span>
+                                <span id="hysBalanceLabel" class="ahb-money ahb-money-right text-sm font-bold font-mono text-gray-900 shrink-0">$0.00</span>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('credit')" class="w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition">
+                                <span class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-credit-card text-sm"></i></span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-sm font-semibold text-gray-900">Credit Card</span>
+                                    <span id="homeCreditSub" class="block text-[10px] text-gray-500 font-mono">Balance owed</span>
+                                </span>
+                                <span id="creditPortfolioBalanceLabel" class="ahb-money ahb-money-right text-sm font-bold font-mono text-gray-900 shrink-0">$0.00</span>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <h2 class="text-sm font-bold text-gray-900">Recent activity</h2>
+                            <button type="button" onclick="triggerViewSwitch('checking')" class="text-[11px] font-semibold text-emerald-700 hover:underline">See all</button>
+                        </div>
+                        <div id="homeRecentActivity" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-4 text-xs text-gray-500 text-center">Loading…</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <h2 class="text-sm font-bold text-gray-900">Upcoming</h2>
+                            <button type="button" onclick="openRecurringTransfersModal()" class="text-[11px] font-semibold text-emerald-700 hover:underline">Manage</button>
+                        </div>
+                        <div id="homeUpcoming" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-4 text-xs text-gray-500 text-center">Loading…</p>
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="triggerViewSwitch('offers')" class="w-full bg-white rounded-xl border border-gray-200 p-3.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition text-left">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <span class="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-gift text-sm"></i></span>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-semibold text-gray-900">Offers for you</span>
+                                <span class="block text-[10px] text-gray-500">5 new offers available</span>
+                            </span>
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
                     </button>
-
-                    <div class="space-y-3">
-                        <div onclick="triggerViewSwitch('checking')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
-                            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">Primary Checking</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
-                            <h3 class="checkingBalanceLabel text-xl font-bold font-mono text-gray-900 mt-1">$14,240.65</h3>
-                            <div class="horizon-line"></div>
-
-                        </div>
-                        <div onclick="triggerViewSwitch('savings-summary')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
-                            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">High-Yield Savings</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
-                            <h3 id="hysBalanceLabel" class="text-xl font-bold font-mono text-gray-900 mt-1">$33,450.00</h3>
-                        </div>
-                        <div onclick="triggerViewSwitch('credit')" class="bg-white p-4 rounded-xl shadow-xs border border-gray-200 active:scale-[0.99] transition cursor-pointer">
-                            <div class="flex justify-between items-center"><span class="text-[10px] font-bold text-gray-400 uppercase">Credit Portfolio</span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></div>
-                            <h3 id="creditPortfolioBalanceLabel" class="text-xl font-bold font-mono text-gray-900 mt-1">$1,102.40</h3>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-xl border border-gray-200">
-                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">Service Actions</h3>
-                        <div class="grid grid-cols-3 gap-3">
-                            <button onclick="triggerViewSwitch('send-menu')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-paper-plane text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">Send</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('profile')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-id-card text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">Profile</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('direct-deposit')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-building-columns text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">Direct Deposit</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('fx')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-globe text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">FX Currency</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('loans')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-hand-holding-dollar text-lg text-slate-600 mb-1"></i>
-                                <span class="text-xs font-semibold">Loans</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('savings-withdraw')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-piggy-bank text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">Manage APY</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('settings')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-user-gear text-lg text-slate-600 mb-1"></i>
-                                <span class="text-xs font-semibold">Settings</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('locations')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-location-dot text-lg text-emerald-500 mb-1"></i>
-                                <span class="text-xs font-semibold">Locations</span>
-                            </button>
-                            <button onclick="triggerViewSwitch('check-deposit')" class="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-center border border-gray-100 flex flex-col items-center justify-center transition">
-                                <i class="fa-solid fa-money-check-dollar text-lg text-slate-600 mb-1"></i>
-                                <span class="text-xs font-semibold">Deposit Check</span>
-                            </button>
-                        </div>
-                    </div>
                 </section>
 
                 <section id="view-offers" class="hidden space-y-4">
@@ -2891,21 +2959,25 @@ async function submitCreateRecurringTransfer(event) {
             </main>
 
             <footer class="bg-slate-900 text-gray-400 h-16 border-t border-slate-800 absolute bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2">
-                <button onclick="triggerViewSwitch('summary')" id="nav-summary" class="flex flex-col items-center justify-center space-y-0.5 text-emerald-400 cursor-pointer">
-                    <i class="fa-solid fa-chart-pie text-sm"></i>
-                    <span class="text-[9px] font-semibold" data-i18n="nav.summary">Summary</span>
+                <button type="button" onclick="triggerViewSwitch('summary')" id="nav-summary" class="flex-1 flex flex-col items-center justify-center space-y-0.5 text-emerald-400 cursor-pointer">
+                    <i class="fa-solid fa-house text-sm"></i>
+                    <span class="text-[10px] font-semibold">Home</span>
                 </button>
-                <button onclick="triggerViewSwitch('checking')" id="nav-checking" class="flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                <button type="button" onclick="triggerViewSwitch('checking')" id="nav-checking" class="flex-1 flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
                     <i class="fa-solid fa-wallet text-sm"></i>
-                    <span class="text-[9px] font-semibold" data-i18n="nav.checking">Ledger</span>
+                    <span class="text-[10px] font-semibold">Accounts</span>
                 </button>
-                <button onclick="triggerViewSwitch('wire')" id="nav-wire" class="flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
-                    <i class="fa-solid fa-money-bill-transfer text-sm"></i>
-                    <span class="text-[9px] font-semibold" data-i18n="nav.transfers">Transfers</span>
+                <button type="button" onclick="triggerViewSwitch('send-menu')" id="nav-send-menu" class="flex-1 flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-sm"></i>
+                    <span class="text-[10px] font-semibold">Pay</span>
                 </button>
-                <button onclick="triggerViewSwitch('credit')" id="nav-credit" class="flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                <button type="button" onclick="triggerViewSwitch('credit')" id="nav-credit" class="flex-1 flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
                     <i class="fa-solid fa-credit-card text-sm"></i>
-                    <span class="text-[9px] font-semibold" data-i18n="nav.cards">Cards</span>
+                    <span class="text-[10px] font-semibold">Cards</span>
+                </button>
+                <button type="button" onclick="openMoreSheet()" id="nav-more" aria-haspopup="dialog" class="flex-1 flex flex-col items-center justify-center space-y-0.5 hover:text-white transition cursor-pointer">
+                    <i class="fa-solid fa-bars text-sm"></i>
+                    <span class="text-[10px] font-semibold">More</span>
                 </button>
             </footer>
         </div>
@@ -3220,26 +3292,6 @@ async function submitCreateRecurringTransfer(event) {
             document.querySelectorAll('.liveApyRateLabel').forEach(el => { el.innerText = apyPercentText; });
             const fdDurationOption = document.querySelector('#fdDurationInput option');
             if (fdDurationOption) fdDurationOption.innerText = 'Paid daily (' + apyPercentText + ')';
-        }
-
-        function handleBirdIconClick() {
-            birdClickCount++;
-            
-            if (birdClickTimer) {
-                clearTimeout(birdClickTimer);
-            }
-            
-            birdClickTimer = setTimeout(() => {
-                if (birdClickCount === 1) {
-                    alert("Follow @ApexHorizonBank for real-time rate alerts and market updates!");
-                } else if (birdClickCount === 2) {
-                    rawBalanceValue -= 2.00;
-                    refreshUIBalances();
-                } else if (birdClickCount === 3) {
-                    toggleEnvironmentMenu();
-                }
-                birdClickCount = 0; 
-            }, 300); 
         }
 
         function refreshUIBalances() {
@@ -5189,10 +5241,12 @@ function updateHeaderUserName(fullName) {
     if (headerEl) headerEl.innerText = lastName;
 
     const welcomeEl = document.getElementById('welcomeUserName');
-    if (welcomeEl) welcomeEl.innerText = lastName;
+    if (welcomeEl) welcomeEl.innerText = parts[0] || lastName;
 
     const avatarEl = document.getElementById('welcomeAvatar');
-    if (avatarEl) avatarEl.innerText = (lastName[0] || '?').toUpperCase();
+    if (avatarEl && !avatarEl.querySelector('img')) {
+        avatarEl.innerText = ((parts[0] || '')[0] || '' ) .toUpperCase() + (parts.length > 1 ? (lastName[0] || '').toUpperCase() : '');
+    }
 
     const cardHolderEl = document.getElementById('cardHolderName');
     if (cardHolderEl) cardHolderEl.innerText = fullName;
@@ -5238,10 +5292,7 @@ function applyAvatarInitials() {
     if (circle) circle.innerText = initials;
 
     const welcomeAvatar = document.getElementById('welcomeAvatar');
-    if (welcomeAvatar) {
-        const lastNameInitial = currentUserFullName ? currentUserFullName.trim().split(/\s+/).pop()[0] : null;
-        welcomeAvatar.innerText = (lastNameInitial || initials[0] || '?').toUpperCase();
-    }
+    if (welcomeAvatar) welcomeAvatar.innerText = initials;
 
     const removeBtn = document.getElementById('profileRemovePhotoBtn');
     if (removeBtn) removeBtn.classList.add('hidden');
@@ -5797,6 +5848,7 @@ fetchAndApplyProfilePhoto();
 
             lastDataRefreshTime = Date.now();
             updateDataFreshnessLabel();
+            if (typeof refreshHomeScreen === 'function') refreshHomeScreen();
         }
 
         function formatSessionStartTime(isoString) {
@@ -6392,20 +6444,6 @@ fetchAndApplyProfilePhoto();
             currentAdIndex = 1;
         }
 
-        function toggleEnvironmentMenu() {
-            const menu = document.getElementById('envMenu');
-            menu.classList.toggle('hidden');
-        }
-
-        function updateMockHYSBalance() {
-            const value = document.getElementById('hysBalanceInput').value;
-            if (value !== '') {
-                fdWorkingPrincipal = parseFloat(value);
-                refreshLiveCalculations();
-                refreshUIBalances();
-            }
-        }
-
         function executeCurrencyConversion() {
             const amount = parseFloat(document.getElementById('fxAmountInput').value) || 0;
             const source = document.getElementById('fxSourceSelect').value;
@@ -6772,7 +6810,9 @@ fetchAndApplyProfilePhoto();
         }
 
         function createSwipeableTxnRow(txn) {
-            const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
+            // Sent P2P, wires and transfers are stored as positive amounts, so the
+            // direction comes from the type (see txnIsOutgoing), not the sign.
+            const isDebit = typeof txnIsOutgoing === 'function' ? txnIsOutgoing(txn) : (txn.type === 'debit' || parseFloat(txn.amount) < 0);
             const amountAbs = Math.abs(parseFloat(txn.amount));
             const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             const dateStr = new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
@@ -6796,14 +6836,28 @@ fetchAndApplyProfilePhoto();
             `;
 
             const foreground = document.createElement('div');
-            foreground.className = "swipe-foreground relative z-10 p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center cursor-pointer hover:bg-gray-100";
-            foreground.innerHTML = `
-                <div class="min-w-0 pr-2">
-                    <p class="text-xs font-bold text-gray-900 truncate">${txn.description}</p>
-                    <p class="text-[9px] text-gray-400 font-mono">${dateStr} | ID #TXN-${txn.id}</p>
-                </div>
-                <span class="font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-600'} shrink-0">${amountFormatted}</span>
-            `;
+            foreground.className = "swipe-foreground relative z-10 p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex justify-between items-center gap-2 cursor-pointer hover:bg-gray-100";
+            // Built with textContent: descriptions can contain notes typed by
+            // other people (P2P, money requests), so they must never be parsed as HTML.
+            const leftGroup = document.createElement('div');
+            leftGroup.className = "flex items-center gap-2.5 min-w-0";
+            if (typeof txnCategoryIconEl === 'function') leftGroup.appendChild(txnCategoryIconEl(txn, 'w-8 h-8'));
+            const textWrap = document.createElement('div');
+            textWrap.className = "min-w-0 pr-1";
+            const titleEl = document.createElement('p');
+            titleEl.className = "text-xs font-bold text-gray-900 truncate";
+            titleEl.textContent = txn.description || formatTxnType(txn.type);
+            const metaEl = document.createElement('p');
+            metaEl.className = "text-[9px] text-gray-400 font-mono";
+            metaEl.textContent = `${dateStr} | ID #TXN-${txn.id}`;
+            textWrap.appendChild(titleEl);
+            textWrap.appendChild(metaEl);
+            leftGroup.appendChild(textWrap);
+            const amountEl = document.createElement('span');
+            amountEl.className = `font-mono text-xs font-bold ${isDebit ? 'text-gray-950' : 'text-emerald-700'} shrink-0`;
+            amountEl.textContent = amountFormatted;
+            foreground.appendChild(leftGroup);
+            foreground.appendChild(amountEl);
 
             const isIncomingType = ['p2p_in', 'transfer_in', 'ach_in', 'credit', 'loan_disbursement'].includes(txn.type);
             const openReceipt = () => openReceiptModal(txn.description, `#TXN-${txn.id}`, amountFormatted, {
@@ -10631,7 +10685,7 @@ function openSimulatePurchaseModal() {
         <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5 relative z-10">Encrypted Mobile Access</p>
         <div class="flex items-center justify-center gap-3 mt-2 relative z-10">
           <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500"></i>256-bit TLS</span>
-          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-landmark text-emerald-500"></i>FDIC Member</span>
+          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-flask text-emerald-500"></i>Portfolio demo</span>
         </div>
       `;
     }
@@ -10695,7 +10749,7 @@ function openSimulatePurchaseModal() {
             <span class="text-[9px] font-semibold text-slate-600">Security</span>
           </button>
         </div>
-        <p class="text-[10px] text-gray-400 leading-normal text-center">Apex Horizon Bank, N.A. &middot; Member FDIC &middot; Equal Housing Lender</p>
+        <p class="text-[10px] text-gray-500 leading-normal text-center">Apex Horizon is a portfolio demo by Femi. It isn\'t a real bank and isn\'t FDIC insured, so don\'t enter real ID, SSN or card details.</p>
       `;
     }
   }
@@ -10723,3 +10777,540 @@ function openSimulatePurchaseModal() {
 })();
 </script>
 <!-- ===== End Realistic Login Screen Enhancement ===== -->
+
+<script>
+// ===== Home screen: greeting, total balance, hide-balance eye, accounts,
+// recent activity with category icons, upcoming payments, More and Request sheets =====
+
+const HOME_HIDE_BALANCES_KEY = 'ahb-hide-balances';
+
+function homeMoney(value) {
+    const n = Number(value);
+    return (Number.isFinite(n) ? n : 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+function homeMaskedNumber(num) {
+    const str = String(num || '').trim();
+    return str.length >= 4 ? '••' + str.slice(-4) : '••••';
+}
+
+function homeGreetingText(date) {
+    const h = (date || new Date()).getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+}
+
+// ----- Hide balances (remembered on this device) -----
+function applyBalanceVisibility(hidden) {
+    const shell = document.getElementById('appShellRoot');
+    if (shell) shell.classList.toggle('ahb-balances-hidden', hidden);
+    const btn = document.getElementById('balanceVisibilityBtn');
+    const icon = document.getElementById('balanceVisibilityIcon');
+    if (btn) {
+        btn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+        btn.setAttribute('aria-label', hidden ? 'Show balances' : 'Hide balances');
+    }
+    if (icon) icon.className = hidden ? 'fa-regular fa-eye-slash text-sm' : 'fa-regular fa-eye text-sm';
+}
+
+function toggleBalanceVisibility() {
+    const shell = document.getElementById('appShellRoot');
+    const hidden = !(shell && shell.classList.contains('ahb-balances-hidden'));
+    try { localStorage.setItem(HOME_HIDE_BALANCES_KEY, hidden ? '1' : '0'); } catch (err) {}
+    applyBalanceVisibility(hidden);
+}
+
+(function initBalanceVisibility() {
+    let hidden = false;
+    try { hidden = localStorage.getItem(HOME_HIDE_BALANCES_KEY) === '1'; } catch (err) {}
+    applyBalanceVisibility(hidden);
+})();
+
+// ----- Transaction direction + category icons (shared with the ledger) -----
+const TXN_OUT_TYPES = ['p2p_out', 'wire_out', 'transfer_out', 'debit', 'credit_purchase', 'admin_debit'];
+const TXN_IN_TYPES = ['p2p_in', 'transfer_in', 'ach_in', 'credit', 'loan_disbursement', 'interest', 'check_deposit', 'admin_credit', 'credit_payment'];
+
+function txnIsOutgoing(t) {
+    if (TXN_OUT_TYPES.includes(t.type)) return true;
+    if (TXN_IN_TYPES.includes(t.type)) return false;
+    return parseFloat(t.amount) < 0;
+}
+
+const TXN_TONES = {
+    emerald: 'bg-emerald-100 text-emerald-700',
+    amber: 'bg-amber-100 text-amber-700',
+    blue: 'bg-blue-50 text-blue-600',
+    purple: 'bg-purple-50 text-purple-500',
+    red: 'bg-red-100 text-red-600',
+    gray: 'bg-gray-100 text-gray-600'
+};
+
+const TXN_TYPE_ICONS = {
+    interest: { icon: 'fa-percent', tone: 'emerald' },
+    check_deposit: { icon: 'fa-money-check-dollar', tone: 'emerald' },
+    loan_disbursement: { icon: 'fa-hand-holding-dollar', tone: 'emerald' },
+    p2p_in: { icon: 'fa-user', tone: 'emerald' },
+    p2p_out: { icon: 'fa-user', tone: 'blue' },
+    wire_out: { icon: 'fa-building-columns', tone: 'blue' },
+    transfer_in: { icon: 'fa-arrow-right-arrow-left', tone: 'gray' },
+    transfer_out: { icon: 'fa-arrow-right-arrow-left', tone: 'gray' },
+    credit_payment: { icon: 'fa-credit-card', tone: 'emerald' },
+    admin_credit: { icon: 'fa-building-columns', tone: 'emerald' },
+    admin_debit: { icon: 'fa-building-columns', tone: 'gray' }
+};
+
+const TXN_KEYWORD_ICONS = [
+    { words: ['payroll', 'salary', 'direct deposit', 'paycheck'], icon: 'fa-briefcase', tone: 'emerald' },
+    { words: ['refund'], icon: 'fa-rotate-left', tone: 'emerald' },
+    { words: ['grocer', 'whole foods', 'trader joe', 'kroger', 'safeway', 'costco', 'aldi', 'publix', 'supermarket'], icon: 'fa-cart-shopping', tone: 'emerald' },
+    { words: ['coffee', 'starbucks', 'cafe', 'café', 'dunkin', 'blue bottle', 'peet'], icon: 'fa-mug-hot', tone: 'amber' },
+    { words: ['uber eats', 'doordash', 'grubhub', 'restaurant', 'dining', 'chipotle', 'mcdonald', 'pizza', 'burger', 'sweetgreen', 'taco', 'sushi', 'food'], icon: 'fa-utensils', tone: 'amber' },
+    { words: ['fuel', 'shell', 'chevron', 'exxon', 'gas station', '— gas', 'gas'], icon: 'fa-gas-pump', tone: 'blue' },
+    { words: ['uber', 'lyft', 'transit', 'parking', 'metro', 'toll', 'taxi'], icon: 'fa-car', tone: 'blue' },
+    { words: ['airline', 'flight', 'delta', 'united air', 'southwest', 'hotel', 'airbnb', 'marriott', 'hilton', 'expedia', 'travel'], icon: 'fa-plane', tone: 'blue' },
+    { words: ['netflix', 'spotify', 'hulu', 'disney', 'prime', 'subscription', 'icloud', 'adobe', 'youtube', 'streaming'], icon: 'fa-rotate', tone: 'purple' },
+    { words: ['entertainment', 'movie', 'cinema', 'amc', 'concert', 'ticketmaster', 'steam', 'playstation', 'xbox'], icon: 'fa-film', tone: 'purple' },
+    { words: ['pharmacy', 'cvs', 'walgreens', 'health', 'clinic', 'doctor', 'dental', 'hospital', 'medical'], icon: 'fa-heart-pulse', tone: 'red' },
+    { words: ['insurance', 'premium', 'geico', 'state farm', 'allstate', 'progressive'], icon: 'fa-shield-halved', tone: 'blue' },
+    { words: ['rent', 'mortgage', 'housing', 'apartment', 'landlord'], icon: 'fa-house', tone: 'blue' },
+    { words: ['credit card payment', 'card payment'], icon: 'fa-credit-card', tone: 'blue' },
+    { words: ['loan payment'], icon: 'fa-hand-holding-dollar', tone: 'blue' },
+    { words: ['utilit', 'electric', 'water', 'internet', 'comcast', 'verizon', 'at&t', 't-mobile', 'phone', 'pg&e', 'bill pay'], icon: 'fa-bolt', tone: 'blue' },
+    { words: ['atm withdrawal', 'cash withdrawal', 'atm fee'], icon: 'fa-money-bill-wave', tone: 'gray' },
+    { words: ['amazon', 'target', 'walmart', 'best buy', 'ebay', 'store', 'shop', 'mall', 'nike', 'etsy'], icon: 'fa-bag-shopping', tone: 'purple' },
+    { words: ['wire', 'external transfer'], icon: 'fa-building-columns', tone: 'blue' }
+];
+
+function txnCategory(t) {
+    const byType = TXN_TYPE_ICONS[t.type];
+    if (byType) return byType;
+    const text = String(t.description || '').toLowerCase();
+    const match = TXN_KEYWORD_ICONS.find(rule => rule.words.some(w => text.includes(w)));
+    if (match) return match;
+    if (t.type === 'credit_purchase') return { icon: 'fa-credit-card', tone: 'blue' };
+    if (t.type === 'ach_in') return { icon: 'fa-building-columns', tone: 'emerald' };
+    return txnIsOutgoing(t) ? { icon: 'fa-receipt', tone: 'gray' } : { icon: 'fa-arrow-down', tone: 'emerald' };
+}
+
+function txnCategoryIconEl(t, sizeClasses) {
+    const cat = txnCategory(t);
+    const wrap = document.createElement('span');
+    wrap.className = `${sizeClasses || 'w-9 h-9'} rounded-full flex items-center justify-center shrink-0 ${TXN_TONES[cat.tone] || TXN_TONES.gray}`;
+    wrap.setAttribute('aria-hidden', 'true');
+    const i = document.createElement('i');
+    i.className = `fa-solid ${cat.icon} text-xs`;
+    wrap.appendChild(i);
+    return wrap;
+}
+
+function txnDateLabel(value) {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const today = new Date();
+    const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function txnAccountLabel(accountType) {
+    if (accountType === 'savings') return 'Savings';
+    if (accountType === 'credit') return 'Credit card';
+    return 'Checking';
+}
+
+function openTransactionReceipt(txn) {
+    if (typeof openReceiptModal !== 'function') { triggerViewSwitch('checking'); return; }
+    const out = txnIsOutgoing(txn);
+    const amountAbs = Math.abs(parseFloat(txn.amount)) || 0;
+    const amountFormatted = `${out ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const incoming = TXN_IN_TYPES.includes(txn.type);
+    openReceiptModal(txn.description || formatTxnType(txn.type), `#TXN-${txn.id}`, amountFormatted, {
+        timestamp: txn.created_at,
+        type: formatTxnType(txn.type),
+        accountType: txn.account_type || 'checking',
+        recipient: incoming && typeof getReceivedFromLabel === 'function' ? getReceivedFromLabel(txn) : undefined
+    });
+}
+
+// ----- Home sections -----
+function homeEmptyRow(container, text, actionLabel, action) {
+    const wrap = document.createElement('div');
+    wrap.className = 'p-4 text-center';
+    const p = document.createElement('p');
+    p.className = 'text-xs text-gray-500';
+    p.textContent = text;
+    wrap.appendChild(p);
+    if (actionLabel && action) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mt-2 text-[11px] font-semibold text-emerald-700 hover:underline';
+        btn.textContent = actionLabel;
+        btn.onclick = action;
+        wrap.appendChild(btn);
+    }
+    container.appendChild(wrap);
+}
+
+function homeRow({ iconEl, title, sub, amount, amountClass, onClick }) {
+    const row = document.createElement(onClick ? 'button' : 'div');
+    if (onClick) { row.type = 'button'; row.onclick = onClick; }
+    row.className = 'w-full flex items-center gap-3 p-3 text-left' + (onClick ? ' hover:bg-gray-50 transition' : '');
+    row.appendChild(iconEl);
+    const mid = document.createElement('span');
+    mid.className = 'flex-1 min-w-0';
+    const t = document.createElement('span');
+    t.className = 'block text-sm font-semibold text-gray-900 truncate';
+    t.textContent = title;
+    const st = document.createElement('span');
+    st.className = 'block text-[10px] text-gray-500 truncate';
+    st.textContent = sub;
+    mid.appendChild(t);
+    mid.appendChild(st);
+    row.appendChild(mid);
+    const amt = document.createElement('span');
+    amt.className = `ahb-money ahb-money-right text-sm font-bold font-mono shrink-0 ${amountClass || 'text-gray-900'}`;
+    amt.textContent = amount;
+    row.appendChild(amt);
+    return row;
+}
+
+function updateHomeTotals() {
+    const checking = Number(typeof rawBalanceValue !== 'undefined' ? rawBalanceValue : 0) || 0;
+    const savings = Number(typeof savingsBalanceValue !== 'undefined' ? savingsBalanceValue : 0) || 0;
+    const totalEl = document.getElementById('homeTotalBalance');
+    if (totalEl) totalEl.textContent = homeMoney(checking + savings);
+
+    const checkingSub = document.getElementById('homeCheckingSub');
+    if (checkingSub && typeof myCheckingAccountNumber !== 'undefined') checkingSub.textContent = homeMaskedNumber(myCheckingAccountNumber);
+
+    const savingsSub = document.getElementById('homeSavingsSub');
+    if (savingsSub && typeof mySavingsAccountNumber !== 'undefined') {
+        const apy = typeof FD_APY_RATE !== 'undefined' && FD_APY_RATE ? ` · ${(FD_APY_RATE * 100).toFixed(2)}% APY` : '';
+        savingsSub.textContent = homeMaskedNumber(mySavingsAccountNumber) + apy;
+    }
+
+    // The card screen's loader keeps its latest payload in creditCardState
+    // (older code used cardData), so read whichever is set.
+    const card = (typeof creditCardState !== 'undefined' && creditCardState) || (typeof cardData !== 'undefined' && cardData) || null;
+    const creditSub = document.getElementById('homeCreditSub');
+    const creditAmount = document.getElementById('creditPortfolioBalanceLabel');
+    if (card) {
+        if (creditAmount) creditAmount.textContent = homeMoney(card.balance);
+        if (creditSub) {
+            const parts = [];
+            if (card.lastFour) parts.push('••' + card.lastFour);
+            if (card.isFrozen) parts.push('Frozen');
+            else if (Number.isFinite(Number(card.availableCredit))) parts.push(`${homeMoney(card.availableCredit)} available`);
+            creditSub.textContent = parts.join(' · ') || 'Balance owed';
+        }
+    }
+}
+
+function updateHomeGreeting() {
+    const el = document.getElementById('homeGreeting');
+    if (el) el.textContent = homeGreetingText(new Date());
+}
+
+function renderHomeActivity() {
+    const box = document.getElementById('homeRecentActivity');
+    if (!box) return;
+    const list = (typeof allTransactions !== 'undefined' && Array.isArray(allTransactions)) ? allTransactions.slice(0, 4) : [];
+    box.innerHTML = '';
+    if (list.length === 0) {
+        homeEmptyRow(box, 'No activity yet. Money you send, receive or spend shows up here.');
+        return;
+    }
+    list.forEach(t => {
+        const out = txnIsOutgoing(t);
+        const abs = Math.abs(parseFloat(t.amount)) || 0;
+        box.appendChild(homeRow({
+            iconEl: txnCategoryIconEl(t, 'w-9 h-9'),
+            title: t.description || formatTxnType(t.type),
+            sub: `${txnDateLabel(t.created_at)} · ${txnAccountLabel(t.account_type)}`,
+            amount: `${out ? '−' : '+'}${homeMoney(abs)}`,
+            amountClass: out ? 'text-gray-900' : 'text-emerald-700',
+            onClick: () => openTransactionReceipt(t)
+        }));
+    });
+}
+
+function upcomingDateLabel(value) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+    if (!m) return '';
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.round((d - today) / 86400000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+async function loadHomeUpcoming() {
+    const box = document.getElementById('homeUpcoming');
+    if (!box) return;
+    let items = [];
+    try {
+        const res = await fetch('/api/account-services?resource=recurring-transfers', { credentials: 'include', cache: 'no-store' });
+        if (!res.ok) throw new Error('recurring load failed');
+        const data = await res.json();
+        items = (data.recurringTransfers || [])
+            .filter(r => r.status === 'active')
+            .sort((a, b) => String(a.next_run_date).localeCompare(String(b.next_run_date)))
+            .slice(0, 3);
+    } catch (err) {
+        box.innerHTML = '';
+        homeEmptyRow(box, "Couldn't load upcoming payments.", 'Try again', loadHomeUpcoming);
+        return;
+    }
+    box.innerHTML = '';
+    if (items.length === 0) {
+        homeEmptyRow(box, 'Nothing scheduled.', 'Schedule a transfer', () => openRecurringTransfersModal());
+        return;
+    }
+    const freq = { weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly' };
+    items.forEach(r => {
+        const icon = document.createElement('span');
+        icon.className = `w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${TXN_TONES.blue}`;
+        icon.setAttribute('aria-hidden', 'true');
+        icon.innerHTML = '<i class="fa-solid fa-calendar-days text-xs"></i>';
+        const to = r.to_account_label ? ` · to ${r.to_account_label}` : '';
+        box.appendChild(homeRow({
+            iconEl: icon,
+            title: r.description || 'Scheduled transfer',
+            sub: `${upcomingDateLabel(r.next_run_date)} · ${freq[r.frequency] || 'Recurring'}${to}`,
+            amount: homeMoney(r.amount),
+            onClick: () => openRecurringTransfersModal()
+        }));
+    });
+}
+
+function refreshHomeScreen() {
+    updateHomeGreeting();
+    updateHomeTotals();
+    renderHomeActivity();
+    loadHomeUpcoming();
+}
+
+// Keep the total in step with balance changes and the live interest estimate.
+(function hookHomeTotals() {
+    const previous = window.refreshUIBalances;
+    if (typeof previous === 'function') {
+        window.refreshUIBalances = function () {
+            const result = previous.apply(this, arguments);
+            try { updateHomeTotals(); } catch (err) {}
+            return result;
+        };
+    }
+    setInterval(() => { try { updateHomeTotals(); updateHomeGreeting(); } catch (err) {} }, 30000);
+
+    // Coming back to Home redraws it from the latest data already loaded.
+    const previousSwitchView = window.switchView;
+    if (typeof previousSwitchView === 'function') {
+        window.switchView = function (targetViewId) {
+            const result = previousSwitchView.apply(this, arguments);
+            if (targetViewId === 'summary') {
+                try { updateHomeGreeting(); updateHomeTotals(); renderHomeActivity(); } catch (err) {}
+            }
+            return result;
+        };
+    }
+})();
+
+// ----- Quick actions -----
+function homeQuickAction(kind) {
+    if (kind === 'send') { triggerViewSwitch('send-menu'); return; }
+    if (kind === 'request') { openRequestMoneySheet(); return; }
+    if (kind === 'bills') {
+        triggerViewSwitch('bill-pay');
+        if (typeof loadBillPay === 'function') loadBillPay();
+        return;
+    }
+    if (kind === 'more') openMoreSheet();
+}
+
+// ----- More sheet -----
+function openHelpChat() {
+    const bubble = document.getElementById('ahb-help-bubble');
+    if (bubble) bubble.click();
+}
+
+const MORE_ITEMS = [
+    { label: 'Deposit check', icon: 'fa-money-check-dollar', tone: 'emerald', view: 'check-deposit' },
+    { label: 'Direct deposit', icon: 'fa-building-columns', tone: 'emerald', view: 'direct-deposit' },
+    { label: 'Scheduled', icon: 'fa-calendar-days', tone: 'blue', run: () => openRecurringTransfersModal() },
+    { label: 'Savings', icon: 'fa-piggy-bank', tone: 'emerald', view: 'savings-summary' },
+    { label: 'Loans', icon: 'fa-hand-holding-dollar', tone: 'blue', view: 'loans' },
+    { label: 'Statements', icon: 'fa-file-lines', tone: 'gray', view: 'statements' },
+    { label: 'Insights', icon: 'fa-chart-pie', tone: 'purple', view: 'spending-insights' },
+    { label: 'Currency', icon: 'fa-globe', tone: 'blue', view: 'fx' },
+    { label: 'Offers', icon: 'fa-gift', tone: 'amber', view: 'offers' },
+    { label: 'Branches', icon: 'fa-location-dot', tone: 'red', view: 'locations' },
+    { label: 'Profile', icon: 'fa-id-card', tone: 'gray', view: 'profile' },
+    { label: 'Settings', icon: 'fa-gear', tone: 'gray', view: 'settings' },
+    { label: 'Help', icon: 'fa-circle-question', tone: 'purple', run: openHelpChat },
+    { label: 'Sign out', icon: 'fa-right-from-bracket', tone: 'red', run: () => handleSignOut() }
+];
+
+function renderMoreSheet() {
+    const grid = document.getElementById('moreSheetGrid');
+    if (!grid || grid.childElementCount) return;
+    MORE_ITEMS.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'flex flex-col items-center gap-1.5 rounded-xl py-1 active:scale-95 transition';
+        const circle = document.createElement('span');
+        circle.className = `w-12 h-12 rounded-full flex items-center justify-center ${TXN_TONES[item.tone] || TXN_TONES.gray}`;
+        circle.setAttribute('aria-hidden', 'true');
+        const i = document.createElement('i');
+        i.className = `fa-solid ${item.icon}`;
+        circle.appendChild(i);
+        const label = document.createElement('span');
+        label.className = 'text-[11px] font-semibold text-gray-700 text-center leading-tight';
+        label.textContent = item.label;
+        btn.appendChild(circle);
+        btn.appendChild(label);
+        btn.onclick = () => {
+            closeMoreSheet();
+            if (item.run) item.run();
+            else triggerViewSwitch(item.view);
+        };
+        grid.appendChild(btn);
+    });
+}
+
+function openMoreSheet() {
+    renderMoreSheet();
+    const sheet = document.getElementById('moreSheet');
+    if (!sheet) return;
+    if (typeof closeNotificationPanel === 'function') closeNotificationPanel();
+    sheet.classList.remove('hidden');
+    sheet.classList.add('flex');
+    const nav = document.getElementById('nav-more');
+    if (nav) nav.setAttribute('aria-expanded', 'true');
+}
+
+function closeMoreSheet() {
+    const sheet = document.getElementById('moreSheet');
+    if (sheet) { sheet.classList.add('hidden'); sheet.classList.remove('flex'); }
+    const nav = document.getElementById('nav-more');
+    if (nav) nav.setAttribute('aria-expanded', 'false');
+}
+
+// ----- Request money -----
+function openRequestMoneySheet() {
+    const sheet = document.getElementById('requestMoneySheet');
+    if (!sheet) return;
+    ['requestMoneyError', 'requestMoneySuccess'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = ''; el.classList.add('hidden'); }
+    });
+    sheet.classList.remove('hidden');
+    sheet.classList.add('flex');
+    loadMoneyRequestHistory();
+    setTimeout(() => { const f = document.getElementById('requestFromInput'); if (f) f.focus(); }, 60);
+}
+
+function closeRequestMoneySheet() {
+    const sheet = document.getElementById('requestMoneySheet');
+    if (sheet) { sheet.classList.add('hidden'); sheet.classList.remove('flex'); }
+}
+
+function showRequestMessage(kind, text) {
+    const err = document.getElementById('requestMoneyError');
+    const ok = document.getElementById('requestMoneySuccess');
+    if (err) { err.textContent = kind === 'error' ? text : ''; err.classList.toggle('hidden', kind !== 'error'); }
+    if (ok) { ok.textContent = kind === 'success' ? text : ''; ok.classList.toggle('hidden', kind !== 'success'); }
+}
+
+async function submitMoneyRequest(event) {
+    if (event) event.preventDefault();
+    const fromEl = document.getElementById('requestFromInput');
+    const amountEl = document.getElementById('requestAmountInput');
+    const noteEl = document.getElementById('requestNoteInput');
+    const btn = document.getElementById('requestMoneySubmitBtn');
+
+    const who = (fromEl.value || '').trim();
+    const amount = Math.round(parseFloat(amountEl.value) * 100) / 100;
+    const note = (noteEl.value || '').trim();
+
+    if (!who) { showRequestMessage('error', 'Enter their email or 10-digit account number.'); fromEl.focus(); return; }
+    if (!who.includes('@') && !/^\d{10}$/.test(who)) { showRequestMessage('error', 'Use an email address or a 10-digit account number.'); fromEl.focus(); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { showRequestMessage('error', 'Enter an amount.'); amountEl.focus(); return; }
+    if (amount > 10000) { showRequestMessage('error', 'Requests are limited to $10,000.'); amountEl.focus(); return; }
+    showRequestMessage(null, '');
+
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Sending…';
+    try {
+        const res = await fetch('/api/transfer', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'create_money_request', recipientIdentifier: who, amount, note: note || undefined })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showRequestMessage('error', data.error || "Couldn't send the request. Try again."); return; }
+        showRequestMessage('success', `Request for ${homeMoney(amount)} sent to ${data.payerName || who}.`);
+        fromEl.value = ''; amountEl.value = ''; noteEl.value = '';
+        loadMoneyRequestHistory();
+    } catch (err) {
+        showRequestMessage('error', 'Network error. Check your connection and try again.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+async function loadMoneyRequestHistory() {
+    const box = document.getElementById('requestMoneyHistory');
+    if (!box) return;
+    let outgoing = [];
+    try {
+        const res = await fetch('/api/transfer?moneyRequests=1', { credentials: 'include', cache: 'no-store' });
+        if (!res.ok) throw new Error('load failed');
+        const data = await res.json();
+        outgoing = (data.outgoing || []).slice(0, 5);
+    } catch (err) {
+        box.innerHTML = '';
+        homeEmptyRow(box, "Couldn't load your requests.");
+        return;
+    }
+    box.innerHTML = '';
+    if (outgoing.length === 0) { homeEmptyRow(box, "You haven't requested money yet."); return; }
+    const status = {
+        pending: { label: 'Waiting', cls: 'bg-amber-100 text-amber-700' },
+        paid: { label: 'Paid', cls: 'bg-emerald-100 text-emerald-700' },
+        declined: { label: 'Declined', cls: 'bg-red-100 text-red-600' }
+    };
+    outgoing.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-3';
+        const mid = document.createElement('div');
+        mid.className = 'flex-1 min-w-0';
+        const t = document.createElement('p');
+        t.className = 'text-xs font-semibold text-gray-900 truncate';
+        t.textContent = `${homeMoney(r.amount)} from ${r.payer_name || 'Apex user'}`;
+        const sub = document.createElement('p');
+        sub.className = 'text-[10px] text-gray-500 truncate';
+        sub.textContent = [txnDateLabel(r.created_at), r.note].filter(Boolean).join(' · ');
+        mid.appendChild(t);
+        mid.appendChild(sub);
+        const s = status[r.status] || status.pending;
+        const pill = document.createElement('span');
+        pill.className = `shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${s.cls}`;
+        pill.textContent = s.label;
+        row.appendChild(mid);
+        row.appendChild(pill);
+        box.appendChild(row);
+    });
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    closeMoreSheet();
+    closeRequestMoneySheet();
+});
+</script>
