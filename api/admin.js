@@ -1,6 +1,31 @@
 const { neon } = require('@neondatabase/serverless');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+const { creditSavingsInterest } = require('../lib/interest');
+
+// Same table definition as api/account-services.js, so the admin queue works
+// even before any customer has deposited a check.
+async function ensureCheckDepositsTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS check_deposits (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      account_id INTEGER NOT NULL,
+      account_type TEXT NOT NULL,
+      amount NUMERIC(14,2) NOT NULL,
+      front_image TEXT NOT NULL,
+      back_image TEXT NOT NULL,
+      front_hash TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      reject_reason TEXT,
+      transaction_id INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      reviewed_at TIMESTAMPTZ
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS check_deposits_user_idx ON check_deposits (user_id, created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS check_deposits_status_idx ON check_deposits (status, created_at)`;
+}
 
 const RESTRICTION_LEVELS = ['none', 'transfers_only', 'full'];
 
@@ -404,6 +429,138 @@ module.exports = async function handler(req, res) {
         ORDER BY k.created_at ASC
       `;
       return res.status(200).json({ kycRequests });
+    }
+
+    // ---------- listPendingChecks (mobile check deposit review queue) ----------
+    if (action === 'listPendingChecks') {
+      await ensureCheckDepositsTable();
+      const checks = await sql`
+        SELECT c.id, c.user_id, c.account_type, c.amount, c.front_image, c.back_image, c.created_at,
+               u.email AS user_email, u.full_name AS user_full_name
+        FROM check_deposits c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.status = 'pending'
+        ORDER BY c.created_at ASC
+        LIMIT 50
+      `;
+      return res.status(200).json({ checks });
+    }
+
+    // ---------- approveCheck(checkId): credit the account atomically ----------
+    if (action === 'approveCheck') {
+      await ensureCheckDepositsTable();
+      const checkId = Number(req.body.checkId);
+      if (!checkId) return res.status(400).json({ error: 'checkId is required' });
+
+      // Claiming the check, crediting the balance, and writing the ledger row
+      // happen in one statement, so a double-click can never credit twice.
+      let approved;
+      try {
+        const rows = await sql`
+          WITH claim AS (
+            UPDATE check_deposits
+            SET status = 'approved', reviewed_at = NOW()
+            WHERE id = ${checkId} AND status = 'pending'
+            RETURNING id, user_id, account_id, account_type, amount
+          ),
+          credit AS (
+            UPDATE accounts a
+            SET balance = a.balance + c.amount
+            FROM claim c
+            WHERE a.id = c.account_id
+            RETURNING a.id
+          ),
+          txn AS (
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            SELECT c.account_id, 'check_deposit', c.amount, 'Mobile Check Deposit #' || c.id, NOW()
+            FROM claim c
+            RETURNING id
+          )
+          SELECT
+            (SELECT user_id FROM claim) AS user_id,
+            (SELECT amount FROM claim) AS amount,
+            (SELECT account_type FROM claim) AS account_type,
+            (SELECT id FROM txn) AS transaction_id,
+            1 / ((SELECT COUNT(*) FROM claim) * (SELECT COUNT(*) FROM credit)) AS guard
+        `;
+        approved = rows[0];
+      } catch (moveErr) {
+        if (moveErr && (moveErr.code === '22012' || /division by zero/i.test(String(moveErr.message || '')))) {
+          return res.status(409).json({ error: 'This check was already reviewed, or its account no longer exists.' });
+        }
+        throw moveErr;
+      }
+
+      await sql`UPDATE check_deposits SET transaction_id = ${approved.transaction_id} WHERE id = ${checkId}`;
+
+      const amount = Number(approved.amount);
+      const accountLabel = approved.account_type === 'checking' ? 'Primary Checking' : 'High-Yield Savings';
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${approved.user_id}, 'Check Deposit Approved', ${'Your $' + amount.toFixed(2) + ' mobile check deposit is now available in ' + accountLabel + '.'}, FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Check approval notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('approveCheck', NULL, ${amount}, ${'Check deposit #' + checkId + ' approved'}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Check #${checkId} approved. $${amount.toFixed(2)} credited to ${accountLabel}.` });
+    }
+
+    // ---------- rejectCheck(checkId, reason) ----------
+    if (action === 'rejectCheck') {
+      await ensureCheckDepositsTable();
+      const checkId = Number(req.body.checkId);
+      const reason = String(req.body.reason || '').trim().slice(0, 300);
+      if (!checkId) return res.status(400).json({ error: 'checkId is required' });
+
+      const rows = await sql`
+        UPDATE check_deposits
+        SET status = 'rejected', reject_reason = ${reason || null}, reviewed_at = NOW()
+        WHERE id = ${checkId} AND status = 'pending'
+        RETURNING id, user_id, amount
+      `;
+      if (rows.length === 0) return res.status(409).json({ error: 'This check was already reviewed or does not exist.' });
+
+      const amount = Number(rows[0].amount);
+      try {
+        await sql`
+          INSERT INTO notifications (user_id, title, message, is_read, created_at)
+          VALUES (${rows[0].user_id}, 'Check Deposit Not Accepted',
+            ${'Your $' + amount.toFixed(2) + ' mobile check deposit was not accepted' + (reason ? ': ' + reason : '.') + ' No funds were added to your account.'},
+            FALSE, NOW())
+        `;
+      } catch (notifyErr) {
+        console.error('Check rejection notification error (non-fatal):', notifyErr);
+      }
+
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('rejectCheck', NULL, ${amount}, ${'Check deposit #' + checkId + ' rejected' + (reason ? ': ' + reason : '')}, NOW())
+      `;
+
+      return res.status(200).json({ success: true, message: `Check #${checkId} rejected.` });
+    }
+
+    // ---------- runInterestNow: credit savings interest immediately ----------
+    if (action === 'runInterestNow') {
+      const result = await creditSavingsInterest(sql, { minHoursSinceLastCredit: 0 });
+      await sql`
+        INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
+        VALUES ('runInterestNow', NULL, ${result.totalPaid}, ${'Manual interest run: ' + result.accountsPaid + ' account(s) paid'}, NOW())
+      `;
+      return res.status(200).json({
+        success: true,
+        ...result,
+        message: result.accountsPaid > 0
+          ? `Paid $${result.totalPaid.toFixed(2)} interest across ${result.accountsPaid} savings account(s).`
+          : 'No savings accounts had at least $0.01 of interest to pay yet.',
+      });
     }
 
     // ---------- listDisputes (transaction dispute review queue) ----------
@@ -888,7 +1045,7 @@ module.exports = async function handler(req, res) {
     }
 
     return res.status(400).json({
-      error: 'Invalid or missing action. Use "listUsers", "listAccounts", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", "toggleAccountStatus", "setAccountRestriction", or "seedTransactionHistory".',
+      error: 'Invalid or missing action. Use "listUsers", "listAccounts", "recentTransactions", "getAuditLogs", "listPendingLoans", "listPendingAccounts", "listPendingKyc", "listDisputes", "getLoginActivity", "addFunds", "withdrawFunds", "grantLoan", "approveAccount", "rejectAccount", "approveKyc", "rejectKyc", "resolveDispute", "rejectDispute", "toggleAccountStatus", "setAccountRestriction", "seedTransactionHistory", "listPendingChecks", "approveCheck", "rejectCheck", or "runInterestNow".',
     });
   } catch (err) {
     console.error('Admin API error:', err);

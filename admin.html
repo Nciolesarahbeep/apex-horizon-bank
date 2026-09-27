@@ -168,6 +168,37 @@
     <p id="pendingKycEmpty" class="text-slate-400 text-sm py-4 hidden">No pending verification requests.</p>
   </div>
 
+  <!-- Mobile check deposits -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-money-check-dollar text-emerald-600 mr-1"></i>Mobile Check Deposits</h2>
+      <div class="flex items-center gap-3">
+        <button onclick="runInterestNowAdmin()" class="text-sm text-emerald-700 hover:text-emerald-800"><i class="fa-solid fa-percent mr-1"></i>Pay savings interest now</button>
+        <button onclick="loadPendingChecks()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+      </div>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">User</th>
+          <th class="py-2 pr-2">Amount</th>
+          <th class="py-2 pr-2">To</th>
+          <th class="py-2 pr-2">Front</th>
+          <th class="py-2 pr-2">Back</th>
+          <th class="py-2 pr-2">Submitted</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="pendingChecksBody"></tbody>
+    </table>
+    <p id="pendingChecksEmpty" class="text-slate-400 text-sm py-4 hidden">No checks waiting for review.</p>
+  </div>
+
+  <!-- Check image viewer -->
+  <div id="checkImageViewer" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4" onclick="closeCheckImage()">
+    <img id="checkImageViewerImg" src="" alt="Check image" class="max-w-full max-h-full rounded-lg bg-white">
+  </div>
+
   <!-- Pending loan applications -->
   <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
     <div class="flex items-center justify-between mb-3">
@@ -332,6 +363,7 @@ async function unlock() {
     loadPendingLoans();
     loadPendingAccounts();
     loadPendingKyc();
+    loadPendingChecks();
     loadDisputes();
     loadFraudFlags();
     if (activityPollTimer) clearInterval(activityPollTimer);
@@ -676,6 +708,108 @@ async function rejectKycAdmin(kycId) {
     const data = await api('rejectKyc', { method: 'POST', body: { kycId, reason } });
     showToast(data.message, false);
     loadPendingKyc();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+// ===== Mobile check deposit review =====
+let pendingCheckImages = {};
+
+function escAdmin(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function isSafeImageDataUrl(value) {
+  return typeof value === 'string' && /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(value);
+}
+
+async function loadPendingChecks() {
+  try {
+    const { checks } = await api('listPendingChecks');
+    const body = document.getElementById('pendingChecksBody');
+    const empty = document.getElementById('pendingChecksEmpty');
+    body.innerHTML = '';
+    pendingCheckImages = {};
+    empty.classList.toggle('hidden', checks.length > 0);
+    checks.forEach(c => {
+      pendingCheckImages[c.id] = { front: c.front_image, back: c.back_image };
+      const amount = Number(c.amount).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      const acct = c.account_type === 'checking' ? 'Checking' : 'Savings';
+      const thumb = (side) => isSafeImageDataUrl(pendingCheckImages[c.id][side])
+        ? `<img src="${pendingCheckImages[c.id][side]}" alt="${side}" onclick="openCheckImage(${Number(c.id)}, '${side}')" class="h-12 w-20 object-cover rounded border cursor-zoom-in">`
+        : '<span class="text-slate-400 text-xs">Invalid image</span>';
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0';
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${escAdmin(c.user_full_name || '—')}<br><span class="text-slate-400 text-xs">${escAdmin(c.user_email)}</span></td>
+        <td class="py-2 pr-2 font-mono font-semibold">${amount}</td>
+        <td class="py-2 pr-2">${acct}</td>
+        <td class="py-2 pr-2">${thumb('front')}</td>
+        <td class="py-2 pr-2">${thumb('back')}</td>
+        <td class="py-2 pr-2">${when(c.created_at)}</td>
+        <td class="py-2">
+          <div class="flex gap-1">
+            <button onclick="approveCheckAdmin(${Number(c.id)}, '${amount}')" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Approve</button>
+            <button onclick="rejectCheckAdmin(${Number(c.id)})" class="bg-red-600 text-white rounded px-3 py-1 text-xs hover:bg-red-700">Reject</button>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function openCheckImage(checkId, side) {
+  const src = pendingCheckImages[checkId] && pendingCheckImages[checkId][side];
+  if (!isSafeImageDataUrl(src)) return;
+  const viewer = document.getElementById('checkImageViewer');
+  document.getElementById('checkImageViewerImg').src = src;
+  viewer.classList.remove('hidden');
+  viewer.classList.add('flex');
+}
+
+function closeCheckImage() {
+  const viewer = document.getElementById('checkImageViewer');
+  viewer.classList.add('hidden');
+  viewer.classList.remove('flex');
+  document.getElementById('checkImageViewerImg').src = '';
+}
+
+async function approveCheckAdmin(checkId, amountLabel) {
+  if (!confirm(`Approve this check and credit ${amountLabel} to the customer now?`)) return;
+  try {
+    const data = await api('approveCheck', { method: 'POST', body: { checkId } });
+    showToast(data.message, false);
+    loadPendingChecks();
+    loadTransactions();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function rejectCheckAdmin(checkId) {
+  const reason = prompt('Reason for rejecting (shown to customer), e.g. "Image unreadable" or "Missing endorsement":', '');
+  if (reason === null) return;
+  try {
+    const data = await api('rejectCheck', { method: 'POST', body: { checkId, reason } });
+    showToast(data.message, false);
+    loadPendingChecks();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function runInterestNowAdmin() {
+  if (!confirm('Pay all accrued savings interest now? (The daily job also does this automatically.)')) return;
+  try {
+    const data = await api('runInterestNow', { method: 'POST' });
+    showToast(data.message, false);
+    loadTransactions();
   } catch (e) {
     showToast(e.message, true);
   }

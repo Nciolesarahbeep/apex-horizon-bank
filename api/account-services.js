@@ -4,6 +4,7 @@ const { sendEmail } = require('../lib/email');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const PDFDocument = require('pdfkit');
+const { creditSavingsInterest } = require('../lib/interest');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -363,7 +364,16 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ success: true, processed, failed, skipped });
+      // Daily savings interest runs on the same cron. A failure here never
+      // undoes the recurring transfers above.
+      let interest = { accountsPaid: 0, totalPaid: 0 };
+      try {
+        interest = await creditSavingsInterest(sql, { minHoursSinceLastCredit: 20 });
+      } catch (interestErr) {
+        console.error('Savings interest run error:', interestErr);
+      }
+
+      return res.status(200).json({ success: true, processed, failed, skipped, interest });
     } catch (err) {
       console.error('Process recurring transfers error:', err);
       return res.status(500).json({ error: 'Failed to process recurring transfers.' });
@@ -480,6 +490,156 @@ module.exports = async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to submit KYC.' });
       }
     }
+  }
+
+  // ---------- Mobile Check Deposits ----------
+  // Customers photograph a check; it waits in the admin review queue and the
+  // money only lands when an admin approves it (see api/admin.js).
+  if (resource === 'check-deposits') {
+    const MAX_CHECK_AMOUNT = 10000;
+    const MAX_PENDING_CHECKS = 5;
+    const MAX_IMAGE_CHARS = 400 * 1024;
+
+    async function ensureCheckDepositsTable() {
+      await sql`
+        CREATE TABLE IF NOT EXISTS check_deposits (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          account_id INTEGER NOT NULL,
+          account_type TEXT NOT NULL,
+          amount NUMERIC(14,2) NOT NULL,
+          front_image TEXT NOT NULL,
+          back_image TEXT NOT NULL,
+          front_hash TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          reject_reason TEXT,
+          transaction_id INTEGER,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          reviewed_at TIMESTAMPTZ
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS check_deposits_user_idx ON check_deposits (user_id, created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS check_deposits_status_idx ON check_deposits (status, created_at)`;
+    }
+
+    if (req.method === 'GET') {
+      try {
+        await ensureCheckDepositsTable();
+        const rows = await sql`
+          SELECT id, amount, account_type, status, reject_reason, created_at, reviewed_at
+          FROM check_deposits
+          WHERE user_id = ${session.userId}
+          ORDER BY created_at DESC
+          LIMIT 20
+        `;
+        return res.status(200).json({
+          deposits: rows.map((r) => ({
+            id: r.id,
+            amount: Number(r.amount),
+            accountType: r.account_type,
+            status: r.status,
+            rejectReason: r.reject_reason,
+            createdAt: r.created_at,
+            reviewedAt: r.reviewed_at,
+          })),
+        });
+      } catch (err) {
+        console.error('List check deposits error:', err);
+        return res.status(500).json({ error: 'Failed to load your mobile deposits.' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        await ensureCheckDepositsTable();
+        const { amount, accountType, frontImage, backImage } = req.body || {};
+
+        const depositAmount = Math.round(Number(amount) * 100) / 100;
+        if (!Number.isFinite(depositAmount) || depositAmount <= 0) {
+          return res.status(400).json({ error: 'Enter a valid check amount.' });
+        }
+        if (depositAmount > MAX_CHECK_AMOUNT) {
+          return res.status(400).json({ error: `Mobile deposits are limited to $${MAX_CHECK_AMOUNT.toLocaleString()} per check. For larger checks, visit a branch.` });
+        }
+        if (!['checking', 'savings'].includes(accountType)) {
+          return res.status(400).json({ error: 'Choose checking or savings for this deposit.' });
+        }
+        for (const img of [frontImage, backImage]) {
+          if (typeof img !== 'string' || !img.startsWith('data:image/')) {
+            return res.status(400).json({ error: 'Please capture both the front and back of the check.' });
+          }
+          if (img.length > MAX_IMAGE_CHARS) {
+            return res.status(400).json({ error: 'One of the check photos is too large. Please retake it.' });
+          }
+        }
+        if (frontImage === backImage) {
+          return res.status(400).json({ error: 'The front and back photos are identical. Please photograph both sides of the check.' });
+        }
+
+        const accountRows = await sql`
+          SELECT id, restriction_level FROM accounts
+          WHERE user_id = ${session.userId} AND account_type = ${accountType}
+          LIMIT 1
+        `;
+        if (accountRows.length === 0) {
+          return res.status(404).json({ error: 'That account could not be found.' });
+        }
+        if (accountRows[0].restriction_level === 'full') {
+          return restrictedResponse(res);
+        }
+
+        const pendingCount = await sql`
+          SELECT COUNT(*)::int AS count FROM check_deposits
+          WHERE user_id = ${session.userId} AND status = 'pending'
+        `;
+        if (pendingCount[0].count >= MAX_PENDING_CHECKS) {
+          return res.status(429).json({ error: `You already have ${MAX_PENDING_CHECKS} checks in review. Please wait for those to clear before depositing more.` });
+        }
+
+        // Duplicate presentment check: the same check image can't be deposited twice.
+        const frontHash = crypto.createHash('sha256').update(frontImage).digest('hex');
+        const duplicate = await sql`
+          SELECT id FROM check_deposits
+          WHERE user_id = ${session.userId} AND front_hash = ${frontHash} AND status IN ('pending', 'approved')
+          LIMIT 1
+        `;
+        if (duplicate.length > 0) {
+          return res.status(409).json({ error: 'This check appears to have already been deposited.' });
+        }
+
+        const inserted = await sql`
+          INSERT INTO check_deposits (user_id, account_id, account_type, amount, front_image, back_image, front_hash, status)
+          VALUES (${session.userId}, ${accountRows[0].id}, ${accountType}, ${depositAmount}, ${frontImage}, ${backImage}, ${frontHash}, 'pending')
+          RETURNING id, amount, account_type, status, created_at
+        `;
+
+        const accountLabel = accountType === 'checking' ? 'Primary Checking' : 'High-Yield Savings';
+        await createNotification(
+          session.userId,
+          'Check Deposit Received',
+          `We received your $${depositAmount.toFixed(2)} check for ${accountLabel}. It's being reviewed, and funds are usually available within 1 business day.`
+        );
+
+        const row = inserted[0];
+        return res.status(201).json({
+          success: true,
+          deposit: {
+            id: row.id,
+            amount: Number(row.amount),
+            accountType: row.account_type,
+            status: row.status,
+            createdAt: row.created_at,
+          },
+          message: 'Check submitted for review.',
+        });
+      } catch (err) {
+        console.error('Submit check deposit error:', err);
+        return res.status(500).json({ error: 'Failed to submit your check. Please try again.' });
+      }
+    }
+
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // ---------- Disputes ----------
@@ -2281,5 +2441,5 @@ App navigation cheatsheet:
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", "external-accounts", or "assistant".' });
+  return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", "external-accounts", "check-deposits", or "assistant".' });
 };

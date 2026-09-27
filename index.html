@@ -1715,7 +1715,7 @@ async function submitCreateRecurringTransfer(event) {
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Tenure Term</label>
                                 <select id="fdDurationInput" disabled class="w-full bg-gray-100 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none opacity-80 cursor-not-allowed">
-                                    <option value="2.0" selected>24 Months Continuous (7.25% APY)</option>
+                                    <option value="2.0" selected>Paid daily</option>
                                 </select>
                             </div>
                             <div class="p-2.5 bg-emerald-950/20 border border-emerald-500/20 rounded-lg flex items-center space-x-2">
@@ -1724,7 +1724,7 @@ async function submitCreateRecurringTransfer(event) {
                             </div>
                         </div>
                         <div id="fdResultPane" class="p-3 bg-slate-900 rounded-xl border border-slate-700 text-white font-mono text-[11px] space-y-1">
-                            <div class="flex justify-between"><span class="text-slate-400">Accumulated Profit (24M):</span><span id="fdInterestVal" class="text-emerald-400 font-bold">$0.00</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Accruing since last payout:</span><span id="fdInterestVal" class="text-emerald-400 font-bold">$0.00</span></div>
                             <div class="flex justify-between border-t border-slate-800 pt-1"><span class="text-slate-400">Total Vault Portfolio:</span><span id="fdTotalVal" class="text-white font-bold">$33,450.00</span></div>
                         </div>
                     </div>
@@ -1767,7 +1767,7 @@ async function submitCreateRecurringTransfer(event) {
                         <h1 class="text-md font-bold text-gray-900">Yield Compounding Analytics</h1>
                     </div>
                     <div class="bg-white p-4 rounded-xl border border-gray-200">
-                        <p class="text-xs text-gray-600">Quarterly expansion matrix constants are verified and locked at <strong class="text-emerald-600">7.25% APY</strong>.</p>
+                        <p class="text-xs text-gray-600">Your High-Yield Savings earns <strong class="liveApyRateLabel text-emerald-600">—</strong>, compounded daily and paid into your balance every day as an "Interest Earned" transaction.</p>
                     </div>
                 </section>
 
@@ -3082,10 +3082,10 @@ async function submitCreateRecurringTransfer(event) {
         // HIGH-YIELD SAVINGS / FIXED DEPOSIT ENGINE
         // Real APY rate and accrual start time now come from the backend
         // (accounts.apy_rate / accounts.interest_accrued_at) instead of being
-        // hardcoded. Actual interest is credited server-side in /api/me on
-        // every load; the client-side compounding below is only a live
-        // *estimate* of interest accruing since the last sync, purely for a
-        // ticking UX effect — it never overrides the real, persisted balance.
+        // hardcoded. Actual interest is credited server-side once a day by the
+        // cron job (lib/interest.js); the client-side compounding below is only
+        // a live *estimate* of interest accruing since the last payout, purely
+        // for a ticking UX effect — it never overrides the real, posted balance.
         let FD_APY_RATE = 0;
         const FD_TERM_YEARS = 2.0; // display-only, used for the "projected at maturity" breakdown
         let ACCOUNT_OPEN_DATE = new Date();
@@ -3129,7 +3129,12 @@ async function submitCreateRecurringTransfer(event) {
             if (fdInterestLabel) fdInterestLabel.innerText = currencyFormatter.format(fdAccumulatedProfit);
             if (fdTotalLabel) fdTotalLabel.innerText = currencyFormatter.format(savingsBalanceValue);
             if (hysDashboardLabel) hysDashboardLabel.innerText = currencyFormatter.format(savingsBalanceValue);
-            if (apyAvailLabel) apyAvailLabel.innerText = currencyFormatter.format(savingsBalanceValue);
+            if (apyAvailLabel) apyAvailLabel.innerText = currencyFormatter.format(fdWorkingPrincipal);
+
+            const apyPercentText = (FD_APY_RATE * 100).toFixed(2) + '% APY';
+            document.querySelectorAll('.liveApyRateLabel').forEach(el => { el.innerText = apyPercentText; });
+            const fdDurationOption = document.querySelector('#fdDurationInput option');
+            if (fdDurationOption) fdDurationOption.innerText = 'Paid daily (' + apyPercentText + ')';
         }
 
         function handleBirdIconClick() {
@@ -4517,7 +4522,8 @@ if (activeLoanBalanceEl) {
         }
 
         function setAPYWithdrawPercent(pct) {
-            const amount = (savingsBalanceValue * pct).toFixed(2);
+            // Use the posted balance: the live interest estimate isn't withdrawable until it's credited.
+            const amount = (Math.floor(fdWorkingPrincipal * pct * 100) / 100).toFixed(2);
             document.getElementById('apyWithdrawAmountInput').value = amount;
         }
 
@@ -4673,7 +4679,7 @@ if (activeLoanBalanceEl) {
                 alert("Enter a valid amount to withdraw.");
                 return;
             }
-            if (amount > savingsBalanceValue) {
+            if (amount > fdWorkingPrincipal + 0.0001) {
                 alert("Withdrawal exceeds your available High-Yield Savings balance.");
                 return;
             }
@@ -5097,17 +5103,11 @@ function renderLocationsList(userCoords) {
 }
 
 // ===== Mobile Check Deposit =====
-// Front/back photo capture reuses the same resize-then-store pattern as the
-// profile photo feature. There's no backend endpoint yet to actually credit
-// an account from a deposited check, so this records submissions as a
-// locally-tracked, per-account pending history (visible and persistent)
-// rather than silently faking a real balance change.
+// Photos are resized in the browser, then sent to the server with the amount.
+// The check waits in the admin review queue; funds are only credited when an
+// admin approves it (api/admin.js approveCheck), which also notifies the user.
 let checkDepositPhotos = { front: null, back: null };
-
-function checkDepositStorageKey() {
-    const userKey = (typeof currentUserEmail !== 'undefined' && currentUserEmail) ? currentUserEmail : 'guest';
-    return `ahb_check_deposits_${userKey}`;
-}
+let checkDepositSubmitting = false;
 
 function handleCheckPhotoSelected(event, side) {
     const file = event.target.files && event.target.files[0];
@@ -5122,14 +5122,16 @@ function handleCheckPhotoSelected(event, side) {
     reader.onload = function (e) {
         const img = new Image();
         img.onload = function () {
-            const MAX_W = 400;
+            const MAX_W = 900;
             const scale = Math.min(1, MAX_W / img.width);
             const canvas = document.createElement('canvas');
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            let dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+            // Keep each photo safely under the server's 400 KB limit.
+            if (dataUrl.length > 380 * 1024) dataUrl = canvas.toDataURL('image/jpeg', 0.5);
 
             checkDepositPhotos[side] = dataUrl;
             const btn = document.getElementById(side === 'front' ? 'checkFrontPreviewBtn' : 'checkBackPreviewBtn');
@@ -5146,19 +5148,31 @@ function handleCheckPhotoSelected(event, side) {
     reader.readAsDataURL(file);
 }
 
-function submitCheckDeposit() {
+function showCheckDepositError(message) {
+    const errorEl = document.getElementById('checkDepositError');
+    if (!errorEl) return;
+    errorEl.innerText = message;
+    errorEl.classList.remove('hidden');
+}
+
+async function submitCheckDeposit() {
+    if (checkDepositSubmitting) return;
     const errorEl = document.getElementById('checkDepositError');
     if (errorEl) errorEl.classList.add('hidden');
 
     if (!checkDepositPhotos.front || !checkDepositPhotos.back) {
-        if (errorEl) { errorEl.innerText = 'Please capture both the front and back of the check.'; errorEl.classList.remove('hidden'); }
+        showCheckDepositError('Please capture both the front and back of the check.');
         return;
     }
 
     const amountInput = document.getElementById('checkDepositAmount');
-    const amount = amountInput ? parseFloat(amountInput.value) : NaN;
+    const amount = amountInput ? Math.round(parseFloat(amountInput.value) * 100) / 100 : NaN;
     if (!amount || amount <= 0) {
-        if (errorEl) { errorEl.innerText = 'Please enter a valid deposit amount.'; errorEl.classList.remove('hidden'); }
+        showCheckDepositError('Please enter a valid deposit amount.');
+        return;
+    }
+    if (amount > 10000) {
+        showCheckDepositError('Mobile deposits are limited to $10,000 per check.');
         return;
     }
 
@@ -5166,37 +5180,29 @@ function submitCheckDeposit() {
     const accountType = accountSelect ? accountSelect.value : 'checking';
 
     const submitBtn = document.getElementById('checkDepositSubmitBtn');
+    checkDepositSubmitting = true;
     if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerText = 'Submitting...';
     }
 
-    setTimeout(() => {
-        const record = {
-            id: 'MD' + Date.now(),
-            amount: amount,
-            account: accountType,
-            submittedAt: new Date().toISOString(),
-            status: 'Pending Review'
-        };
-
-        let history = [];
-        try {
-            const raw = localStorage.getItem(checkDepositStorageKey());
-            if (raw) history = JSON.parse(raw);
-        } catch (err) {
-            console.error('Failed to read check deposit history:', err);
-        }
-        history.unshift(record);
-        try {
-            localStorage.setItem(checkDepositStorageKey(), JSON.stringify(history));
-        } catch (err) {
-            console.error('Failed to save check deposit:', err);
-        }
-
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerText = 'Submit for Deposit';
+    try {
+        const res = await fetch('/api/account-services', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                resource: 'check-deposits',
+                amount,
+                accountType,
+                frontImage: checkDepositPhotos.front,
+                backImage: checkDepositPhotos.back
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showCheckDepositError(data.error || 'We could not submit this check. Please try again.');
+            return;
         }
 
         const formEl = document.getElementById('checkDepositForm');
@@ -5207,9 +5213,17 @@ function submitCheckDeposit() {
         if (successEl) successEl.classList.remove('hidden');
 
         if (typeof fireConfetti === 'function') fireConfetti(35);
-
         renderCheckDepositHistory();
-    }, 1400);
+    } catch (err) {
+        console.error('Check deposit submit error:', err);
+        showCheckDepositError('Network error. Please check your connection and try again.');
+    } finally {
+        checkDepositSubmitting = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Submit for Deposit';
+        }
+    }
 }
 
 function resetCheckDepositForm() {
@@ -5232,33 +5246,54 @@ function resetCheckDepositForm() {
     if (successEl) successEl.classList.add('hidden');
 }
 
-function renderCheckDepositHistory() {
+function escapeCheckText(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+async function renderCheckDepositHistory() {
     const container = document.getElementById('checkDepositHistoryContainer');
     if (!container) return;
 
-    let history = [];
+    let deposits = [];
     try {
-        const raw = localStorage.getItem(checkDepositStorageKey());
-        if (raw) history = JSON.parse(raw);
+        const res = await fetch('/api/account-services?resource=check-deposits', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to load deposits');
+        const data = await res.json();
+        deposits = Array.isArray(data.deposits) ? data.deposits : [];
     } catch (err) {
         console.error('Failed to load check deposit history:', err);
+        container.innerHTML = '<p class="p-3.5 text-xs text-gray-400 text-center">Couldn\'t load your deposits right now.</p>';
+        return;
     }
 
-    if (history.length === 0) {
+    if (deposits.length === 0) {
         container.innerHTML = '<p class="p-3.5 text-xs text-gray-400 text-center">No mobile deposits yet.</p>';
         return;
     }
 
-    container.innerHTML = history.map(record => {
-        const dateStr = new Date(record.submittedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-        const accountLabel = record.account === 'checking' ? 'Primary Checking' : 'High-Yield Savings';
+    const statusStyles = {
+        pending: { label: 'In Review', cls: 'bg-amber-100 text-amber-700' },
+        approved: { label: 'Deposited', cls: 'bg-emerald-100 text-emerald-700' },
+        rejected: { label: 'Not Accepted', cls: 'bg-red-100 text-red-700' }
+    };
+
+    container.innerHTML = deposits.map(d => {
+        const dateStr = new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+        const accountLabel = d.accountType === 'checking' ? 'Primary Checking' : 'High-Yield Savings';
+        const style = statusStyles[d.status] || statusStyles.pending;
+        const reasonLine = d.status === 'rejected' && d.rejectReason
+            ? `<p class="text-[10px] text-red-500 mt-0.5">${escapeCheckText(d.rejectReason)}</p>`
+            : '';
         return `
-            <div class="flex items-center justify-between p-3.5">
-                <div>
-                    <p class="text-sm font-medium text-gray-900">$${record.amount.toFixed(2)}</p>
+            <div class="flex items-center justify-between p-3.5 gap-2">
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900">$${Number(d.amount).toFixed(2)}</p>
                     <p class="text-[10px] text-gray-400">${accountLabel} &middot; ${dateStr}</p>
+                    ${reasonLine}
                 </div>
-                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-100 text-amber-700">${record.status}</span>
+                <span class="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${style.cls}">${style.label}</span>
             </div>
         `;
     }).join('');
