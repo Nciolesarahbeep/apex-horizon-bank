@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#15263f"/>
+      <stop offset="1" stop-color="#060a13"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="512" cy="742" r="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="peak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a7f3d0"/>
+      <stop offset="0.45" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <clipPath id="aboveHorizon"><rect x="0" y="0" width="1024" height="742"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <g id="mark">
+  <circle cx="512" cy="742" r="138" fill="url(#sun)" clip-path="url(#aboveHorizon)"/>
+  <path d="M244 800 L512 300 L780 800" fill="none" stroke="url(#peak)" stroke-width="118" stroke-linecap="butt" stroke-linejoin="round" clip-path="url(#aboveHorizon)"/>
+  <rect x="176" y="722" width="672" height="40" rx="20" fill="#ffffff"/>
+  </g>
+</svg>

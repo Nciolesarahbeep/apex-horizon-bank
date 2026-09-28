@@ -2,21 +2,29 @@
 // Caches the app shell so it loads instantly and works offline.
 // Bump CACHE_NAME whenever you deploy changes so old caches get cleared.
 
-const CACHE_NAME = "apex-horizon-v3";
+const CACHE_NAME = "apex-horizon-v4";
 
 // Add any other static assets you want cached (css, logo images, etc.)
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.json",
+  "/icons/icon.svg",
   "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
+  "/icons/badge-96.png"
 ];
 
 // Install: pre-cache the app shell
+// Each file is cached on its own, so one missing file can't stop the worker
+// installing (cache.addAll fails the whole install if any request fails, and
+// without an installed worker there are no push notifications).
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(APP_SHELL.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });
@@ -81,7 +89,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    badge: "/icons/badge-96.png",
     tag: data.tag || undefined,
     timestamp: data.ts || Date.now(),
     data: { url: data.url || "/", id: data.id || null },
