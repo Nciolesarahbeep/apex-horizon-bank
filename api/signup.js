@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
 const { normalizeEmail } = require('../lib/auth');
 const { sendEmail } = require('../lib/email');
+const { SAVINGS_APY } = require('../lib/rates');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -95,7 +96,7 @@ module.exports = async function handler(req, res) {
       INSERT INTO accounts (user_id, account_type, balance, account_number, apy_rate, interest_accrued_at)
       VALUES
         (${user.id}, 'checking', 0.00, ${checkingAccountNumber}, 0, NULL),
-        (${user.id}, 'savings', 0.00, ${savingsAccountNumber}, 0.0450, NOW())
+        (${user.id}, 'savings', 0.00, ${savingsAccountNumber}, ${SAVINGS_APY}, NOW())
     `;
 
     await sendEmail({

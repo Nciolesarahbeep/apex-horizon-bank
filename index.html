@@ -1028,43 +1028,75 @@ async function submitCreateRecurringTransfer(event) {
 
         <div id="authScreen" class="hidden w-full flex-1 flex items-center justify-center bg-slate-900 px-4 py-8">
             <div class="w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                <div class="bg-slate-950 p-6 text-center border-b border-gray-800">
-                    <div class="inline-block bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2">
-                        <i class="fa-solid fa-building-columns text-2xl"></i>
+                <div id="ahbLoginHeader" class="bg-slate-950 p-6 text-center border-b border-gray-800">
+                    <div class="inline-flex items-center justify-center bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2 ahb-lock-pulse relative z-10">
+                        <i class="fa-solid fa-building-columns text-2xl" aria-hidden="true"></i>
                     </div>
-                    <h2 class="text-lg font-bold text-white tracking-tight">APEX HORIZON BANK</h2>
-                    <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5">Encrypted Mobile Access</p>
+                    <h2 class="text-lg font-bold text-white tracking-tight relative z-10">APEX HORIZON BANK</h2>
+                    <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5 relative z-10">Encrypted Mobile Access</p>
+                    <div class="flex items-center justify-center gap-3 mt-2 relative z-10">
+                        <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500" aria-hidden="true"></i>256-bit TLS</span>
+                        <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-fingerprint text-emerald-500" aria-hidden="true"></i>Biometric login</span>
+                    </div>
                 </div>
 
+                <section id="ahbLoginOffers" class="bg-slate-900 border-b border-slate-800 px-4 pt-3 pb-2" role="region" aria-roledescription="carousel" aria-label="Offers from Apex Horizon">
+                    <div id="ahbOfferSlides"></div>
+                    <div class="flex items-center justify-center gap-2 mt-1.5">
+                        <div id="ahbOfferDots" class="flex items-center gap-1"></div>
+                        <button type="button" id="ahbOfferPause" onclick="toggleOfferRotation()" aria-label="Pause offers" class="w-6 h-6 rounded-full text-slate-400 hover:text-white flex items-center justify-center"><i class="fa-solid fa-pause text-[8px]" aria-hidden="true"></i></button>
+                    </div>
+                </section>
+
                 <div id="loginFormWrapper">
-                    <form onsubmit="handleSignIn(event)" class="p-5 space-y-4">
-                        <div id="loginErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                            <input type="email" id="loginEmailInput" name="email" autocomplete="username" placeholder="Enter your email address" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
-
+                    <form id="loginForm" onsubmit="handleSignIn(event)" class="p-5 space-y-4">
+                        <div id="loginIntentBanner" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold rounded-lg pl-3 pr-1 py-1.5 items-center justify-between gap-2" role="status">
+                            <span id="loginIntentText" class="py-0.5"></span>
+                            <button type="button" onclick="clearLoginIntent()" aria-label="Cancel" class="w-7 h-7 rounded-md hover:bg-emerald-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                        </div>
+                        <div id="loginOfflineBanner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold rounded-lg px-3 py-2 items-center gap-2" role="status">
+                            <i class="fa-solid fa-wifi" aria-hidden="true"></i><span>You're offline. Connect to the internet to sign in.</span>
+                        </div>
+                        <div id="loginErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2" role="alert"></div>
+                        <div id="loginRememberedUser" class="hidden items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                            <span id="loginRememberedAvatar" class="w-10 h-10 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shrink-0" aria-hidden="true"></span>
+                            <div class="flex-1 min-w-0">
+                                <p id="loginRememberedGreeting" class="text-sm font-bold text-gray-900 truncate">Welcome back</p>
+                                <p id="loginRememberedEmail" class="text-[11px] text-gray-500 font-mono truncate"></p>
+                            </div>
+                            <button type="button" onclick="forgetRememberedUser()" class="text-[11px] font-semibold text-emerald-600 hover:underline shrink-0">Not you?</button>
+                        </div>
+                        <div id="loginEmailField">
+                            <label for="loginEmailInput" class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
+                            <input type="email" id="loginEmailInput" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="Enter your email address" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
-                            <input type="password" id="loginPasswordInput" name="password" autocomplete="current-password" placeholder="••••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                            <label for="loginPasswordInput" class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
+                            <div class="relative">
+                                <input type="password" id="loginPasswordInput" name="password" autocomplete="current-password" placeholder="Enter your password" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-3 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" required>
+                                <button type="button" id="loginPasswordToggle" onclick="toggleLoginPassword()" aria-label="Show password" aria-pressed="false" aria-controls="loginPasswordInput" class="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700"><i class="fa-solid fa-eye text-sm" aria-hidden="true"></i></button>
+                            </div>
+                            <p id="loginCapsLockWarning" class="hidden mt-1.5 text-[11px] font-semibold text-amber-700 items-center gap-1.5" role="status"><i class="fa-solid fa-circle-up" aria-hidden="true"></i>Caps Lock is on</p>
                         </div>
 
-                        <div class="flex items-center justify-end text-[11px] pt-1">
-<button type="button" onclick="openForgotPasswordModal()" class="text-emerald-600 font-semibold hover:underline">Forgot?</button>
+                        <div class="flex items-center justify-between gap-2 text-[11px] pt-1">
+                            <label class="flex items-center gap-2 text-gray-600 cursor-pointer select-none"><input type="checkbox" id="loginRememberMe" class="w-4 h-4 accent-emerald-600">Remember my email</label>
+                            <button type="button" onclick="openForgotPasswordModal()" class="text-emerald-600 font-semibold hover:underline">Forgot password?</button>
                         </div>
 
-                        <button type="submit" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
-                            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
-                            <span>Authenticate & Enter</span>
+                        <button type="submit" id="loginSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2 disabled:opacity-60">
+                            <i class="fa-solid fa-lock text-emerald-400" aria-hidden="true"></i>
+                            <span>Sign in</span>
+                        </button>
+                        <button type="button" onclick="handleFaceIdLogin()" class="w-full bg-white border-2 border-slate-900 hover:bg-slate-50 text-slate-900 font-bold py-2.5 rounded-lg transition flex items-center justify-center space-x-2 text-xs">
+                            <i class="fa-solid fa-face-viewfinder text-emerald-600" aria-hidden="true"></i>
+                            <span>Sign in with Face ID</span>
                         </button>
 
                         <p class="text-center text-[11px] text-gray-500 pt-1">
-                            New here? <button type="button" onclick="toggleAuthMode()" class="text-emerald-600 font-bold hover:underline">Create an account</button>
-                        </p><button type="button" onclick="handleFaceIdLogin()" class="w-full bg-white border-2 border-slate-900 hover:bg-slate-50 text-slate-900 font-bold py-2.5 rounded-lg transition flex items-center justify-center space-x-2 text-xs mt-1">
-    <i class="fa-solid fa-face-viewfinder text-emerald-600"></i>
-    <span>Sign in with Face ID</span>
-</button>
-
+                            New to Apex? <button type="button" onclick="toggleAuthMode()" class="text-emerald-600 font-bold hover:underline">Open an account</button>
+                        </p>
+                        <p class="flex items-start justify-center gap-1.5 text-[10px] text-gray-500 text-center leading-snug"><i class="fa-solid fa-shield-halved text-emerald-600 mt-0.5" aria-hidden="true"></i><span>We'll never ask for your password or a sign-in code by phone, text or email.</span></p>
                     </form>
                 </div>
 
@@ -1234,9 +1266,29 @@ async function submitCreateRecurringTransfer(event) {
                     </div>
                 </div>
 
-                <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 text-center">
-                    <p class="text-[10px] text-gray-500 leading-normal">Protected by multi-factor systems and real-time fraud monitoring.</p>
+                <div id="ahbLoginFooter" class="bg-gray-50 border-t border-gray-100">
+                    <div class="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-100">
+                        <button type="button" onclick="openLoginInfo('support')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100"><i class="fa-solid fa-headset text-slate-600 text-sm" aria-hidden="true"></i><span class="text-[9px] font-semibold text-slate-600">Support</span></button>
+                        <button type="button" onclick="openLoginInfo('locations')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100"><i class="fa-solid fa-location-dot text-slate-600 text-sm" aria-hidden="true"></i><span class="text-[9px] font-semibold text-slate-600">Locations</span></button>
+                        <button type="button" onclick="openLoginInfo('security')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100"><i class="fa-solid fa-shield-halved text-slate-600 text-sm" aria-hidden="true"></i><span class="text-[9px] font-semibold text-slate-600">Security</span></button>
+                    </div>
+                    <p class="text-[10px] text-gray-500 text-center px-4 py-3">&copy; <span id="ahbLoginYear">2026</span> Apex Horizon Bank &middot; Version 2026.9.28</p>
                 </div>
+            </div>
+        </div>
+
+        <div id="loginInfoSheet" class="hidden fixed inset-0 z-[9989] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeLoginInfo()">
+            <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl animate-fade-in max-h-[88vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="loginInfoTitle">
+                <div class="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
+                    <span id="loginInfoIcon" class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true"></span>
+                    <div class="flex-1 min-w-0">
+                        <p id="loginInfoTag" class="text-[10px] font-bold uppercase tracking-wider text-emerald-700"></p>
+                        <h3 id="loginInfoTitle" class="text-sm font-bold text-gray-900"></h3>
+                    </div>
+                    <button type="button" onclick="closeLoginInfo()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                </div>
+                <div id="loginInfoBody" class="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4"></div>
+                <div id="loginInfoActions" class="hidden shrink-0 border-t border-gray-100 p-4 space-y-2"></div>
             </div>
         </div>
 
@@ -6773,6 +6825,7 @@ fetchAndApplyProfilePhoto();
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                     submitBtn.innerHTML = originalContent;
                     showAuthError('loginErrorBanner', data.error || 'Login failed. Please try again.');
+                    if (typeof onSignInFailed === 'function') onSignInFailed(res.status, data);
                     return;
                 }
 
@@ -11012,6 +11065,7 @@ function openSimulatePurchaseModal() {
 </html>
 <!-- ===== Apex Horizon Bank — Realistic Login Screen Enhancement ===== -->
 <style>
+/* ===== Sign-in screen ===== */
 @keyframes ahbLoginSheen {
   0% { background-position: -150% 0; }
   100% { background-position: 250% 0; }
@@ -11032,138 +11086,687 @@ function openSimulatePurchaseModal() {
 }
 .ahb-lock-pulse { animation: ahbLockPulse 2.4s ease-in-out infinite; }
 
-#ahbLoginPromo { position: relative; overflow: hidden; }
-.ahb-promo-slide { display: none; animation: ahbPromoFadeIn 0.5s ease; }
-.ahb-promo-slide.ahb-active { display: flex; }
-@keyframes ahbPromoFadeIn {
-  from { opacity: 0; transform: translateX(8px); }
+.ahb-offer-slide { display: none; }
+.ahb-offer-slide.ahb-active { display: flex; animation: ahbOfferIn 0.45s ease; }
+@keyframes ahbOfferIn {
+  from { opacity: 0; transform: translateX(10px); }
   to { opacity: 1; transform: translateX(0); }
 }
-.ahb-promo-dot {
-  width: 5px; height: 5px; border-radius: 9999px;
-  background: rgba(255,255,255,0.25);
-  transition: all 0.3s ease;
-}
-.ahb-promo-dot.ahb-active { width: 14px; background: #10b981; }
+.ahb-offer-dot { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; }
+.ahb-offer-dot span { width: 5px; height: 5px; border-radius: 9999px; background: rgba(255,255,255,0.28); transition: all 0.3s ease; }
+.ahb-offer-dot[aria-current="true"] span { width: 14px; background: #10b981; }
 
 .ahb-quick-link { transition: transform 0.15s ease, background-color 0.15s ease; }
 .ahb-quick-link:active { transform: scale(0.94); }
+#loginInfoBody details > summary { list-style: none; cursor: pointer; }
+#loginInfoBody details > summary::-webkit-details-marker { display: none; }
+#loginInfoBody details[open] .ahb-chevron { transform: rotate(180deg); }
+.ahb-chevron { transition: transform 0.2s ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  #ahbLoginHeader::after, .ahb-lock-pulse, .ahb-promo-slide { animation: none !important; }
+  #ahbLoginHeader::after, .ahb-lock-pulse, .ahb-offer-slide.ahb-active { animation: none !important; }
 }
 </style>
 
 <script>
+// ===== Sign-in screen =====
+// - Offers: four ads for things Apex really offers, using the real savings rate.
+//   Each opens a details sheet with "Open an account" or "Sign in", and signing in
+//   from one takes you straight to that feature.
+// - Sign-in: show/hide password, Caps Lock warning, "Remember my email" (shown
+//   masked, with "Not you?"), a live countdown when sign-in is paused after too
+//   many attempts, and an offline notice.
+// - Support, Locations (open now, by distance) and Security sheets.
+// Rates must match lib/rates.js (a test checks AHB_PUBLIC_RATES against it).
+const AHB_PUBLIC_RATES = { savingsApy: 0.045 };
+
+const loginUi = { offer: 0, timer: null, paused: false, userPaused: false, intent: null, pendingRemember: null, lockTimer: null, lockUntil: 0, located: null, locFilter: 'all', touchX: null };
+const REMEMBER_KEY = 'ahbRememberedUser';
+
+function loginEl(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+}
+function loginIcon(icon, extra) {
+    const i = loginEl('i', `fa-solid ${icon}${extra ? ' ' + extra : ''}`);
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+}
+function loginShow(el, display) {
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.classList.add(display || 'flex');
+}
+function loginHide(el, display) {
+    if (!el) return;
+    el.classList.add('hidden');
+    el.classList.remove(display || 'flex');
+}
+function loginMoney(n, digits) {
+    const d = digits === undefined ? 2 : digits;
+    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function apyText() {
+    return `${(AHB_PUBLIC_RATES.savingsApy * 100).toFixed(2)}%`;
+}
+function todayText() {
+    return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+const L_TONES = {
+    emerald: { chip: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-400' },
+    blue: { chip: 'bg-sky-100 text-sky-700', text: 'text-sky-400' },
+    amber: { chip: 'bg-amber-100 text-amber-700', text: 'text-amber-400' },
+    purple: { chip: 'bg-purple-100 text-purple-700', text: 'text-purple-400' },
+    slate: { chip: 'bg-slate-100 text-slate-700', text: 'text-slate-400' }
+};
+
+// ----- Offers -----
+const LOGIN_OFFERS = [
+    {
+        id: 'savings', icon: 'fa-piggy-bank', tone: 'emerald', tag: 'High-Yield Savings',
+        title: () => `Earn ${apyText()} APY, paid daily`,
+        intro: () => `Your Apex savings account earns ${apyText()} APY. Interest is worked out on your balance every day and paid in daily, so it starts earning interest of its own straight away.`,
+        facts: () => [`${apyText()} Annual Percentage Yield`, 'Interest paid into your balance every day', 'Comes with every Apex account, no minimum to start', 'Move money to checking whenever you like'],
+        example: () => `Keep $10,000 saved for a year and you'd earn about ${loginMoney(10000 * AHB_PUBLIC_RATES.savingsApy, 0)} in interest.`,
+        fine: () => `APY accurate as of ${todayText()}. The rate may change after the account is opened.`,
+        view: 'savings-summary', signIn: 'Sign in to see your savings', place: 'your savings'
+    },
+    {
+        id: 'goals', icon: 'fa-bullseye', tone: 'blue', tag: 'Savings goals',
+        title: () => 'Round up purchases into your goals',
+        intro: () => "Name what you're saving for, set a target, and let the spare change from your card purchases do some of the work.",
+        facts: () => ['Up to 10 goals, each with a target and a date', 'Round-ups move your spare change into a goal once a day', "See how much to put away each week to hit your date", 'Take money out any time'],
+        example: () => 'A $4.35 coffee rounds up to $5.00, so 65¢ goes into your goal.',
+        view: 'goals', signIn: 'Sign in to start a goal', place: 'savings goals'
+    },
+    {
+        id: 'budgets', icon: 'fa-chart-simple', tone: 'amber', tag: 'Budgets',
+        title: () => 'Know before you overspend',
+        intro: () => "Set a monthly limit for the categories you care about, and we'll keep count as you spend.",
+        facts: () => ['Limits for groceries, dining, shopping and more', 'Alerts at 80% and again at 100% of each limit', 'A safe-to-spend amount per day for the rest of the month', 'Moving money between your own accounts never counts'],
+        view: 'budgets', signIn: 'Sign in to set a budget', place: 'budgets'
+    },
+    {
+        id: 'transfers', icon: 'fa-paper-plane', tone: 'purple', tag: 'Instant transfers',
+        title: () => 'Send money to anyone at Apex, instantly',
+        intro: () => 'Pay a friend back or split a bill with just their email address or phone number.',
+        facts: () => ['Arrives in seconds, any day of the week', 'No fee to send to another Apex customer', 'Request money, and they can pay it in a tap', 'Large payments are confirmed with Face ID or your passcode'],
+        view: 'send-p2p', signIn: 'Sign in to send money', place: 'sending money'
+    }
+];
+
+function renderOffers() {
+    const slides = document.getElementById('ahbOfferSlides');
+    const dots = document.getElementById('ahbOfferDots');
+    if (!slides || !dots) return;
+    slides.replaceChildren();
+    dots.replaceChildren();
+    LOGIN_OFFERS.forEach((o, i) => {
+        const tone = L_TONES[o.tone];
+        const b = loginEl('button', `ahb-offer-slide w-full items-center gap-2.5 text-left rounded-lg py-0.5 ${i === loginUi.offer ? 'ahb-active' : ''}`);
+        b.type = 'button';
+        b.dataset.offer = o.id;
+        b.setAttribute('aria-roledescription', 'slide');
+        b.setAttribute('aria-label', `${i + 1} of ${LOGIN_OFFERS.length}: ${o.tag}. ${o.title()}. Tap for details`);
+        if (i !== loginUi.offer) b.setAttribute('aria-hidden', 'true');
+        const icon = loginEl('span', 'w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center shrink-0');
+        icon.appendChild(loginIcon(o.icon, `${tone.text} text-xs`));
+        const text = loginEl('span', 'flex-1 min-w-0');
+        text.append(loginEl('span', `block text-[8px] font-bold uppercase tracking-wider ${tone.text}`, o.tag), loginEl('span', 'block text-[12px] font-semibold text-white leading-snug', o.title()));
+        b.append(icon, text, loginIcon('fa-chevron-right', 'text-slate-500 text-[10px] shrink-0'));
+        b.onclick = () => openLoginOffer(o.id);
+        slides.appendChild(b);
+        const d = loginEl('button', 'ahb-offer-dot');
+        d.type = 'button';
+        d.setAttribute('aria-label', `Show offer ${i + 1}: ${o.tag}`);
+        d.setAttribute('aria-current', i === loginUi.offer ? 'true' : 'false');
+        d.appendChild(loginEl('span'));
+        d.onclick = () => { showOffer(i); restartOfferTimer(); };
+        dots.appendChild(d);
+    });
+}
+
+function showOffer(i) {
+    const n = LOGIN_OFFERS.length;
+    loginUi.offer = ((i % n) + n) % n;
+    document.querySelectorAll('#ahbOfferSlides .ahb-offer-slide').forEach((s, k) => {
+        const on = k === loginUi.offer;
+        s.classList.toggle('ahb-active', on);
+        if (on) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true');
+    });
+    document.querySelectorAll('#ahbOfferDots .ahb-offer-dot').forEach((d, k) => d.setAttribute('aria-current', k === loginUi.offer ? 'true' : 'false'));
+}
+
+function offerRotationAllowed() {
+    const auth = document.getElementById('authScreen');
+    const reduce = document.documentElement.classList.contains('ahb-reduce-motion')
+        || (!document.documentElement.classList.contains('ahb-allow-motion') && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    return !loginUi.userPaused && !loginUi.paused && !reduce && !document.hidden && auth && !auth.classList.contains('hidden') && !loginInfoOpen();
+}
+
+function restartOfferTimer() {
+    if (loginUi.timer) clearInterval(loginUi.timer);
+    // Each offer shows for 6 seconds; rotation stops while you interact or read one.
+    loginUi.timer = setInterval(() => { if (offerRotationAllowed()) showOffer(loginUi.offer + 1); }, 6000);
+}
+
+function toggleOfferRotation() {
+    loginUi.userPaused = !loginUi.userPaused;
+    const b = document.getElementById('ahbOfferPause');
+    if (b) {
+        b.setAttribute('aria-label', loginUi.userPaused ? 'Play offers' : 'Pause offers');
+        b.replaceChildren(loginIcon(loginUi.userPaused ? 'fa-play' : 'fa-pause', 'text-[8px]'));
+    }
+}
+
+function openLoginOffer(id) {
+    const o = LOGIN_OFFERS.find(x => x.id === id);
+    if (!o) return;
+    const tone = L_TONES[o.tone];
+    setLoginInfoHeader(o.icon, tone.chip, o.tag, o.title());
+    const body = document.getElementById('loginInfoBody');
+    body.replaceChildren(loginEl('p', 'text-[13px] text-gray-700 leading-relaxed', o.intro()));
+    const ul = loginEl('ul', 'space-y-2');
+    o.facts().forEach(f => {
+        const li = loginEl('li', 'flex items-start gap-2.5 text-[13px] text-gray-800');
+        li.append(loginIcon('fa-circle-check', 'text-emerald-600 mt-0.5'), loginEl('span', '', f));
+        ul.appendChild(li);
+    });
+    body.appendChild(ul);
+    if (o.example) {
+        const ex = loginEl('div', 'flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-xl p-3');
+        ex.append(loginIcon('fa-calculator', 'text-emerald-700 text-xs mt-0.5'), loginEl('p', 'text-[12px] text-emerald-900', o.example()));
+        body.appendChild(ex);
+    }
+    if (o.fine) body.appendChild(loginEl('p', 'text-[10px] text-gray-500 leading-snug', o.fine()));
+    setLoginInfoActions([
+        { label: 'Open an account', primary: true, onClick: () => { closeLoginInfo(); showSignupForm(); } },
+        { label: `Already with Apex? ${o.signIn}`, onClick: () => { closeLoginInfo(); setLoginIntent(o.view, o.place); } }
+    ]);
+    openLoginSheet();
+}
+
+function showSignupForm() {
+    const signup = document.getElementById('signupFormWrapper');
+    if (signup && signup.classList.contains('hidden') && typeof toggleAuthMode === 'function') toggleAuthMode();
+}
+
+// ----- Sign in, then go straight to what the offer was about -----
+function setLoginIntent(view, place) {
+    loginUi.intent = { view, place };
+    const banner = document.getElementById('loginIntentBanner');
+    document.getElementById('loginIntentText').textContent = `Sign in to continue to ${place}.`;
+    loginShow(banner);
+    const signup = document.getElementById('signupFormWrapper');
+    if (signup && !signup.classList.contains('hidden') && typeof toggleAuthMode === 'function') toggleAuthMode();
+    const email = document.getElementById('loginEmailInput');
+    const target = readRemembered() ? document.getElementById('loginPasswordInput') : email;
+    if (target) setTimeout(() => target.focus(), 50);
+}
+function clearLoginIntent() {
+    loginUi.intent = null;
+    loginHide(document.getElementById('loginIntentBanner'));
+}
+
+// ----- Remember my email -----
+function readRemembered() {
+    try {
+        const v = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null');
+        return v && typeof v.email === 'string' && /@/.test(v.email) ? v : null;
+    } catch (e) { return null; }
+}
+function maskEmail(email) {
+    const [user, domain] = String(email).split('@');
+    if (!domain) return email;
+    return `${user.slice(0, 1)}${'•'.repeat(Math.max(3, Math.min(6, user.length - 1)))}@${domain}`;
+}
+function timeGreeting() {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+function paintRememberedUser() {
+    const r = readRemembered();
+    const box = document.getElementById('loginRememberedUser');
+    const field = document.getElementById('loginEmailField');
+    const input = document.getElementById('loginEmailInput');
+    const check = document.getElementById('loginRememberMe');
+    if (!box || !field || !input) return;
+    if (r) {
+        input.value = r.email;
+        document.getElementById('loginRememberedGreeting').textContent = r.firstName ? `${timeGreeting()}, ${r.firstName}` : 'Welcome back';
+        document.getElementById('loginRememberedEmail').textContent = maskEmail(r.email);
+        document.getElementById('loginRememberedAvatar').textContent = (r.firstName || r.email).trim().charAt(0).toUpperCase();
+        loginShow(box);
+        field.classList.add('hidden');
+        if (check) check.checked = true;
+    } else {
+        loginHide(box);
+        field.classList.remove('hidden');
+    }
+}
+function forgetRememberedUser() {
+    try { localStorage.removeItem(REMEMBER_KEY); } catch (e) {}
+    const input = document.getElementById('loginEmailInput');
+    if (input) input.value = '';
+    const check = document.getElementById('loginRememberMe');
+    if (check) check.checked = false;
+    paintRememberedUser();
+    if (input) input.focus();
+}
+// Note the choice when the form is sent; save it once sign-in succeeds.
+document.addEventListener('submit', (e) => {
+    if (!e.target || e.target.id !== 'loginForm') return;
+    const check = document.getElementById('loginRememberMe');
+    loginUi.pendingRemember = { remember: !!(check && check.checked), email: (document.getElementById('loginEmailInput').value || '').trim() };
+    // Never leave the password showing after pressing Sign in.
+    const pw = document.getElementById('loginPasswordInput');
+    if (pw && pw.type === 'text') toggleLoginPassword();
+}, true);
+
+// ----- Password field: show/hide and Caps Lock -----
+function toggleLoginPassword() {
+    const pw = document.getElementById('loginPasswordInput');
+    const btn = document.getElementById('loginPasswordToggle');
+    if (!pw || !btn) return;
+    const show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btn.replaceChildren(loginIcon(show ? 'fa-eye-slash' : 'fa-eye', 'text-sm'));
+}
+function paintCapsLock(e) {
+    const warn = document.getElementById('loginCapsLockWarning');
+    if (!warn || !e || typeof e.getModifierState !== 'function') return;
+    if (e.getModifierState('CapsLock')) loginShow(warn); else loginHide(warn);
+}
+
+// ----- Too many attempts: count down until sign-in opens again -----
+function onSignInFailed(status, data) {
+    const pw = document.getElementById('loginPasswordInput');
+    if (pw) pw.value = '';
+    if (status === 429 && data && Number(data.retryAfterSeconds) > 0) startLoginLockout(Number(data.retryAfterSeconds));
+    else if (pw) pw.focus();
+}
+function startLoginLockout(seconds) {
+    loginUi.lockUntil = Date.now() + seconds * 1000;
+    try { sessionStorage.setItem('ahbLoginLockedUntil', String(loginUi.lockUntil)); } catch (e) {}
+    tickLoginLockout();
+}
+function tickLoginLockout() {
+    if (loginUi.lockTimer) clearInterval(loginUi.lockTimer);
+    const banner = document.getElementById('loginErrorBanner');
+    const paint = () => {
+        const left = Math.max(0, Math.ceil((loginUi.lockUntil - Date.now()) / 1000));
+        if (left <= 0) {
+            clearInterval(loginUi.lockTimer);
+            loginUi.lockTimer = null;
+            loginUi.lockUntil = 0;
+            try { sessionStorage.removeItem('ahbLoginLockedUntil'); } catch (e) {}
+            if (banner) { banner.textContent = 'You can try signing in again now.'; banner.className = 'bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium rounded-lg px-3 py-2'; }
+            paintLoginAvailability();
+            return;
+        }
+        const m = Math.floor(left / 60);
+        const s = String(left % 60).padStart(2, '0');
+        if (banner) {
+            banner.textContent = `Too many attempts. For your security, sign-in is paused. Try again in ${m}:${s}, or reset your password.`;
+            banner.className = 'bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2';
+        }
+        paintLoginAvailability();
+    };
+    paint();
+    loginUi.lockTimer = setInterval(paint, 1000);
+}
+
+// ----- Offline -----
+function paintLoginAvailability() {
+    const offline = navigator.onLine === false;
+    const banner = document.getElementById('loginOfflineBanner');
+    if (offline) loginShow(banner); else loginHide(banner);
+    const btn = document.getElementById('loginSubmitBtn');
+    if (btn && !btn.querySelector('.animate-spin')) btn.disabled = offline || loginUi.lockUntil > Date.now();
+}
+window.addEventListener('online', paintLoginAvailability);
+window.addEventListener('offline', paintLoginAvailability);
+
+// ----- The info sheet (offers, Support, Locations, Security) -----
+function loginInfoOpen() {
+    const s = document.getElementById('loginInfoSheet');
+    return !!s && !s.classList.contains('hidden');
+}
+function setLoginInfoHeader(icon, chipClass, tag, title) {
+    const i = document.getElementById('loginInfoIcon');
+    i.className = `w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${chipClass}`;
+    i.replaceChildren(loginIcon(icon));
+    document.getElementById('loginInfoTag').textContent = tag;
+    document.getElementById('loginInfoTitle').textContent = title;
+}
+function setLoginInfoActions(actions) {
+    const box = document.getElementById('loginInfoActions');
+    box.replaceChildren();
+    if (!actions || !actions.length) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    actions.forEach(a => {
+        const b = loginEl('button', a.primary
+            ? 'w-full bg-slate-900 hover:bg-emerald-600 text-white text-sm font-bold py-3 rounded-xl transition'
+            : 'w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 text-[13px] font-semibold py-2.5 rounded-xl transition', a.label);
+        b.type = 'button';
+        b.onclick = a.onClick;
+        box.appendChild(b);
+    });
+}
+function openLoginSheet() {
+    const sheet = document.getElementById('loginInfoSheet');
+    document.getElementById('loginInfoBody').scrollTop = 0;
+    sheet.classList.remove('hidden');
+    sheet.classList.add('flex');
+}
+function closeLoginInfo() {
+    const sheet = document.getElementById('loginInfoSheet');
+    if (!sheet) return;
+    sheet.classList.add('hidden');
+    sheet.classList.remove('flex');
+}
+function openLoginInfo(kind) {
+    if (kind === 'support') renderLoginSupport();
+    else if (kind === 'locations') renderLoginLocations();
+    else if (kind === 'security') renderLoginSecurity();
+    else return;
+    openLoginSheet();
+}
+
+function helpItem(question, answer, action) {
+    const d = loginEl('details', 'group bg-gray-50 border border-gray-200 rounded-xl');
+    const sum = loginEl('summary', 'flex items-center justify-between gap-3 px-3.5 py-3 text-[13px] font-semibold text-gray-900');
+    sum.append(loginEl('span', '', question), loginIcon('fa-chevron-down', 'ahb-chevron text-gray-400 text-[10px] shrink-0'));
+    const body = loginEl('div', 'px-3.5 pb-3.5 space-y-2.5');
+    body.appendChild(loginEl('p', 'text-[12px] text-gray-600 leading-relaxed', answer));
+    if (action) {
+        const b = loginEl('button', 'text-[12px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition', action.label);
+        b.type = 'button';
+        b.onclick = action.onClick;
+        body.appendChild(b);
+    }
+    d.append(sum, body);
+    return d;
+}
+const resetPasswordAction = { label: 'Reset my password', onClick: () => { closeLoginInfo(); openForgotPasswordModal(); } };
+
+function renderLoginSupport() {
+    setLoginInfoHeader('fa-headset', L_TONES.slate.chip, 'Support', 'Help signing in');
+    const body = document.getElementById('loginInfoBody');
+    body.replaceChildren(loginEl('p', 'text-[12px] text-gray-600', 'Answers to the most common sign-in problems. Tap a question to open it.'));
+    [
+        helpItem('I forgot my password', "Reset it with the email on your account. We'll send you a code to confirm it's you, then you can choose a new password.", resetPasswordAction),
+        helpItem("I don't remember which email I used", 'Look for emails from Apex Horizon in your inbox. The address they were sent to is the one you sign in with.'),
+        helpItem('It says sign-in is paused', "After 5 wrong passwords in 15 minutes, we pause sign-in for your security. Wait for the timer to finish, or reset your password to get back in now.", resetPasswordAction),
+        helpItem("I'm being asked for a code", "When you sign in on a phone or browser we haven't seen before, we email you a code. Enter it to finish signing in. Didn't try to sign in? Someone may have your password, so reset it now.", resetPasswordAction),
+        helpItem("Face ID isn't working", 'Face ID works on the device where you turned it on. Sign in with your password, then go to More, Settings, Face ID to set it up again on this device.'),
+        helpItem('My card is lost or stolen', "Sign in and open Help, then Card lost or stolen. It blocks your card straight away and gives you a new card number. Can't sign in? Reset your password first.", resetPasswordAction),
+        helpItem('My new account is still being reviewed', "Most applications are reviewed within 24 hours. We'll email you as soon as a decision is made, and you can sign in once it's approved."),
+        helpItem("I'd like to open an account", 'It takes a few minutes. Have your ID and the last 4 digits of your Social Security number ready.', { label: 'Open an account', onClick: () => { closeLoginInfo(); showSignupForm(); } })
+    ].forEach(x => body.appendChild(x));
+    body.appendChild(loginEl('p', 'text-[11px] text-gray-500 text-center pt-1', 'Once you’re signed in, you can chat with Apex Assistant or message our team from Help.'));
+    setLoginInfoActions(null);
+}
+
+// ----- Locations: open now, closing time, and distance -----
+const DAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function parseBranchHours(text) {
+    if (/24\s*hours/i.test(text)) return 'always';
+    const days = {};
+    const toMin = (h, m, ap) => ((Number(h) % 12) + (ap.toLowerCase() === 'pm' ? 12 : 0)) * 60 + Number(m || 0);
+    String(text).split(/,\s*/).forEach(seg => {
+        const m = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?:\s*[–-]\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun))?\s+(\d{1,2})(?::(\d{2}))?(am|pm)\s*[–-]\s*(\d{1,2})(?::(\d{2}))?(am|pm)$/i.exec(seg.trim());
+        if (!m) return;
+        const from = DAY_INDEX[m[1]];
+        const to = m[2] ? DAY_INDEX[m[2]] : from;
+        const span = [toMin(m[3], m[4], m[5]), toMin(m[6], m[7], m[8])];
+        for (let d = from; ; d = (d + 1) % 7) { days[d] = span; if (d === to) break; }
+    });
+    return days;
+}
+function branchClock(nowMs) {
+    // Branch hours are local to Austin.
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(nowMs || Date.now()));
+    const get = (t) => (parts.find(p => p.type === t) || {}).value;
+    return { day: DAY_INDEX[get('weekday')], min: (Number(get('hour')) % 24) * 60 + Number(get('minute')) };
+}
+function clockText(min) {
+    const h = Math.floor(min / 60) % 24;
+    const m = min % 60;
+    return `${h % 12 || 12}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'am' : 'pm'}`;
+}
+function branchStatus(hours, nowMs) {
+    const s = parseBranchHours(hours);
+    if (s === 'always') return { open: true, text: 'Open 24 hours' };
+    const { day, min } = branchClock(nowMs);
+    const today = s[day];
+    if (today && min >= today[0] && min < today[1]) {
+        return { open: true, text: today[1] - min <= 60 ? `Closing soon · ${clockText(today[1])}` : `Open now · Closes ${clockText(today[1])}` };
+    }
+    for (let i = 0; i < 8; i++) {
+        const d = (day + i) % 7;
+        const t = s[d];
+        if (!t) continue;
+        if (i === 0 && min < t[0]) return { open: false, text: `Closed · Opens ${clockText(t[0])}` };
+        if (i > 0) return { open: false, text: `Closed · Opens ${i === 1 ? 'tomorrow' : DAY_NAMES[d]} ${clockText(t[0])}` };
+    }
+    return { open: false, text: 'Closed' };
+}
+function renderLoginLocations() {
+    setLoginInfoHeader('fa-location-dot', L_TONES.emerald.chip, 'Locations', 'Branches and ATMs');
+    const body = document.getElementById('loginInfoBody');
+    body.replaceChildren();
+    const top = loginEl('div', 'flex items-center gap-2');
+    const filters = loginEl('div', 'flex-1 grid grid-cols-3 gap-1 bg-gray-100 rounded-lg p-1');
+    filters.setAttribute('role', 'group');
+    filters.setAttribute('aria-label', 'Show');
+    [['all', 'All'], ['Branch', 'Branches'], ['ATM', 'ATMs']].forEach(([v, label]) => {
+        const on = loginUi.locFilter === v;
+        const b = loginEl('button', `text-[11px] font-semibold py-1.5 rounded-md transition ${on ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`, label);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.onclick = () => { loginUi.locFilter = v; renderLoginLocations(); };
+        filters.appendChild(b);
+    });
+    const near = loginEl('button', 'shrink-0 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-lg transition flex items-center gap-1.5');
+    near.type = 'button';
+    near.append(loginIcon('fa-location-crosshairs'), document.createTextNode(loginUi.located ? 'Nearest first' : 'Near me'));
+    near.onclick = () => locateForBranches(near);
+    top.append(filters, near);
+    body.appendChild(top);
+    const status = loginEl('p', 'text-[11px] text-gray-500');
+    status.id = 'loginLocStatus';
+    status.textContent = loginUi.located ? 'Sorted by distance from you. Hours are Austin (Central) time.' : 'Hours are Austin (Central) time.';
+    body.appendChild(status);
+
+    let list = (typeof AHB_BRANCH_LOCATIONS !== 'undefined' ? AHB_BRANCH_LOCATIONS : []).map(l => ({ ...l }));
+    if (loginUi.locFilter !== 'all') list = list.filter(l => l.type === loginUi.locFilter);
+    if (loginUi.located && typeof haversineMiles === 'function') {
+        list.forEach(l => { l.distance = haversineMiles(loginUi.located.lat, loginUi.located.lng, l.lat, l.lng); });
+        list.sort((a, b) => a.distance - b.distance);
+    }
+    const box = loginEl('div', 'space-y-2.5');
+    list.forEach(l => {
+        const st = branchStatus(l.hours);
+        const card = loginEl('div', 'bg-white border border-gray-200 rounded-xl p-3.5');
+        const row = loginEl('div', 'flex items-start gap-3');
+        const icon = loginEl('span', `w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${l.type === 'Branch' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`);
+        icon.appendChild(loginIcon(l.type === 'Branch' ? 'fa-building-columns' : 'fa-money-bill-transfer', 'text-sm'));
+        const mid = loginEl('div', 'flex-1 min-w-0');
+        mid.append(
+            loginEl('p', 'text-[13px] font-bold text-gray-900', l.name.replace(/^Apex Horizon\s+—\s+/, '')),
+            loginEl('p', 'text-[11px] text-gray-500', l.address),
+            loginEl('p', `text-[11px] font-semibold mt-0.5 ${st.open ? 'text-emerald-700' : 'text-gray-500'}`, st.text),
+            loginEl('p', 'text-[10px] text-gray-400', l.hours)
+        );
+        row.append(icon, mid);
+        if (l.distance !== undefined) row.appendChild(loginEl('span', 'text-[11px] font-mono font-bold text-emerald-700 shrink-0', `${l.distance.toFixed(1)} mi`));
+        const dir = loginEl('a', 'mt-2.5 flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold py-2 rounded-lg transition');
+        dir.href = `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`;
+        dir.target = '_blank';
+        dir.rel = 'noopener';
+        dir.append(loginIcon('fa-diamond-turn-right'), document.createTextNode('Directions'));
+        card.append(row, dir);
+        box.appendChild(card);
+    });
+    body.appendChild(box);
+    setLoginInfoActions(null);
+}
+function locateForBranches(btn) {
+    const status = document.getElementById('loginLocStatus');
+    if (!navigator.geolocation) { if (status) status.textContent = "Your browser can't share your location, so here are all our locations."; return; }
+    if (status) status.textContent = 'Finding locations near you…';
+    btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+        (pos) => { loginUi.located = { lat: pos.coords.latitude, lng: pos.coords.longitude }; renderLoginLocations(); },
+        () => { btn.disabled = false; if (status) status.textContent = "We couldn't get your location. Check that location access is allowed, or browse the list below."; },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+}
+
+// ----- Security: what protects the account, and how to spot a scam -----
+function renderLoginSecurity() {
+    setLoginInfoHeader('fa-shield-halved', L_TONES.emerald.chip, 'Security', 'How we keep your money safe');
+    const body = document.getElementById('loginInfoBody');
+    body.replaceChildren();
+    const section = (title, items) => {
+        const wrap = loginEl('section', 'space-y-2');
+        wrap.appendChild(loginEl('h4', 'text-[11px] font-bold uppercase tracking-wide text-gray-500', title));
+        const ul = loginEl('ul', 'bg-gray-50 border border-gray-200 rounded-xl divide-y divide-gray-200');
+        items.forEach(([icon, text]) => {
+            const li = loginEl('li', 'flex items-start gap-3 p-3');
+            li.append(loginIcon(icon, 'text-emerald-600 text-sm w-4 text-center mt-0.5'), loginEl('span', 'text-[12px] text-gray-700 leading-snug', text));
+            ul.appendChild(li);
+        });
+        wrap.appendChild(ul);
+        return wrap;
+    };
+    body.appendChild(section('How we protect you', [
+        ['fa-lock', "Your connection to Apex is encrypted, and we never store your password itself, only a scrambled version that can't be turned back into it."],
+        ['fa-envelope-circle-check', "Signing in on a phone or browser we haven't seen before needs a code we email you."],
+        ['fa-hand', 'After 5 wrong passwords, sign-in pauses for 15 minutes.'],
+        ['fa-face-smile', 'Sign in with Face ID on devices that support it.'],
+        ['fa-circle-check', 'Large payments need Face ID or your passcode before they go.'],
+        ['fa-hourglass-half', "Auto-lock signs you out when the app isn't being used. You choose after how long."],
+        ['fa-bell', 'Alerts for large payments and low balances, and whenever a new device signs in.'],
+        ['fa-mobile-screen', 'See every device signed in to your account and sign any of them out.'],
+        ['fa-snowflake', 'Freeze your card in one tap if it goes missing.']
+    ]));
+    body.appendChild(section('Protect yourself', [
+        ['fa-user-secret', "We'll never ask for your password, passcode, PIN or a sign-in code, by phone, text, email or in person. Anyone who does isn't us."],
+        ['fa-globe', `Only sign in at ${location.host}. Check the address bar before you type your password.`],
+        ['fa-display', "Don't share your screen or install apps someone sent you while you're signed in."],
+        ['fa-triangle-exclamation', 'Something not right? Sign in, freeze your card from Help, then change your password and check Linked Devices.']
+    ]));
+    setLoginInfoActions(null);
+}
+
+// ----- Wiring -----
+function initLoginScreen() {
+    renderOffers();
+    restartOfferTimer();
+    paintRememberedUser();
+    const year = document.getElementById('ahbLoginYear');
+    if (year) year.textContent = String(new Date().getFullYear());
+    try {
+        const until = Number(sessionStorage.getItem('ahbLoginLockedUntil') || 0);
+        if (until > Date.now()) { loginUi.lockUntil = until; tickLoginLockout(); }
+    } catch (e) {}
+    paintLoginAvailability();
+    const pw = document.getElementById('loginPasswordInput');
+    if (pw) {
+        pw.addEventListener('keydown', paintCapsLock);
+        pw.addEventListener('keyup', paintCapsLock);
+        pw.addEventListener('blur', () => loginHide(document.getElementById('loginCapsLockWarning')));
+    }
+    const slides = document.getElementById('ahbLoginOffers');
+    if (slides) {
+        // Pause while a finger or pointer is on the offers; swipe to move between them.
+        slides.addEventListener('pointerenter', () => { loginUi.paused = true; });
+        slides.addEventListener('pointerleave', () => { loginUi.paused = false; });
+        slides.addEventListener('focusin', () => { loginUi.paused = true; });
+        slides.addEventListener('focusout', () => { loginUi.paused = false; });
+        slides.addEventListener('touchstart', (e) => { loginUi.touchX = e.touches[0].clientX; loginUi.paused = true; }, { passive: true });
+        slides.addEventListener('touchend', (e) => {
+            loginUi.paused = false;
+            if (loginUi.touchX === null) return;
+            const dx = e.changedTouches[0].clientX - loginUi.touchX;
+            loginUi.touchX = null;
+            if (Math.abs(dx) > 40) { showOffer(loginUi.offer + (dx < 0 ? 1 : -1)); restartOfferTimer(); }
+        }, { passive: true });
+    }
+}
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && loginInfoOpen()) closeLoginInfo(); });
+
+(function hookLoginIntoApp() {
+    // After a successful sign-in: remember (or forget) the email, and go where the offer pointed.
+    const previousShowDashboard = window.showDashboardScreen;
+    if (typeof previousShowDashboard === 'function') {
+        window.showDashboardScreen = function () {
+            const result = previousShowDashboard.apply(this, arguments);
+            try {
+                const p = loginUi.pendingRemember;
+                if (p) {
+                    if (p.remember) {
+                        const email = (typeof currentUserEmail !== 'undefined' && currentUserEmail) || p.email;
+                        const full = typeof currentUserFullName !== 'undefined' && currentUserFullName ? String(currentUserFullName) : '';
+                        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, firstName: full.trim().split(/\s+/)[0] || '' }));
+                    } else {
+                        localStorage.removeItem(REMEMBER_KEY);
+                    }
+                    loginUi.pendingRemember = null;
+                }
+            } catch (err) {}
+            const intent = loginUi.intent;
+            if (intent) {
+                clearLoginIntent();
+                setTimeout(() => { if (typeof triggerViewSwitch === 'function') triggerViewSwitch(intent.view); }, 700);
+            }
+            closeLoginInfo();
+            return result;
+        };
+    }
+    // Back at the sign-in screen: clear the password and show the remembered email.
+    const previousShowLogin = window.showLoginScreen;
+    if (typeof previousShowLogin === 'function') {
+        window.showLoginScreen = function () {
+            const result = previousShowLogin.apply(this, arguments);
+            try {
+                const pw = document.getElementById('loginPasswordInput');
+                if (pw) { pw.value = ''; if (pw.type === 'text') toggleLoginPassword(); }
+                paintRememberedUser();
+                paintLoginAvailability();
+            } catch (err) {}
+            return result;
+        };
+    }
+})();
+
 (function () {
-  function initRealisticLoginScreen() {
-    const authScreen = document.getElementById('authScreen');
-    if (!authScreen || authScreen.dataset.ahbEnhanced) return;
-    authScreen.dataset.ahbEnhanced = 'true';
-
-    const card = authScreen.querySelector(':scope > div');
-    if (!card) return;
-
-    const oldHeader = card.querySelector(':scope > div.bg-slate-950');
-    if (oldHeader) {
-      oldHeader.id = 'ahbLoginHeader';
-      oldHeader.innerHTML = `
-        <div class="inline-flex items-center justify-center bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2 ahb-lock-pulse relative z-10">
-          <i class="fa-solid fa-building-columns text-2xl"></i>
-        </div>
-        <h2 class="text-lg font-bold text-white tracking-tight relative z-10">APEX HORIZON BANK</h2>
-        <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5 relative z-10">Encrypted Mobile Access</p>
-        <div class="flex items-center justify-center gap-3 mt-2 relative z-10">
-          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500"></i>256-bit TLS</span>
-          <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-fingerprint text-emerald-500"></i>Biometric login</span>
-        </div>
-      `;
+    function fixPasswordResetBannerWording() {
+        const fpStep2 = document.getElementById('fpStep2');
+        if (!fpStep2) return;
+        const amberBox = fpStep2.querySelector('.bg-amber-50');
+        if (amberBox && !amberBox.dataset.ahbFixed) {
+            amberBox.dataset.ahbFixed = 'true';
+            amberBox.innerHTML = `
+                <p class="text-[10px] font-bold text-amber-800 uppercase mb-1">Verify It's You</p>
+                <p class="text-[11px] text-amber-800 leading-relaxed">For your security, finish resetting your password below. You'll be signed in with your new password right after.</p>
+            `;
+        }
     }
-
-    const promos = [
-      { icon: 'fa-piggy-bank', color: 'text-emerald-400', tag: 'High-Yield Savings', title: '5.25% APY on new savings accounts' },
-      { icon: 'fa-credit-card', color: 'text-amber-400', tag: 'Apex Infinite Card', title: '3% unlimited cash back, no annual fee' },
-      { icon: 'fa-mobile-screen', color: 'text-sky-400', tag: 'Mobile Deposit', title: 'Deposit checks in seconds from your phone' },
-      { icon: 'fa-paper-plane', color: 'text-purple-400', tag: 'Instant Transfers', title: 'Send money to anyone at Apex, instantly' }
-    ];
-
-    if (oldHeader && !document.getElementById('ahbLoginPromo')) {
-      const promoWrap = document.createElement('div');
-      promoWrap.id = 'ahbLoginPromo';
-      promoWrap.className = 'bg-slate-900 border-t border-b border-slate-800 px-4 py-2.5';
-      promoWrap.innerHTML = `<div id="ahbPromoSlides"></div><div id="ahbPromoDots" class="flex items-center justify-center gap-1.5 mt-2"></div>`;
-      oldHeader.insertAdjacentElement('afterend', promoWrap);
-
-      const slidesEl = promoWrap.querySelector('#ahbPromoSlides');
-      const dotsEl = promoWrap.querySelector('#ahbPromoDots');
-
-      slidesEl.innerHTML = promos.map((p, i) => `
-        <div class="ahb-promo-slide items-center gap-2.5 ${i === 0 ? 'ahb-active' : ''}" data-slide="${i}">
-          <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
-            <i class="fa-solid ${p.icon} ${p.color} text-xs"></i>
-          </div>
-          <div class="min-w-0">
-            <p class="text-[8px] font-bold uppercase tracking-wider ${p.color}">${p.tag}</p>
-            <p class="text-[11px] font-semibold text-white leading-tight truncate">${p.title}</p>
-          </div>
-        </div>
-      `).join('');
-      dotsEl.innerHTML = promos.map((_, i) => `<span class="ahb-promo-dot ${i === 0 ? 'ahb-active' : ''}" data-dot="${i}"></span>`).join('');
-
-      let promoIndex = 0;
-      setInterval(() => {
-        const slides = slidesEl.querySelectorAll('.ahb-promo-slide');
-        const dots = dotsEl.querySelectorAll('.ahb-promo-dot');
-        slides[promoIndex].classList.remove('ahb-active');
-        dots[promoIndex].classList.remove('ahb-active');
-        promoIndex = (promoIndex + 1) % promos.length;
-        slides[promoIndex].classList.add('ahb-active');
-        dots[promoIndex].classList.add('ahb-active');
-      }, 4000);
+    function init() {
+        initLoginScreen();
+        fixPasswordResetBannerWording();
     }
-
-    const oldFooter = card.querySelector(':scope > div.bg-gray-50');
-    if (oldFooter) {
-      oldFooter.innerHTML = `
-        <div class="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-100 -mx-4 -mt-3 mb-3">
-          <a href="tel:+18005551234" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100">
-            <i class="fa-solid fa-headset text-slate-600 text-sm"></i>
-            <span class="text-[9px] font-semibold text-slate-600">Support</span>
-          </a>
-          <button type="button" onclick="alert('Sign in to find Apex Horizon branches and ATMs near you.')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100">
-            <i class="fa-solid fa-location-dot text-slate-600 text-sm"></i>
-            <span class="text-[9px] font-semibold text-slate-600">Locations</span>
-          </button>
-          <button type="button" onclick="alert('Apex Horizon uses 256-bit encryption, biometric login, and real-time fraud monitoring to keep your account secure.')" class="ahb-quick-link flex flex-col items-center gap-1 py-2.5 hover:bg-gray-100">
-            <i class="fa-solid fa-shield-halved text-slate-600 text-sm"></i>
-            <span class="text-[9px] font-semibold text-slate-600">Security</span>
-          </button>
-        </div>
-        <p class="text-[10px] text-gray-500 leading-normal text-center">&copy; ${new Date().getFullYear()} Apex Horizon Bank &middot; All rights reserved</p>
-      `;
-    }
-  }
-
-  function fixPasswordResetBannerWording() {
-    const fpStep2 = document.getElementById('fpStep2');
-    if (!fpStep2) return;
-    const amberBox = fpStep2.querySelector('.bg-amber-50');
-    if (amberBox && !amberBox.dataset.ahbFixed) {
-      amberBox.dataset.ahbFixed = 'true';
-      amberBox.innerHTML = `
-        <p class="text-[10px] font-bold text-amber-800 uppercase mb-1">Verify It's You</p>
-        <p class="text-[11px] text-amber-800 leading-relaxed">For your security, finish resetting your password below. You'll be signed in with your new password right after.</p>
-      `;
-    }
-  }
-
-  function ahbInit() {
-    initRealisticLoginScreen();
-    fixPasswordResetBannerWording();
-  }
-
-  document.addEventListener('DOMContentLoaded', ahbInit);
-  if (document.readyState !== 'loading') ahbInit();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
 })();
 </script>
 <!-- ===== End Realistic Login Screen Enhancement ===== -->
