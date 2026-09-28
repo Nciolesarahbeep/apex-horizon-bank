@@ -10,6 +10,7 @@ const { getStepUpSettings, saveStepUpSettings, issueStepUpToken, requireStepUp, 
 const goals = require('../lib/goals');
 const budgets = require('../lib/budgets');
 const support = require('../lib/support');
+const settings = require('../lib/settings');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -1975,6 +1976,41 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('Update passcode error:', err);
       return res.status(500).json({ error: 'Failed to update passcode.' });
+    }
+  }
+
+  // ---------- Settings: alerts, auto-lock, security checkup, data export (see lib/settings.js) ----------
+  if (['account-alerts', 'preferences', 'security-checkup', 'data-export'].includes(resource)) {
+    try {
+      if (resource === 'account-alerts') {
+        if (req.method === 'GET') return res.status(200).json({ alerts: await settings.getAlertSettings(sql, session.userId) });
+        if (req.method === 'POST') return res.status(200).json({ success: true, alerts: await settings.saveAlertSettings(sql, session.userId, req.body || {}) });
+      }
+      if (resource === 'preferences') {
+        if (req.method === 'GET') return res.status(200).json(await settings.getPreferences(sql, session.userId));
+        if (req.method === 'POST') return res.status(200).json({ success: true, ...(await settings.savePreferences(sql, session.userId, req.body || {})) });
+      }
+      if (resource === 'security-checkup' && req.method === 'GET') {
+        return res.status(200).json(await settings.securityCheckup(sql, session.userId, { currentJti: session.jti || null }));
+      }
+      if (resource === 'data-export' && req.method === 'GET') {
+        const file = await settings.exportUserData(sql, session.userId);
+        await createNotification(
+          session.userId,
+          'Your data was downloaded',
+          "A copy of your account data was downloaded. If this wasn't you, change your password and check Linked Devices."
+        );
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(file.json);
+      }
+      res.setHeader('Allow', resource === 'security-checkup' || resource === 'data-export' ? 'GET' : 'GET, POST');
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (err) {
+      if (err instanceof settings.SettingsError) return res.status(err.status).json({ error: err.message });
+      console.error('Settings error:', err);
+      return res.status(500).json({ error: "We couldn't load that setting just now. Please try again." });
     }
   }
 

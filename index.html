@@ -141,6 +141,12 @@
         .ahb-progress { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; translate: -50% 0; width: min(100%, 28rem); height: 2px; z-index: 10060; pointer-events: none; opacity: 0; transition: opacity 0.2s ease; }
         .ahb-progress.is-active { opacity: 1; }
         .ahb-progress > div { height: 100%; width: 0; background: linear-gradient(90deg, #059669, #34d399); box-shadow: 0 0 8px rgba(16, 185, 129, 0.55); border-radius: 0 2px 2px 0; }
+        /* Settings > Appearance > Reduce motion. Loading spinners keep turning so
+           it's still clear something is happening. */
+        html.ahb-reduce-motion *:not(.animate-spin), html.ahb-reduce-motion *::before, html.ahb-reduce-motion *::after {
+            animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+        }
         /* Help center */
         .ahb-help-panel { height: min(88vh, 720px); height: min(88dvh, 720px); }
         .ahb-typing span { display: inline-block; width: 6px; height: 6px; margin: 0 1.5px; border-radius: 50%; background: currentColor; opacity: 0.35; animation: ahbTyping 1.1s infinite ease-in-out; }
@@ -1355,6 +1361,16 @@ async function submitCreateRecurringTransfer(event) {
             <button type="submit" id="budgetEditorSubmit" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-lg transition disabled:opacity-60">Save budget</button>
             <button type="button" id="budgetEditorDelete" onclick="deleteBudgetFromEditor()" class="hidden w-full text-xs font-bold text-red-600 hover:bg-red-50 py-2.5 rounded-lg transition">Remove budget</button>
         </form>
+    </div>
+</div>
+
+<div id="idleWarning" class="hidden fixed inset-0 z-[10070] bg-slate-900/70 backdrop-blur-sm items-center justify-center p-6" role="alertdialog" aria-modal="true" aria-labelledby="idleWarningTitle" aria-describedby="idleWarningText">
+    <div class="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-xs text-center space-y-3 animate-fade-in">
+        <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-700 mx-auto flex items-center justify-center" aria-hidden="true"><i class="fa-solid fa-hourglass-half"></i></div>
+        <h3 id="idleWarningTitle" class="text-sm font-bold text-gray-900">Still there?</h3>
+        <p id="idleWarningText" class="text-[12px] text-gray-600">For your security, we'll sign you out in <span id="idleWarningCount" class="font-bold text-gray-900">30</span> seconds.</p>
+        <button type="button" id="idleStayBtn" onclick="stayIdleSignedIn()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-lg transition">Stay signed in</button>
+        <button type="button" onclick="hideIdleWarning(); handleSignOut();" class="w-full text-xs font-semibold text-gray-600 hover:bg-gray-100 py-2 rounded-lg transition">Sign out now</button>
     </div>
 </div>
 
@@ -3036,7 +3052,14 @@ async function submitCreateRecurringTransfer(event) {
                         <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
                         <h1 class="text-md font-bold text-gray-900" data-i18n="settings.title">Settings</h1>
                     </div>
-
+                    <button type="button" id="settingsCheckupCard" onclick="triggerViewSwitch('settings-security-checkup')" class="w-full bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-4 text-left hover:bg-gray-50 transition">
+                        <span id="settingsCheckupRing" class="ahb-ring w-14 h-14 shrink-0" aria-hidden="true"></span>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-bold text-gray-900">Security checkup</span>
+                            <span id="settingsCheckupSummary" class="block text-[11px] text-gray-500">See how well your account is protected</span>
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                    </button>
                     <div>
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1" data-i18n="settings.sectionAccount">Account</h3>
                         <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
@@ -3049,47 +3072,6 @@ async function submitCreateRecurringTransfer(event) {
                             </button>
                         </div>
                     </div>
-
-                    <div>
-                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1" data-i18n="settings.sectionDocuments">Documents</h3>
-                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-                            <button onclick="triggerViewSwitch('statements')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-file-pdf"></i></div>
-                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.statements">Statements</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1" data-i18n="settings.sectionGeneral">General</h3>
-                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-                            <button onclick="triggerViewSwitch('settings-notifications')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-regular fa-bell"></i></div>
-                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.notifications">Notifications</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-                            </button>
-                            <button onclick="triggerViewSwitch('settings-appearance')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-circle-half-stroke"></i></div>
-                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.appearance">Appearance</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-                            </button>
-                            <button onclick="triggerViewSwitch('settings-language')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-language"></i></div>
-                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.language">Language</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-
                     <div>
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1" data-i18n="settings.sectionSecurity">Security</h3>
                         <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
@@ -3105,52 +3087,133 @@ async function submitCreateRecurringTransfer(event) {
         <div class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
     </button>
 </div>
-                            <button onclick="triggerViewSwitch('settings-login-history')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                                    <span class="text-sm font-medium text-gray-900">Login History</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-                            </button>
-                            <button onclick="triggerViewSwitch('settings-change-password')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-key"></i></div>
+                            <button type="button" onclick="triggerViewSwitch('settings-change-password')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-key"></i></div>
                                     <span class="text-sm font-medium text-gray-900">Change Password</span>
                                 </div>
                                 <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
                             </button>
-                            <button onclick="triggerViewSwitch('settings-linked-devices')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-mobile-screen"></i></div>
-                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.linkedDevices">Linked Devices</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
-                            </button>
-                            <button onclick="triggerViewSwitch('settings-passcode')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-key"></i></div>
+                            <button type="button" onclick="triggerViewSwitch('settings-passcode')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-lock"></i></div>
                                     <span class="text-sm font-medium text-gray-900" data-i18n="settings.passcode">Passcode</span>
                                 </div>
                                 <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
                             </button>
-                            <button onclick="triggerViewSwitch('settings-transaction-confirmation')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-regular fa-circle-check"></i></div>
+                            <button type="button" onclick="triggerViewSwitch('settings-transaction-confirmation')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-regular fa-circle-check"></i></div>
                                     <span class="text-sm font-medium text-gray-900" data-i18n="settings.transactionConfirmation">Transaction Confirmation</span>
                                 </div>
                                 <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
                             </button>
-                            <button onclick="triggerViewSwitch('settings-biometrics')" class="w-full flex items-center justify-between p-3.5 hover:bg-gray-50 transition text-left">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700"><i class="fa-solid fa-fingerprint"></i></div>
+                            <button type="button" onclick="triggerViewSwitch('settings-biometrics')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-fingerprint"></i></div>
                                     <span class="text-sm font-medium text-gray-900" data-i18n="settings.biometrics">Biometrics</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('settings-auto-lock')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-hourglass-half"></i></div>
+                                    <span class="text-sm font-medium text-gray-900">Auto-lock</span>
+                                </div>
+                                <span class="flex items-center gap-2 shrink-0"><span id="settingsAutoLockValue" class="text-[11px] text-gray-500"></span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></span>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('settings-linked-devices')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-mobile-screen"></i></div>
+                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.linkedDevices">Linked Devices</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('settings-login-history')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                                    <span class="text-sm font-medium text-gray-900">Login History</span>
                                 </div>
                                 <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
                             </button>
                         </div>
                     </div>
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Alerts & notifications</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <button type="button" onclick="triggerViewSwitch('settings-alerts')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900">Account alerts</span><span class="block text-[10px] text-gray-500">Low balance and large transactions</span></span>
+                                </div>
+                                <span class="flex items-center gap-2 shrink-0"><span id="settingsAlertsValue" class="text-[11px] text-gray-500"></span><i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i></span>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('settings-notifications')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-regular fa-bell"></i></div>
+                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.notifications">Notifications</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Preferences</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <button type="button" onclick="triggerViewSwitch('settings-appearance')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-circle-half-stroke"></i></div>
+                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900" data-i18n="settings.appearance">Appearance</span><span class="block text-[10px] text-gray-500">Theme, realistic loading, reduce motion</span></span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('settings-language')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-language"></i></div>
+                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.language">Language</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Privacy & data</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <button type="button" onclick="triggerViewSwitch('statements')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-file-pdf"></i></div>
+                                    <span class="text-sm font-medium text-gray-900" data-i18n="settings.statements">Statements</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                            <button type="button" onclick="triggerViewSwitch('settings-data')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-file-arrow-down"></i></div>
+                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900">Download my data</span><span class="block text-[10px] text-gray-500">A copy of everything we hold about you</span></span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">Help & about</h3>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <button type="button" onclick="openHelpSheet()" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-circle-question"></i></div>
+                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900">Help center</span><span class="block text-[10px] text-gray-500">Articles, quick fixes and messages</span></span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                            </button>
+                            <div class="w-full flex items-center justify-between gap-3 p-3.5">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-building-columns"></i></div>
+                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900">Apex Horizon Bank</span><span id="settingsVersionLabel" class="block text-[10px] text-gray-500">Version 2026.9.28</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
-
                 <section id="view-settings-notifications" class="hidden space-y-4 animate-fade-in">
                     <div class="flex items-center space-x-2">
                         <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
@@ -3231,6 +3294,112 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                         <button type="button" id="realisticTimingSwitch" role="switch" aria-checked="true" aria-labelledby="realisticTimingLabel" onclick="toggleRealisticTiming()" class="ahb-switch shrink-0"><span></span></button>
                     </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-2.5">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">Reduce motion</p>
+                            <p class="text-[11px] text-gray-500">Turns off sliding screens, bouncing buttons and moving loaders.</p>
+                        </div>
+                        <div id="reduceMotionChoices" class="grid grid-cols-3 gap-1.5 bg-gray-100 rounded-lg p-1" role="group" aria-label="Reduce motion">
+                            <button type="button" data-motion="system" onclick="setReduceMotion('system')" class="text-[11px] font-semibold py-1.5 rounded-md transition">Match device</button>
+                            <button type="button" data-motion="on" onclick="setReduceMotion('on')" class="text-[11px] font-semibold py-1.5 rounded-md transition">On</button>
+                            <button type="button" data-motion="off" onclick="setReduceMotion('off')" class="text-[11px] font-semibold py-1.5 rounded-md transition">Off</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-settings-security-checkup" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Security checkup</h1>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-200 p-5 flex items-center gap-4">
+                        <span id="checkupRing" class="ahb-ring w-20 h-20 shrink-0" aria-hidden="true"></span>
+                        <div class="min-w-0">
+                            <p id="checkupLabel" class="text-lg font-bold text-gray-900">Checking…</p>
+                            <p id="checkupSub" class="text-[11px] text-gray-500">Looking at your security settings</p>
+                        </div>
+                    </div>
+                    <div id="checkupList" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"></div>
+                    <p class="text-[10px] text-gray-500 px-1">Checked each time you open this screen. Fix anything amber in a tap.</p>
+                </section>
+
+                <section id="view-settings-alerts" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Account alerts</h1>
+                    </div>
+                    <p class="text-[11px] text-gray-500 px-1">Alerts arrive in the bell, and on this device when push notifications are on. They work for card purchases, transfers, wires and bill payments alike.</p>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p id="alertLowLabel" class="text-sm font-semibold text-gray-900">Low balance</p>
+                                <p class="text-[11px] text-gray-500">When checking drops below this amount</p>
+                            </div>
+                            <button type="button" id="alertLowSwitch" role="switch" aria-checked="false" aria-labelledby="alertLowLabel" onclick="toggleAlertSwitch('low')" class="ahb-switch shrink-0"><span></span></button>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                            <input type="number" id="alertLowAmount" inputmode="decimal" min="1" max="1000000" step="1" aria-label="Low balance amount" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="flex flex-wrap gap-2" data-alert-chips="low"></div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p id="alertLargeLabel" class="text-sm font-semibold text-gray-900">Large transaction</p>
+                                <p class="text-[11px] text-gray-500">When money going out is at least this amount</p>
+                            </div>
+                            <button type="button" id="alertLargeSwitch" role="switch" aria-checked="false" aria-labelledby="alertLargeLabel" onclick="toggleAlertSwitch('large')" class="ahb-switch shrink-0"><span></span></button>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                            <input type="number" id="alertLargeAmount" inputmode="decimal" min="1" max="1000000" step="1" aria-label="Large transaction amount" class="w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="flex flex-wrap gap-2" data-alert-chips="large"></div>
+                    </div>
+                    <p id="alertsMsg" class="hidden" role="status" aria-live="polite"></p>
+                    <button type="button" id="alertsSaveBtn" onclick="saveAccountAlerts()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold py-3 rounded-xl transition disabled:opacity-60">Save alerts</button>
+                </section>
+
+                <section id="view-settings-auto-lock" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Auto-lock</h1>
+                    </div>
+                    <p class="text-[11px] text-gray-500 px-1">For your security, we sign you out when the app hasn't been used for a while. You'll get a 30-second warning first, so you can stay signed in.</p>
+                    <fieldset class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                        <legend class="sr-only">Sign me out after</legend>
+                        <label class="flex items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-gray-50"><span><span class="block text-sm font-medium text-gray-900">1 minute</span><span class="block text-[10px] text-gray-500">Most secure</span></span><input type="radio" name="autoLock" value="1" class="w-4 h-4 accent-emerald-600"></label>
+                        <label class="flex items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-gray-50"><span class="block text-sm font-medium text-gray-900">2 minutes</span><input type="radio" name="autoLock" value="2" class="w-4 h-4 accent-emerald-600"></label>
+                        <label class="flex items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-gray-50"><span><span class="block text-sm font-medium text-gray-900">5 minutes</span><span class="block text-[10px] text-gray-500">Recommended</span></span><input type="radio" name="autoLock" value="5" class="w-4 h-4 accent-emerald-600"></label>
+                        <label class="flex items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-gray-50"><span class="block text-sm font-medium text-gray-900">10 minutes</span><input type="radio" name="autoLock" value="10" class="w-4 h-4 accent-emerald-600"></label>
+                        <label class="flex items-center justify-between gap-3 p-3.5 cursor-pointer hover:bg-gray-50"><span class="block text-sm font-medium text-gray-900">15 minutes</span><input type="radio" name="autoLock" value="15" class="w-4 h-4 accent-emerald-600"></label>
+                    </fieldset>
+                    <p id="autoLockMsg" class="hidden" role="status" aria-live="polite"></p>
+                </section>
+
+                <section id="view-settings-data" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Download my data</h1>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+                        <div class="flex items-start gap-3">
+                            <span class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-file-arrow-down"></i></span>
+                            <p class="text-[13px] text-gray-700">Get a copy of everything we hold about you in one file. You can keep it, or open it in any text editor.</p>
+                        </div>
+                        <ul class="space-y-1.5 text-[12px] text-gray-700">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[10px]" aria-hidden="true"></i>Your profile and settings</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[10px]" aria-hidden="true"></i>Your accounts (numbers shortened to the last 4 digits)</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[10px]" aria-hidden="true"></i>Every transaction</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[10px]" aria-hidden="true"></i>Savings goals and budgets</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[10px]" aria-hidden="true"></i>Messages with our support team</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-600 text-[10px]" aria-hidden="true"></i>Notifications, sign-ins and devices</li>
+                        </ul>
+                        <p class="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">Passwords, passcodes, PINs and security keys are never included. We'll notify you whenever your data is downloaded.</p>
+                    </div>
+                    <p id="dataExportMsg" class="hidden" role="status" aria-live="polite"></p>
+                    <button type="button" id="dataExportBtn" onclick="downloadMyData()" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold py-3 rounded-xl transition disabled:opacity-60"><i class="fa-solid fa-download mr-1.5" aria-hidden="true"></i>Download my data</button>
                 </section>
 
                 <section id="view-settings-language" class="hidden space-y-4 animate-fade-in">
@@ -3818,10 +3987,11 @@ if (activeLoanBalanceEl) {
                 if (typeof showBudgetsMsg === 'function') showBudgetsMsg(null, '');
                 loadBudgets().catch(() => {});
             }
+            if (typeof onSettingsScreenOpen === 'function') onSettingsScreenOpen(targetViewId);
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals', 'budgets'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals', 'budgets', 'settings-security-checkup', 'settings-alerts', 'settings-auto-lock', 'settings-data'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -3982,22 +4152,106 @@ if (activeLoanBalanceEl) {
         // Single source of truth for which screen is visible — every login/logout/
         // reload path routes through these two functions so the two screens can
         // never both end up visible (or both hidden) at the same time.
-        const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes of no activity signs the person out
-
+        // Auto-lock: signs the person out after the minutes they chose in
+        // Settings > Auto-lock (10 by default), with a "Still there?" warning 30
+        // seconds before. The deadline is a clock time, so a phone that slept past
+        // it signs out as soon as the app is looked at again.
+        const IDLE_WARNING_MS = 30 * 1000;
+        const IDLE_CHOICES = [1, 2, 5, 10, 15];
+        let idleLockMinutes = 10;
         let idleLogoutTimer = null;
-        function resetIdleTimer() {
-            if (idleLogoutTimer) clearTimeout(idleLogoutTimer);
-            idleLogoutTimer = setTimeout(() => {
-                handleSignOut(true);
-            }, IDLE_TIMEOUT_MS);
+        let idleWarningTimer = null;
+        let idleCountdownTimer = null;
+        let idleDeadline = 0;
+
+        function idleTimeoutMs() {
+            return idleLockMinutes * 60 * 1000;
         }
+
+        function dashboardIsOpen() {
+            const app = document.getElementById('dashboardApp');
+            return !!app && !app.classList.contains('hidden');
+        }
+
+        function setIdleLockMinutes(minutes) {
+            const m = Number(minutes);
+            if (IDLE_CHOICES.includes(m)) idleLockMinutes = m;
+            if (dashboardIsOpen()) resetIdleTimer();
+        }
+
+        function clearIdleTimers() {
+            if (idleLogoutTimer) clearTimeout(idleLogoutTimer);
+            if (idleWarningTimer) clearTimeout(idleWarningTimer);
+            if (idleCountdownTimer) clearInterval(idleCountdownTimer);
+            idleLogoutTimer = idleWarningTimer = idleCountdownTimer = null;
+        }
+
+        function resetIdleTimer() {
+            clearIdleTimers();
+            hideIdleWarning();
+            const total = idleTimeoutMs();
+            idleDeadline = Date.now() + total;
+            idleWarningTimer = setTimeout(showIdleWarning, Math.max(0, total - IDLE_WARNING_MS));
+            idleLogoutTimer = setTimeout(idleExpire, total);
+        }
+
+        function idleExpire() {
+            clearIdleTimers();
+            hideIdleWarning();
+            if (dashboardIsOpen()) handleSignOut(true);
+        }
+
+        function idleWarningVisible() {
+            const el = document.getElementById('idleWarning');
+            return !!el && !el.classList.contains('hidden');
+        }
+
+        function showIdleWarning() {
+            const el = document.getElementById('idleWarning');
+            if (!el || !dashboardIsOpen()) return;
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+            const tick = () => {
+                const left = Math.max(0, Math.ceil((idleDeadline - Date.now()) / 1000));
+                const count = document.getElementById('idleWarningCount');
+                if (count) count.textContent = String(left);
+                if (left <= 0) idleExpire();
+            };
+            tick();
+            if (idleCountdownTimer) clearInterval(idleCountdownTimer);
+            idleCountdownTimer = setInterval(tick, 1000);
+            const stay = document.getElementById('idleStayBtn');
+            if (stay) stay.focus();
+        }
+
+        function hideIdleWarning() {
+            if (idleCountdownTimer) clearInterval(idleCountdownTimer);
+            idleCountdownTimer = null;
+            const el = document.getElementById('idleWarning');
+            if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+        }
+
+        function stayIdleSignedIn() {
+            lastActivityMarkTime = Date.now();
+            resetIdleTimer();
+        }
+
+        // Timers are paused while a phone sleeps; check the clock when the app comes back.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible' || !dashboardIsOpen() || !idleDeadline) return;
+            const left = idleDeadline - Date.now();
+            if (left <= 0) idleExpire();
+            else if (left <= IDLE_WARNING_MS && !idleWarningVisible()) showIdleWarning();
+        });
 
         let lastActivityMarkTime = 0;
         function markActivity() {
+            // Once the warning is up, only "Stay signed in" keeps the session going.
+            if (idleWarningVisible()) return;
             const now = Date.now();
             if (now - lastActivityMarkTime < 2000) return; // avoid churn from continuous scroll/typing
             lastActivityMarkTime = now;
-            if (!document.getElementById('dashboardApp').classList.contains('hidden')) {
+            if (dashboardIsOpen()) {
                 resetIdleTimer();
             }
         }
@@ -4007,10 +4261,9 @@ if (activeLoanBalanceEl) {
             document.getElementById('authScreen').classList.remove('hidden');
             const helpWidget = document.getElementById('ahb-help-widget');
             if (helpWidget) helpWidget.classList.add('hidden');
-            if (idleLogoutTimer) {
-                clearTimeout(idleLogoutTimer);
-                idleLogoutTimer = null;
-            }
+            clearIdleTimers();
+            hideIdleWarning();
+            idleDeadline = 0;
             if (notifPollIntervalId) {
                 clearInterval(notifPollIntervalId);
                 notifPollIntervalId = null;
@@ -6837,7 +7090,7 @@ fetchAndApplyProfilePhoto();
             loader.classList.remove('hidden');
             if (isIdleTimeout === true) {
                 titleEl.innerText = 'Session Expired';
-                descEl.innerText = 'You were signed out after 1 minute of inactivity, for your security.';
+                descEl.innerText = `You were signed out after ${idleLockMinutes} minute${idleLockMinutes === 1 ? '' : 's'} of inactivity, for your security.`;
             } else {
                 titleEl.innerText = 'Closing Secure Session...';
                 descEl.innerText = 'Encrypting session data and clearing local credentials.';
@@ -13334,7 +13587,14 @@ document.addEventListener('keydown', (e) => {
 //   or distance, the way physical things do.
 // Settings > Appearance > "Realistic loading" turns the waits off.
 (function () {
-    const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    // Reduce motion follows Settings > Appearance (classes on <html>), or the device when set to "Match device".
+    const systemReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    function motionReduced() {
+        const root = document.documentElement;
+        if (root.classList.contains('ahb-reduce-motion')) return true;
+        if (root.classList.contains('ahb-allow-motion')) return false;
+        return !!(systemReduce && systemReduce.matches);
+    }
     const STORE_KEY = 'ahbRealisticTiming';
     let enabled = true;
     try { enabled = localStorage.getItem(STORE_KEY) !== 'off'; } catch (e) {}
@@ -13410,7 +13670,8 @@ document.addEventListener('keydown', (e) => {
         'settings-notifications': 'light', 'settings-biometrics': 'light', 'settings-transaction-confirmation': 'light',
         'check-deposit': 'light', 'bill-pay': 'light',
         credit: 'heavy', loans: 'heavy', statements: 'heavy', 'spending-insights': 'heavy', 'savings-analytics': 'heavy',
-        'settings-linked-devices': 'heavy', 'settings-login-history': 'heavy', 'manage-account': 'heavy', locations: 'heavy'
+        'settings-linked-devices': 'heavy', 'settings-login-history': 'heavy', 'manage-account': 'heavy', locations: 'heavy',
+        'settings-security-checkup': 'light', 'settings-alerts': 'light', 'settings-auto-lock': 'instant', 'settings-data': 'instant'
     };
 
     function count(fn) { try { return Number(fn()) || 0; } catch (e) { return 0; } }
@@ -13477,7 +13738,8 @@ document.addEventListener('keydown', (e) => {
         loanApply: { median: 2400, sigma: 0.2, min: 1600, max: 5000, perAmount: 200, steps: ['Reviewing your application…', 'Checking your account history…', 'Making a decision…'] },
         upload: { median: 1300, sigma: 0.22, min: 800, max: 3200, bytesPerMs: 1500, steps: ['Uploading…', 'Checking the images…', 'Submitting for review…'] },
         photo: { median: 500, sigma: 0.25, min: 300, max: 1400, bytesPerMs: 1500 },
-        statement: { median: 1200, sigma: 0.22, min: 800, max: 2600 }
+        statement: { median: 1200, sigma: 0.22, min: 800, max: 2600 },
+        dataExport: { median: 1500, sigma: 0.22, min: 950, max: 3200 }
     };
     const MONEY_KINDS = ['internal', 'p2p', 'billPay', 'wire', 'cardPayment', 'cardCharge', 'loanPayment', 'loanApply'];
 
@@ -13488,7 +13750,9 @@ document.addEventListener('keydown', (e) => {
         if (url.origin !== window.location.origin) return null;
         const path = url.pathname;
         if (method === 'GET') {
-            return path === '/api/account-services' && url.searchParams.get('resource') === 'statement' ? { kind: 'statement' } : null;
+            if (path !== '/api/account-services') return null;
+            const r = url.searchParams.get('resource');
+            return r === 'statement' ? { kind: 'statement' } : r === 'data-export' ? { kind: 'dataExport' } : null;
         }
         if (method === 'DELETE') return path === '/api/account-services' ? { kind: 'save' } : null;
         const raw = init && typeof init.body === 'string' ? init.body : '';
@@ -13534,7 +13798,10 @@ document.addEventListener('keydown', (e) => {
             case 'transaction-security':
                 return { kind: 'secure' };
             case 'notification-prefs':
+            case 'preferences':
                 return { kind: 'toggle' };
+            case 'account-alerts':
+                return { kind: 'save' };
             case 'budgets':
             case 'support':
             case 'recurring-transfers':
@@ -13771,7 +14038,7 @@ document.addEventListener('keydown', (e) => {
 
     function animateEnter(view, type, fresh) {
         const el = document.getElementById('view-' + view);
-        if (!el || reduceMotion || !el.animate) return;
+        if (!el || motionReduced() || !el.animate) return;
         el.getAnimations().forEach(a => a.cancel()); // replaces the generic fade-in
         const frames = type === 'tab'
             ? [{ opacity: 0 }, { opacity: 1 }]
@@ -13800,7 +14067,7 @@ document.addEventListener('keydown', (e) => {
 
     // ----- Touch: every press dips about the same few pixels -----
     // So a small button shrinks more (in %) than a wide card, like pressing a real thing.
-    if (!reduceMotion && Element.prototype.animate) {
+    if (Element.prototype.animate) {
         const PRESSABLE = 'button, a[href], [role="button"], label.ahb-choice';
         let pressed = null;
         const release = (p) => {
@@ -13813,6 +14080,7 @@ document.addEventListener('keydown', (e) => {
         };
         document.addEventListener('pointerdown', (e) => {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
+            if (motionReduced()) return;
             const el = e.target.closest(PRESSABLE);
             if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true') return;
             const r = el.getBoundingClientRect();
@@ -13833,7 +14101,7 @@ document.addEventListener('keydown', (e) => {
     // ----- Sheets slide up; a taller sheet travels further, so it takes a little longer -----
     function slideIn(sheet) {
         const panel = sheet.firstElementChild;
-        if (!panel || reduceMotion || !panel.animate) return;
+        if (!panel || motionReduced() || !panel.animate) return;
         const h = panel.getBoundingClientRect().height;
         panel.getAnimations().forEach(a => a.cancel()); // replaces the generic fade-in
         const asSheet = window.innerWidth < 640;
@@ -14972,6 +15240,336 @@ document.addEventListener('keydown', (e) => {
                 Object.assign(helpUi, { card: null, chat: [], chatHistory: [], tickets: null, thread: null, drafts: {}, flash: null, busy: false });
                 setHelpBadge(0);
             } catch (err) {}
+            return previousShowLogin.apply(this, arguments);
+        };
+    }
+})();
+</script>
+<script>
+// ===== Settings: security checkup, account alerts, auto-lock, download my data, reduce motion =====
+// The server side is lib/settings.js (resources 'security-checkup', 'account-alerts',
+// 'preferences', 'data-export'). Account alerts fire from database triggers, so
+// they cover every kind of payment. Each screen reloads whenever it's shown,
+// including when coming Back from fixing something.
+
+const settingsUi = { checkup: null, alerts: null, prefs: null, alertDraft: null, busy: false };
+const ALERT_CHIPS = { low: [50, 100, 250, 500], large: [250, 500, 1000, 2500] };
+
+function sEl(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+}
+function sMoney(n) {
+    const digits = Number(n) % 1 ? 2 : 0; // "$500", but "$99.50"
+    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+function sMsg(id, kind, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!text) { el.className = 'hidden'; el.textContent = ''; return; }
+    el.textContent = text;
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    el.className = `text-[12px] font-semibold rounded-lg px-3 py-2 border ${kind === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`;
+}
+async function settingsGet(resource) {
+    const res = await fetch(`/api/account-services?resource=${resource}`, { credentials: 'include', cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "We couldn't load that setting just now.");
+    return data;
+}
+async function settingsPost(body) {
+    const res = await fetch('/api/account-services', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+    return data;
+}
+
+// ----- Score ring (same drawing as the savings goal rings) -----
+function checkupTone(score) {
+    return score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+}
+function paintCheckupRing(hostId, score, sizeClass) {
+    const host = document.getElementById(hostId);
+    if (!host || typeof buildGoalRing !== 'function') return;
+    const ring = buildGoalRing(score / 100, null, { size: sizeClass, centerText: String(score), stroke: '3.2' });
+    const fill = ring.querySelector('.ahb-ring-fill');
+    if (fill) fill.style.stroke = checkupTone(score);
+    host.replaceChildren(...ring.childNodes);
+}
+
+// ----- Settings home: checkup card and the values beside rows -----
+function loadSettingsOverview() {
+    settingsGet('security-checkup').then(c => {
+        settingsUi.checkup = c;
+        paintCheckupRing('settingsCheckupRing', c.score, 'w-14 h-14');
+        const sum = document.getElementById('settingsCheckupSummary');
+        if (sum) sum.textContent = c.done === c.total ? `${c.label} · everything is set up` : `${c.label} · ${c.total - c.done} thing${c.total - c.done === 1 ? '' : 's'} to improve`;
+    }).catch(() => {});
+    settingsGet('account-alerts').then(d => { settingsUi.alerts = d.alerts; paintAlertsRowValue(); }).catch(() => {});
+    settingsGet('preferences').then(p => { settingsUi.prefs = p; paintAutoLockRowValue(); }).catch(() => {});
+}
+function paintAlertsRowValue() {
+    const el = document.getElementById('settingsAlertsValue');
+    const a = settingsUi.alerts;
+    if (!el || !a) return;
+    const on = [a.lowBalance.enabled, a.largeTransaction.enabled].filter(Boolean).length;
+    el.textContent = on === 2 ? 'Both on' : on === 1 ? '1 on' : 'Off';
+}
+function paintAutoLockRowValue() {
+    const el = document.getElementById('settingsAutoLockValue');
+    if (el && settingsUi.prefs) el.textContent = `${settingsUi.prefs.autoLockMinutes} min`;
+}
+
+// ----- Security checkup -----
+function loadSecurityCheckup() {
+    const list = document.getElementById('checkupList');
+    if (!list) return;
+    if (!settingsUi.checkup) list.replaceChildren(sEl('p', 'p-4 text-xs text-gray-500 text-center', 'Checking your settings…'));
+    settingsGet('security-checkup').then(c => {
+        settingsUi.checkup = c;
+        paintCheckupRing('checkupRing', c.score, 'w-20 h-20');
+        document.getElementById('checkupLabel').textContent = c.label;
+        document.getElementById('checkupSub').textContent = c.done === c.total
+            ? `All ${c.total} protections are on. Nice work.`
+            : `${c.done} of ${c.total} protections on · ${c.total - c.done} to go`;
+        list.replaceChildren();
+        // Things to fix first, then what's already done.
+        c.items.slice().sort((a, b) => Number(a.ok) - Number(b.ok)).forEach(item => {
+            const row = sEl('div', 'flex items-center gap-3 p-3.5');
+            const icon = sEl('span', `w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${item.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`);
+            icon.setAttribute('aria-hidden', 'true');
+            icon.appendChild(sEl('i', `fa-solid ${item.ok ? 'fa-check' : 'fa-exclamation'} text-xs`));
+            const mid = sEl('div', 'flex-1 min-w-0');
+            mid.append(sEl('p', 'text-sm font-semibold text-gray-900', item.title), sEl('p', `text-[11px] ${item.ok ? 'text-gray-500' : 'text-amber-800'}`, item.detail));
+            row.append(icon, mid);
+            if (!item.ok && item.fix) {
+                const b = sEl('button', 'shrink-0 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition', item.fix.label);
+                b.type = 'button';
+                b.setAttribute('aria-label', `${item.fix.label}: ${item.title}`);
+                b.onclick = () => triggerViewSwitch(item.fix.view);
+                row.appendChild(b);
+            } else {
+                const srOnly = sEl('span', 'sr-only', item.ok ? 'Done' : 'In progress');
+                row.appendChild(srOnly);
+            }
+            list.appendChild(row);
+        });
+    }).catch(err => {
+        const retry = sEl('button', 'w-full p-4 text-xs text-gray-500 text-center hover:bg-gray-50', `${err.message} Tap to try again.`);
+        retry.type = 'button';
+        retry.onclick = loadSecurityCheckup;
+        list.replaceChildren(retry);
+    });
+}
+
+// ----- Account alerts -----
+function paintAlertsForm() {
+    const d = settingsUi.alertDraft;
+    if (!d) return;
+    [['low', 'alertLowSwitch', 'alertLowAmount', d.lowBalance], ['large', 'alertLargeSwitch', 'alertLargeAmount', d.largeTransaction]].forEach(([kind, swId, inputId, a]) => {
+        const sw = document.getElementById(swId);
+        const input = document.getElementById(inputId);
+        if (sw) sw.setAttribute('aria-checked', a.enabled ? 'true' : 'false');
+        if (input && document.activeElement !== input) input.value = String(a.threshold);
+        const chips = document.querySelector(`[data-alert-chips="${kind}"]`);
+        if (chips) {
+            chips.replaceChildren();
+            ALERT_CHIPS[kind].forEach(v => {
+                const on = Number(a.threshold) === v;
+                const c = sEl('button', `text-[11px] font-semibold px-3 py-1.5 rounded-full border transition ${on ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'}`, sMoney(v));
+                c.type = 'button';
+                c.setAttribute('aria-pressed', on ? 'true' : 'false');
+                c.onclick = () => {
+                    a.threshold = v;
+                    a.enabled = true; // picking an amount means you want the alert
+                    sMsg('alertsMsg', null, '');
+                    paintAlertsForm();
+                };
+                chips.appendChild(c);
+            });
+        }
+    });
+}
+function loadAccountAlerts() {
+    sMsg('alertsMsg', null, '');
+    settingsGet('account-alerts').then(d => {
+        settingsUi.alerts = d.alerts;
+        settingsUi.alertDraft = JSON.parse(JSON.stringify(d.alerts));
+        paintAlertsForm();
+    }).catch(err => sMsg('alertsMsg', 'error', err.message));
+}
+function toggleAlertSwitch(kind) {
+    const d = settingsUi.alertDraft;
+    if (!d) return;
+    const a = kind === 'low' ? d.lowBalance : d.largeTransaction;
+    a.enabled = !a.enabled;
+    sMsg('alertsMsg', null, '');
+    paintAlertsForm();
+}
+async function saveAccountAlerts() {
+    const d = settingsUi.alertDraft;
+    if (!d || settingsUi.busy) return;
+    const read = (id, label) => {
+        const v = Math.round(parseFloat(document.getElementById(id).value) * 100) / 100;
+        if (!Number.isFinite(v) || v < 1 || v > 1000000) throw new Error(`Set the ${label} amount between $1 and $1,000,000.`);
+        return v;
+    };
+    let low;
+    let large;
+    try {
+        low = read('alertLowAmount', 'low balance');
+        large = read('alertLargeAmount', 'large transaction');
+    } catch (err) {
+        return sMsg('alertsMsg', 'error', err.message);
+    }
+    d.lowBalance.threshold = low;
+    d.largeTransaction.threshold = large;
+    const btn = document.getElementById('alertsSaveBtn');
+    settingsUi.busy = true;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+        const res = await settingsPost({ resource: 'account-alerts', lowBalance: d.lowBalance, largeTransaction: d.largeTransaction });
+        settingsUi.alerts = res.alerts;
+        settingsUi.alertDraft = JSON.parse(JSON.stringify(res.alerts));
+        paintAlertsForm();
+        paintAlertsRowValue();
+        const parts = [];
+        if (res.alerts.lowBalance.enabled) parts.push(`when checking drops below ${sMoney(res.alerts.lowBalance.threshold)}`);
+        if (res.alerts.largeTransaction.enabled) parts.push(`when ${sMoney(res.alerts.largeTransaction.threshold)} or more goes out`);
+        sMsg('alertsMsg', 'success', parts.length ? `Saved. We'll alert you ${parts.join(' and ')}.` : 'Saved. Account alerts are off.');
+    } catch (err) {
+        sMsg('alertsMsg', 'error', err.message);
+    } finally {
+        settingsUi.busy = false;
+        btn.disabled = false;
+        btn.textContent = 'Save alerts';
+    }
+}
+
+// ----- Auto-lock -----
+function paintAutoLock() {
+    const m = settingsUi.prefs ? settingsUi.prefs.autoLockMinutes : null;
+    document.querySelectorAll('input[name="autoLock"]').forEach(r => { r.checked = Number(r.value) === m; });
+}
+function loadAutoLock() {
+    sMsg('autoLockMsg', null, '');
+    paintAutoLock();
+    settingsGet('preferences').then(p => {
+        settingsUi.prefs = p;
+        paintAutoLock();
+        paintAutoLockRowValue();
+    }).catch(err => sMsg('autoLockMsg', 'error', err.message));
+}
+document.addEventListener('change', async (e) => {
+    const r = e.target;
+    if (!r || r.name !== 'autoLock') return;
+    const minutes = Number(r.value);
+    const previous = settingsUi.prefs ? settingsUi.prefs.autoLockMinutes : null;
+    try {
+        const res = await settingsPost({ resource: 'preferences', autoLockMinutes: minutes });
+        settingsUi.prefs = { autoLockMinutes: res.autoLockMinutes, autoLockChoices: res.autoLockChoices };
+        if (typeof setIdleLockMinutes === 'function') setIdleLockMinutes(res.autoLockMinutes);
+        paintAutoLockRowValue();
+        sMsg('autoLockMsg', 'success', `Done. We'll sign you out after ${res.autoLockMinutes} minute${res.autoLockMinutes === 1 ? '' : 's'} without activity.`);
+    } catch (err) {
+        if (previous) settingsUi.prefs.autoLockMinutes = previous;
+        paintAutoLock();
+        sMsg('autoLockMsg', 'error', err.message);
+    }
+});
+
+// ----- Download my data -----
+async function downloadMyData() {
+    const btn = document.getElementById('dataExportBtn');
+    if (!btn || btn.disabled) return;
+    sMsg('dataExportMsg', null, '');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Preparing your file…';
+    try {
+        const res = await fetch('/api/account-services?resource=data-export', { credentials: 'include', cache: 'no-store' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "We couldn't prepare your file. Please try again.");
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const match = /filename="([^"]+)"/.exec(cd);
+        const filename = match ? match[1] : `apex-horizon-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        sMsg('dataExportMsg', 'success', `Downloaded ${filename}. For your security, we've also sent you a notification about it.`);
+        if (typeof fetchAndRenderNotifications === 'function') { try { fetchAndRenderNotifications(false); } catch (err) {} }
+    } catch (err) {
+        sMsg('dataExportMsg', 'error', err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
+}
+
+// ----- Reduce motion (kept on this device) -----
+const MOTION_KEY = 'ahbReduceMotion';
+function readMotionChoice() {
+    try { const v = localStorage.getItem(MOTION_KEY); return ['on', 'off', 'system'].includes(v) ? v : 'system'; } catch (e) { return 'system'; }
+}
+function applyReduceMotion(mode) {
+    const root = document.documentElement;
+    root.classList.toggle('ahb-reduce-motion', mode === 'on');
+    root.classList.toggle('ahb-allow-motion', mode === 'off');
+    document.querySelectorAll('#reduceMotionChoices [data-motion]').forEach(b => {
+        const on = b.dataset.motion === mode;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.classList.toggle('bg-white', on);
+        b.classList.toggle('shadow-sm', on);
+        b.classList.toggle('text-gray-900', on);
+        b.classList.toggle('text-gray-500', !on);
+    });
+}
+function setReduceMotion(mode) {
+    const m = ['on', 'off', 'system'].includes(mode) ? mode : 'system';
+    try { localStorage.setItem(MOTION_KEY, m); } catch (e) {}
+    applyReduceMotion(m);
+}
+applyReduceMotion(readMotionChoice());
+
+// ----- Wiring -----
+document.addEventListener('ahb:viewchange', (e) => {
+    const v = e.detail && e.detail.view;
+    if (v === 'settings') loadSettingsOverview();
+    else if (v === 'settings-security-checkup') loadSecurityCheckup();
+    else if (v === 'settings-alerts') loadAccountAlerts();
+    else if (v === 'settings-auto-lock') loadAutoLock();
+    else if (v === 'settings-data') sMsg('dataExportMsg', null, '');
+    else if (v === 'settings-appearance') applyReduceMotion(readMotionChoice());
+});
+
+(function hookSettingsIntoApp() {
+    // After signing in, use this person's auto-lock time.
+    const previousShowDashboard = window.showDashboardScreen;
+    if (typeof previousShowDashboard === 'function') {
+        window.showDashboardScreen = function () {
+            const result = previousShowDashboard.apply(this, arguments);
+            settingsGet('preferences').then(p => {
+                settingsUi.prefs = p;
+                if (typeof setIdleLockMinutes === 'function') setIdleLockMinutes(p.autoLockMinutes);
+            }).catch(() => {});
+            return result;
+        };
+    }
+    const previousShowLogin = window.showLoginScreen;
+    if (typeof previousShowLogin === 'function') {
+        window.showLoginScreen = function () {
+            Object.assign(settingsUi, { checkup: null, alerts: null, prefs: null, alertDraft: null, busy: false });
             return previousShowLogin.apply(this, arguments);
         };
     }
