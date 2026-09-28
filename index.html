@@ -333,9 +333,22 @@
         #appShellRoot.theme-dark .ahb-restriction-banner { background: rgba(239,68,68,0.12) !important; border-color: rgba(239,68,68,0.35) !important; }
         #appShellRoot.theme-dark .ahb-restriction-banner .ahb-rb-title { color: #fca5a5 !important; }
         #appShellRoot.theme-dark .ahb-restriction-banner .ahb-rb-body, #appShellRoot.theme-dark .ahb-restriction-banner .ahb-rb-steps { color: #fecaca !important; }
-        #appShellRoot.theme-dark #ad2YieldProjectionText, #appShellRoot.theme-dark #fxResultText { color: #f1f5f9 !important; }
+        #appShellRoot.theme-dark #fxResultText { color: #f1f5f9 !important; }
         /* Dark icons/text sitting on the solid emerald brand tiles stay dark. */
         #appShellRoot.theme-dark .bg-emerald-500.text-slate-900, #appShellRoot.theme-dark .bg-emerald-500 .text-slate-900 { color: #0f172a !important; }
+        /* Primary buttons are near-black in light mode, which vanishes against
+           the dark cards. In dark mode they turn brand green with dark text
+           (about 7:1 contrast for the label, and they stand out from the card). */
+        #appShellRoot.theme-dark :is(button, a, [role="button"]).bg-slate-900:not(#appHeaderBar *, #appTabBar *),
+        #appShellRoot.theme-dark :is(button, a, [role="button"]).bg-slate-950:not(#appHeaderBar *, #appTabBar *) { background-color: #10b981 !important; color: #052e1c !important; }
+        #appShellRoot.theme-dark :is(button, a, [role="button"]).bg-slate-900:not(#appHeaderBar *, #appTabBar *) *,
+        #appShellRoot.theme-dark :is(button, a, [role="button"]).bg-slate-950:not(#appHeaderBar *, #appTabBar *) * { color: inherit !important; }
+        #appShellRoot.theme-dark :is(button, a, [role="button"]).bg-slate-900:not(#appHeaderBar *, #appTabBar *):not(:disabled):hover,
+        #appShellRoot.theme-dark :is(button, a, [role="button"]).bg-slate-950:not(#appHeaderBar *, #appTabBar *):not(:disabled):hover { background-color: #34d399 !important; }
+        /* Small dark badges (numbered steps, the profile initials) get a lighter slate. */
+        #appShellRoot.theme-dark span.rounded-full.bg-slate-900, #appShellRoot.theme-dark div.rounded-full.bg-slate-900 { background-color: #475569 !important; }
+        /* Dark outlines and the active-tab underline turn light. */
+        #appShellRoot.theme-dark .border-slate-900 { border-color: #e2e8f0 !important; }
         /* ===== End dark mode ===== */
     </style>
 <link rel="manifest" href="/manifest.json">
@@ -962,25 +975,33 @@ async function submitCreateRecurringTransfer(event) {
     </div>
 </div>
 
-<div id="loginOtpModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-    <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <button onclick="closeLoginOtpModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-sm font-bold text-gray-900">Verify This Device</h3>
-            <div class="w-6"></div>
-        </div>
-        <div class="p-5 space-y-4">
-            <p class="text-xs text-gray-500">We don't recognize this device. Enter the 6-digit code we just emailed you to continue.</p>
-            <div id="loginOtpErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
-            <div>
-                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Verification Code</label>
-                <input type="text" id="loginOtpCodeInput" maxlength="6" inputmode="numeric" placeholder="123456" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-center text-lg font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-emerald-500">
+<div id="loginOtpModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="loginOtpTitle">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
+        <div class="px-5 pt-5 pb-2 flex items-start gap-3">
+            <span id="loginOtpIcon" class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-envelope-open-text"></i></span>
+            <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">New device</p>
+                <h3 id="loginOtpTitle" class="text-base font-bold text-gray-900">Check your email</h3>
             </div>
-            <button onclick="submitLoginOtp()" id="loginOtpSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs">
-                Verify & Sign In
-            </button>
-            <p class="text-[10px] text-gray-400 text-center leading-relaxed">Code expires in 10 minutes. Didn't get it? Check spam, or sign in again to request a new one.</p>
+            <button type="button" onclick="closeLoginOtpModal()" aria-label="Cancel sign-in" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </div>
+        <form id="loginOtpForm" onsubmit="submitLoginOtp(event)" class="px-5 pb-5 pt-2 space-y-4" novalidate>
+            <p id="loginOtpIntro" class="text-xs text-gray-600 leading-relaxed"></p>
+            <div id="loginOtpErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2" role="alert"></div>
+            <div>
+                <label id="loginOtpLabel" for="loginOtpCodeInput" class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">6-digit code</label>
+                <input type="text" id="loginOtpCodeInput" maxlength="6" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" placeholder="••••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-3 text-center text-2xl font-mono font-bold tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <button type="submit" id="loginOtpSubmitBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition text-sm disabled:opacity-60">Confirm and sign in</button>
+            <div id="loginOtpResendRow" class="flex items-center justify-between gap-2 text-[11px]">
+                <span id="loginOtpExpiry" class="text-gray-500">The code expires in 10 minutes.</span>
+                <button type="button" id="loginOtpResendBtn" onclick="resendLoginOtp()" class="font-bold text-emerald-700 hover:underline disabled:text-gray-400 disabled:no-underline">Resend code</button>
+            </div>
+            <div id="loginOtpRestart" class="hidden">
+                <button type="button" onclick="closeLoginOtpModal()" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2.5 rounded-lg transition text-xs">Sign in again</button>
+            </div>
+            <p class="flex items-start gap-1.5 text-[10px] text-gray-500 leading-snug"><i class="fa-solid fa-shield-halved text-emerald-600 mt-0.5" aria-hidden="true"></i><span>We ask for this because we don't recognize this device. Apex will never call, text or email you to ask for this code.</span></p>
+        </form>
     </div>
 </div>
 
@@ -1864,7 +1885,7 @@ async function submitCreateRecurringTransfer(event) {
                             <span class="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-gift text-sm"></i></span>
                             <span class="min-w-0">
                                 <span class="block text-sm font-semibold text-gray-900">Offers for you</span>
-                                <span class="block text-[10px] text-gray-500">5 new offers available</span>
+                                <span class="block text-[10px] text-gray-500">Savings, cash back, round-ups and more</span>
                             </span>
                         </span>
                         <i class="fa-solid fa-chevron-right text-gray-300 text-[10px] shrink-0"></i>
@@ -1924,198 +1945,200 @@ async function submitCreateRecurringTransfer(event) {
 
                 <section id="view-offers" class="hidden space-y-4">
                     <div class="flex items-center space-x-2">
-                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
-                        <h1 class="text-md font-bold text-gray-900">Offers &amp; Member Portals</h1>
+                        <button type="button" onclick="navigateBackward()" aria-label="Back" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Offers</h1>
                     </div>
 
-                    <div id="adCarouselCard" class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[145px] flex flex-col justify-between p-4">
-                        <div class="flex justify-between items-center w-full border-b border-slate-800 pb-1.5">
-                            <span class="text-[9px] font-mono tracking-widest text-slate-400 uppercase"><i class="fa-solid fa-rectangle-ad mr-1 text-emerald-400"></i> Sponsored &middot; Member Portals</span>
+                    <div id="adCarouselCard" class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden min-h-[172px] flex flex-col justify-between p-4" aria-roledescription="carousel" aria-label="Offers for you">
+                        <div class="flex justify-between items-center w-full border-b border-slate-700/70 pb-2">
+                            <span class="text-[10px] font-semibold tracking-wide text-slate-300"><i class="fa-solid fa-gift mr-1 text-emerald-400" aria-hidden="true"></i> Offers for you</span>
                             <div class="flex items-center space-x-2">
-                                <button onclick="event.stopPropagation(); dismissCurrentAd()" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] text-slate-400 hover:bg-slate-700 hover:text-white active:scale-95 transition" title="Not interested in this offer"><i class="fa-solid fa-xmark"></i></button>
-                                <button onclick="swapAdTemplate(-1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-left"></i></button>
-                                <span id="adIndexIndicator" class="text-[10px] font-mono font-bold text-emerald-400">1/5</span>
-                                <button onclick="swapAdTemplate(1)" class="h-5 w-5 bg-slate-800 rounded-md flex items-center justify-center text-[9px] hover:bg-slate-700 active:scale-95 transition"><i class="fa-solid fa-chevron-right"></i></button>
+                                <button type="button" onclick="event.stopPropagation(); dismissCurrentAd()" class="ahb-ad-ctrl h-6 w-6 bg-slate-700/70 rounded-md flex items-center justify-center text-[10px] text-slate-300 hover:bg-slate-600 hover:text-white active:scale-95 transition" aria-label="Hide this offer" title="Hide this offer"><i class="fa-solid fa-xmark"></i></button>
+                                <button type="button" onclick="swapAdTemplate(-1)" class="ahb-ad-ctrl h-6 w-6 bg-slate-700/70 rounded-md flex items-center justify-center text-[10px] text-slate-200 hover:bg-slate-600 active:scale-95 transition" aria-label="Previous offer"><i class="fa-solid fa-chevron-left"></i></button>
+                                <span id="adIndexIndicator" class="text-[10px] font-mono font-bold text-emerald-400 min-w-[2rem] text-center" aria-live="polite">1/6</span>
+                                <button type="button" onclick="swapAdTemplate(1)" class="ahb-ad-ctrl h-6 w-6 bg-slate-700/70 rounded-md flex items-center justify-center text-[10px] text-slate-200 hover:bg-slate-600 active:scale-95 transition" aria-label="Next offer"><i class="fa-solid fa-chevron-right"></i></button>
                             </div>
                         </div>
 
-                        <div class="flex-1 flex items-center py-2">
-                            <div id="adTemplate-1" class="w-full space-y-1 block cursor-pointer" onclick="toggleAdMenu(1)">
-                                <span class="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Limited Offer</span>
-                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Apex Horizon Infinite Card <i class="fa-solid fa-circle-chevron-down text-emerald-400 text-[10px] animate-pulse"></i></h4>
-                                <p class="text-[9px] text-gray-300 leading-tight">Earn 1.5% cash back on every card purchase. Redeem it from $1. No annual fee.</p>
+                        <div class="flex-1 flex items-center py-2.5">
+                            <div id="adTemplate-1" data-offer="savings" class="w-full space-y-1.5 block">
+                                <span class="inline-block bg-emerald-400 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">High-Yield Savings</span>
+                                <h4 class="text-sm font-bold tracking-tight leading-snug">Earn <span class="ahb-offer-apy">4.50%</span> APY on your savings</h4>
+                                <p class="text-[11px] text-slate-300 leading-snug">Interest is paid into your balance every day. No minimum to start.</p>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button type="button" onclick="event.stopPropagation(); executeAdAction('savings')" class="ahb-ad-cta text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition">Add money to savings</button>
+                                    <button type="button" onclick="event.stopPropagation(); toggleAdMenu(1)" id="adMore-1" aria-expanded="false" aria-controls="adMenu-1" class="ahb-ad-more text-[11px] font-semibold text-slate-200 hover:text-white px-2 py-1.5 rounded-lg transition">How it works <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 transition-transform" aria-hidden="true"></i></button>
+                                </div>
                             </div>
 
-                            <div id="adTemplate-2" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(2)">
-                                <span class="bg-amber-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Wealth Growth</span>
-                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">5.25% APY Certificate of Deposit <i class="fa-solid fa-circle-chevron-down text-amber-400 text-[10px] animate-pulse"></i></h4>
-                                <p class="text-[9px] text-gray-300 leading-tight">Maximize short-term capital yields with zero market hazards.</p>
+                            <div id="adTemplate-2" data-offer="cashback" class="w-full space-y-1.5 hidden">
+                                <span class="inline-block bg-amber-400 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Apex credit card</span>
+                                <h4 class="text-sm font-bold tracking-tight leading-snug">1.5% cash back on every purchase</h4>
+                                <p class="text-[11px] text-slate-300 leading-snug">Redeem it to checking or as a statement credit once you have $1. No annual fee.</p>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button type="button" onclick="event.stopPropagation(); executeAdAction('cashback')" class="ahb-ad-cta text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition">See your cash back</button>
+                                    <button type="button" onclick="event.stopPropagation(); toggleAdMenu(2)" id="adMore-2" aria-expanded="false" aria-controls="adMenu-2" class="ahb-ad-more text-[11px] font-semibold text-slate-200 hover:text-white px-2 py-1.5 rounded-lg transition">How it works <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 transition-transform" aria-hidden="true"></i></button>
+                                </div>
                             </div>
 
-                            <div id="adTemplate-3" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(3)">
-                                <span class="bg-sky-400 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Mortgages</span>
-                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Streamlined Home Refinancing <i class="fa-solid fa-circle-chevron-down text-sky-400 text-[10px] animate-pulse"></i></h4>
-                                <p class="text-[9px] text-gray-300 leading-tight">Lower monthly obligations. Sync with custom underwriting tools.</p>
+                            <div id="adTemplate-3" data-offer="autopay" class="w-full space-y-1.5 hidden">
+                                <span class="inline-block bg-sky-400 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Card autopay</span>
+                                <h4 class="text-sm font-bold tracking-tight leading-snug">Never miss a card payment</h4>
+                                <p class="text-[11px] text-slate-300 leading-snug">Pay the minimum, the statement balance or the full balance automatically.</p>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button type="button" onclick="event.stopPropagation(); executeAdAction('autopay')" class="ahb-ad-cta text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition">Set up autopay</button>
+                                    <button type="button" onclick="event.stopPropagation(); toggleAdMenu(3)" id="adMore-3" aria-expanded="false" aria-controls="adMenu-3" class="ahb-ad-more text-[11px] font-semibold text-slate-200 hover:text-white px-2 py-1.5 rounded-lg transition">How it works <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 transition-transform" aria-hidden="true"></i></button>
+                                </div>
                             </div>
 
-                            <div id="adTemplate-4" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(4)">
-                                <span class="bg-purple-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Premier Services</span>
-                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Private Wealth Management <i class="fa-solid fa-circle-chevron-down text-purple-400 text-[10px] animate-pulse"></i></h4>
-                                <p class="text-[9px] text-gray-300 leading-tight">Unlock specialized financial structures and custom advising tracks.</p>
+                            <div id="adTemplate-4" data-offer="goals" class="w-full space-y-1.5 hidden">
+                                <span class="inline-block bg-indigo-400 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Savings goals</span>
+                                <h4 class="text-sm font-bold tracking-tight leading-snug">Round up purchases into your goals</h4>
+                                <p class="text-[11px] text-slate-300 leading-snug">A $4.35 coffee rounds up to $5.00, so 65&cent; goes into your goal.</p>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button type="button" onclick="event.stopPropagation(); executeAdAction('goals')" class="ahb-ad-cta text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition">Start a goal</button>
+                                    <button type="button" onclick="event.stopPropagation(); toggleAdMenu(4)" id="adMore-4" aria-expanded="false" aria-controls="adMenu-4" class="ahb-ad-more text-[11px] font-semibold text-slate-200 hover:text-white px-2 py-1.5 rounded-lg transition">How it works <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 transition-transform" aria-hidden="true"></i></button>
+                                </div>
                             </div>
 
-                            <div id="adTemplate-5" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(5)">
-                                <span class="bg-rose-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Business Lines</span>
-                                <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Accelerated Corporate Funding <i class="fa-solid fa-circle-chevron-down text-rose-400 text-[10px] animate-pulse"></i></h4>
-                                <p class="text-[9px] text-gray-300 leading-tight">Scale enterprise infrastructure pipelines instantly up to $250k.</p>
+                            <div id="adTemplate-5" data-offer="linked" class="w-full space-y-1.5 hidden">
+                                <span class="inline-block bg-purple-400 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Linked accounts</span>
+                                <h4 class="text-sm font-bold tracking-tight leading-snug">Link Cash App, Venmo, PayPal or Zelle</h4>
+                                <p class="text-[11px] text-slate-300 leading-snug">Add money to Apex or send it out, right from Home.</p>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button type="button" onclick="event.stopPropagation(); executeAdAction('linked')" class="ahb-ad-cta text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition">Link an account</button>
+                                    <button type="button" onclick="event.stopPropagation(); toggleAdMenu(5)" id="adMore-5" aria-expanded="false" aria-controls="adMenu-5" class="ahb-ad-more text-[11px] font-semibold text-slate-200 hover:text-white px-2 py-1.5 rounded-lg transition">How it works <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 transition-transform" aria-hidden="true"></i></button>
+                                </div>
                             </div>
+
+                            <div id="adTemplate-6" data-offer="budgets" class="w-full space-y-1.5 hidden">
+                                <span class="inline-block bg-rose-400 text-slate-950 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Budgets</span>
+                                <h4 class="text-sm font-bold tracking-tight leading-snug">Know before you overspend</h4>
+                                <p class="text-[11px] text-slate-300 leading-snug">Set monthly limits and get alerts at 80% and again at 100%.</p>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <button type="button" onclick="event.stopPropagation(); executeAdAction('budgets')" class="ahb-ad-cta text-[11px] font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition">Set a budget</button>
+                                    <button type="button" onclick="event.stopPropagation(); toggleAdMenu(6)" id="adMore-6" aria-expanded="false" aria-controls="adMenu-6" class="ahb-ad-more text-[11px] font-semibold text-slate-200 hover:text-white px-2 py-1.5 rounded-lg transition">How it works <i class="fa-solid fa-chevron-down text-[9px] ml-0.5 transition-transform" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+
                         </div>
 
                         <div class="flex justify-center items-center space-x-1.5 pt-1">
-                            <button onclick="jumpToAdTemplate(1)" id="adDot-1" class="h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300"></button>
-                            <button onclick="jumpToAdTemplate(2)" id="adDot-2" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
-                            <button onclick="jumpToAdTemplate(3)" id="adDot-3" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
-                            <button onclick="jumpToAdTemplate(4)" id="adDot-4" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
-                            <button onclick="jumpToAdTemplate(5)" id="adDot-5" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button type="button" onclick="jumpToAdTemplate(1)" id="adDot-1" aria-label="Offer 1" class="h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300"></button>
+                            <button type="button" onclick="jumpToAdTemplate(2)" id="adDot-2" aria-label="Offer 2" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button type="button" onclick="jumpToAdTemplate(3)" id="adDot-3" aria-label="Offer 3" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button type="button" onclick="jumpToAdTemplate(4)" id="adDot-4" aria-label="Offer 4" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button type="button" onclick="jumpToAdTemplate(5)" id="adDot-5" aria-label="Offer 5" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
+                            <button type="button" onclick="jumpToAdTemplate(6)" id="adDot-6" aria-label="Offer 6" class="h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300"></button>
                         </div>
 
-                        <div id="adDisclosureFooter" class="text-center text-[8px] text-slate-500 font-mono leading-relaxed pt-1.5 mt-1 border-t border-slate-800/70"></div>
+                        <div id="adDisclosureFooter" class="text-center text-[9px] text-slate-400 leading-relaxed pt-2 mt-1.5 border-t border-slate-700/70"></div>
                     </div>
 
-                    <div id="adMenu-1" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('card')" class="fa-solid fa-credit-card text-emerald-500 mr-1 cursor-pointer"></i> Card Customizer Track</span>
-                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                    <div id="adMenu-1" class="hidden bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center gap-3">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-piggy-bank text-xs" aria-hidden="true"></i></span>
+                                <span class="text-sm font-bold text-gray-900 truncate">High-Yield Savings</span>
+                            </span>
+                            <button type="button" onclick="closeAllAdMenus()" aria-label="Close" class="text-gray-400 hover:text-gray-600 text-sm shrink-0"><i class="fa-solid fa-circle-xmark"></i></button>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="selectCardTier('signature')" id="tierBtn-signature" class="p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left">
-                                <span class="block text-[10px] font-bold text-gray-900">Infinite Signature</span>
-                                <span class="block text-[8px] text-gray-500">1.5% cash back everywhere</span>
-                            </button>
-                            <button onclick="selectCardTier('elite')" id="tierBtn-elite" class="p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50">
-                                <span class="block text-[10px] font-bold text-gray-900">Prestige Elite</span>
-                                <span class="block text-[8px] text-gray-500">4x Points on travel/dining</span>
-                            </button>
-                        </div>
-                        <div class="bg-slate-50 p-2.5 rounded-lg space-y-1.5">
-                            <label class="flex items-center justify-between text-[10px] font-medium text-gray-600 cursor-pointer">
-                                <span>Include Premium Protection Shield</span>
-                                <input type="checkbox" id="cardShieldCheck" checked class="accent-emerald-600 rounded h-3.5 w-3.5">
-                            </label>
-                            <p class="text-[8px] text-gray-400 leading-normal">Adds biometric zero-liability coverage logs matching real-time insurance validation structures.</p>
-                        </div>
-                        <button onclick="executeAdAction('credit-card')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-emerald-600">
-                            Process Tokenized Card Creation
-                        </button>
+                        <p class="text-xs text-gray-600 leading-relaxed">Every Apex account comes with High-Yield Savings. Interest is worked out on your balance each day and paid in daily, so it starts earning interest of its own straight away.</p>
+                        <ul class="space-y-1.5 text-xs text-gray-700">
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span><span class="ahb-offer-apy">4.50%</span> Annual Percentage Yield</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Interest paid into your balance every day</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Move money back to checking whenever you like</span></li>
+                        </ul>
+                        <p class="text-[11px] text-gray-600 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">Keep $10,000 saved for a year and you'd earn about <span class="ahb-offer-apy-10k">$450</span> in interest.</p>
+                        <button type="button" onclick="executeAdAction('savings')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition"><i class="fa-solid fa-plus mr-1.5" aria-hidden="true"></i>Add money to savings</button>
                     </div>
 
-                    <div id="adMenu-2" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('cd')" class="fa-solid fa-chart-line text-amber-500 mr-1 cursor-pointer"></i> CD Treasury Locks</span>
-                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                    <div id="adMenu-2" class="hidden bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center gap-3">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-gift text-xs" aria-hidden="true"></i></span>
+                                <span class="text-sm font-bold text-gray-900 truncate">Apex credit card</span>
+                            </span>
+                            <button type="button" onclick="closeAllAdMenus()" aria-label="Close" class="text-gray-400 hover:text-gray-600 text-sm shrink-0"><i class="fa-solid fa-circle-xmark"></i></button>
                         </div>
-                        <div class="space-y-2">
-                            <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Asset Lock Allocation ($)</label>
-                                <input type="number" id="ad2PrincipalInput" value="25000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Yield Duration Structure</label>
-                                <select id="ad2DurationSelect" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                    <option value="12" selected>12 Months Guaranteed (5.25% APY)</option>
-                                    <option value="24">24 Months Multi-Compound (5.85% APY)</option>
-                                    <option value="36">36 Months Institutional (6.10% APY)</option>
-                                </select>
-                            </div>
-                            <div class="bg-amber-50/50 border border-amber-200 rounded-lg p-2 flex justify-between items-center text-xs font-mono">
-                                <span class="text-[10px] font-medium text-amber-800">Projected Interest Return:</span>
-                                <span id="ad2YieldProjectionText" class="font-bold text-slate-950">$1,312.50</span>
-                            </div>
-                        </div>
-                        <button onclick="executeAdAction('cd-yield')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-amber-500 hover:text-slate-950">
-                            Lock High-Yield Capital Array
-                        </button>
+                        <p class="text-xs text-gray-600 leading-relaxed">Every purchase on your Apex credit card earns 1.5% back, with no categories to track and no cap on what you can earn.</p>
+                        <ul class="space-y-1.5 text-xs text-gray-700">
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-amber-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>1.5% back on every card purchase</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-amber-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Redeem from $1.00, whenever you like</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-amber-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Send it to checking or use it as a statement credit</span></li>
+                        </ul>
+                        <p class="text-[11px] text-gray-600 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">Spend $800 on your card in a month and you'd earn $12.00 back.</p>
+                        <button type="button" onclick="executeAdAction('cashback')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition"><i class="fa-solid fa-arrow-right mr-1.5" aria-hidden="true"></i>See your cash back</button>
                     </div>
 
-                    <div id="adMenu-3" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('mortgage')" class="fa-solid fa-house-circle-check text-sky-500 mr-1 cursor-pointer"></i> Home Underwriting Portal</span>
-                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                    <div id="adMenu-3" class="hidden bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center gap-3">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i></span>
+                                <span class="text-sm font-bold text-gray-900 truncate">Card autopay</span>
+                            </span>
+                            <button type="button" onclick="closeAllAdMenus()" aria-label="Close" class="text-gray-400 hover:text-gray-600 text-sm shrink-0"><i class="fa-solid fa-circle-xmark"></i></button>
                         </div>
-                        <div class="space-y-2">
-                            <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Estimated Home Valuation</label>
-                                <input type="number" id="ad3HomeVal" value="450000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Down Payment</label>
-                                    <input type="number" id="ad3DownPayment" value="90000" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Credit Score Tier</label>
-                                    <select id="ad3CreditScore" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                        <option selected>Excellent (740+)</option>
-                                        <option>Good (670-739)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="executeAdAction('mortgage')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-sky-400 hover:text-slate-950">
-                            Query Live Amortization Tables
-                        </button>
+                        <p class="text-xs text-gray-600 leading-relaxed">Pick how much to pay and we'll pay your Apex card from Primary Checking on each due date, the 20th of the month.</p>
+                        <ul class="space-y-1.5 text-xs text-gray-700">
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-sky-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Choose the minimum, the statement balance or the full balance</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-sky-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Paid from checking on the 20th</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-sky-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Change it or turn it off any time</span></li>
+                        </ul>
+                        <button type="button" onclick="executeAdAction('autopay')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition"><i class="fa-solid fa-arrow-right mr-1.5" aria-hidden="true"></i>Set up autopay</button>
                     </div>
 
-                    <div id="adMenu-4" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('wealth')" class="fa-solid fa-crown text-purple-500 mr-1 cursor-pointer"></i> Asset Management Track</span>
-                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                    <div id="adMenu-4" class="hidden bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center gap-3">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-bullseye text-xs" aria-hidden="true"></i></span>
+                                <span class="text-sm font-bold text-gray-900 truncate">Savings goals</span>
+                            </span>
+                            <button type="button" onclick="closeAllAdMenus()" aria-label="Close" class="text-gray-400 hover:text-gray-600 text-sm shrink-0"><i class="fa-solid fa-circle-xmark"></i></button>
                         </div>
-                        <div class="space-y-2.5 text-xs">
-                            <p class="text-[10px] text-gray-600 leading-normal">Requires continuous validation of verifiable network assets exceeding $250,000 USD.</p>
-                            <div class="bg-purple-50 rounded-lg p-2.5 space-y-2 border border-purple-100">
-                                <span class="block text-[9px] font-bold uppercase text-purple-900">Select Desired Advisory Channels:</span>
-                                <div class="grid grid-cols-2 gap-2 text-[9px] font-medium text-gray-700">
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Tax Optimization</span></label>
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" checked class="accent-purple-600"> <span>Trust Networks</span></label>
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Offshore Routing</span></label>
-                                    <label class="flex items-center space-x-1 cursor-pointer"><input type="checkbox" class="accent-purple-600"> <span>Alternative Alts</span></label>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="executeAdAction('wealth')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-purple-500">
-                            File Direct Asset Strategic Intake
-                        </button>
+                        <p class="text-xs text-gray-600 leading-relaxed">Name what you're saving for, set a target, and let the spare change from your card purchases do some of the work.</p>
+                        <ul class="space-y-1.5 text-xs text-gray-700">
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-indigo-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Up to 10 goals, each with a target and a date</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-indigo-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Round-ups move your spare change into a goal once a day</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-indigo-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Take money out any time</span></li>
+                        </ul>
+                        <button type="button" onclick="executeAdAction('goals')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition"><i class="fa-solid fa-arrow-right mr-1.5" aria-hidden="true"></i>Start a goal</button>
                     </div>
 
-                    <div id="adMenu-5" class="hidden bg-white rounded-xl p-3.5 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
-                        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                            <span class="text-[10px] font-bold uppercase text-slate-900 tracking-wider"><i onclick="event.stopPropagation(); showTrackInfo('business')" class="fa-solid fa-briefcase text-rose-500 mr-1 cursor-pointer"></i> Business Liquidity Node</span>
-                            <button onclick="closeAllAdMenus()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                    <div id="adMenu-5" class="hidden bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center gap-3">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-link text-xs" aria-hidden="true"></i></span>
+                                <span class="text-sm font-bold text-gray-900 truncate">Linked accounts</span>
+                            </span>
+                            <button type="button" onclick="closeAllAdMenus()" aria-label="Close" class="text-gray-400 hover:text-gray-600 text-sm shrink-0"><i class="fa-solid fa-circle-xmark"></i></button>
                         </div>
-                        <div class="space-y-2">
-                            <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Required Capital Runway ($)</label>
-                                <input type="range" id="ad5CapitalRange" min="10000" max="250000" step="5000" value="50000" oninput="updateAd5RangeLabel(this.value)" class="w-full accent-rose-600 bg-gray-200 rounded-lg h-1.5 cursor-pointer">
-                                <div class="flex justify-between text-[10px] font-mono font-bold text-slate-800 mt-1">
-                                    <span>Min: $10k</span>
-                                    <span id="ad5RangeLabel" class="text-rose-600 bg-rose-50 px-1.5 rounded">$50,000</span>
-                                    <span>Max: $250k</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Corporate Structure Filing</label>
-                                <select class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none">
-                                    <option>Single Member LLC / Sole Prop</option>
-                                    <option>S-Corporation Multi-Node</option>
-                                    <option>C-Corporation Institutional</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button onclick="executeAdAction('business')" class="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-lg transition hover:bg-rose-500">
-                            Expand Capital Bridge Stream
-                        </button>
+                        <p class="text-xs text-gray-600 leading-relaxed">Link the apps and banks you already use, then move money between them and Apex checking.</p>
+                        <ul class="space-y-1.5 text-xs text-gray-700">
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-purple-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Link with a $Cashtag, username, email, phone or bank account number</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-purple-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Add up to $2,500 and send up to $5,000 a day</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-purple-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Unlink any time</span></li>
+                        </ul>
+                        <button type="button" onclick="executeAdAction('linked')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition"><i class="fa-solid fa-plus mr-1.5" aria-hidden="true"></i>Link an account</button>
                     </div>
+
+                    <div id="adMenu-6" class="hidden bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3 animate-fade-in">
+                        <div class="flex justify-between items-center gap-3">
+                            <span class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-chart-simple text-xs" aria-hidden="true"></i></span>
+                                <span class="text-sm font-bold text-gray-900 truncate">Budgets</span>
+                            </span>
+                            <button type="button" onclick="closeAllAdMenus()" aria-label="Close" class="text-gray-400 hover:text-gray-600 text-sm shrink-0"><i class="fa-solid fa-circle-xmark"></i></button>
+                        </div>
+                        <p class="text-xs text-gray-600 leading-relaxed">Set a monthly limit for the categories you care about, and we'll keep count as you spend.</p>
+                        <ul class="space-y-1.5 text-xs text-gray-700">
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-rose-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Limits for groceries, dining, shopping and more</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-rose-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>Alerts at 80% and again at 100% of each limit</span></li>
+                            <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-rose-600 text-[11px] mt-0.5 shrink-0" aria-hidden="true"></i><span>A safe-to-spend amount per day for the rest of the month</span></li>
+                        </ul>
+                        <button type="button" onclick="executeAdAction('budgets')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-lg transition"><i class="fa-solid fa-arrow-right mr-1.5" aria-hidden="true"></i>Set a budget</button>
+                    </div>
+
                 </section>
 
                 <section id="view-profile" class="hidden space-y-4 animate-fade-in">
@@ -3788,26 +3811,28 @@ async function submitCreateRecurringTransfer(event) {
         let activeLoanBalanceValue = 18450.00;
         let bannerTimeoutId = null;
         
-        let currentAdIndex = 1; 
-        const totalRealAds = 5;
+        let currentAdIndex = 1;
+        const totalRealAds = 6;
         const dismissedAdIndices = new Set();
         let adCarouselOriginalHTML = null;
 
-        // Real bank promo units carry per-offer fine print and an expiry —
-        // hoursUntilExpiry is picked once at load so the countdown feels
-        // alive without needing a backend to track it.
+        // Every offer here is a feature the app really has, and each one's fine
+        // print is the plain rule behind it. No countdowns or "limited time"
+        // wording: none of these offers expire.
+        function offerApy() {
+            const own = typeof FD_APY_RATE !== 'undefined' && Number(FD_APY_RATE) > 0 ? Number(FD_APY_RATE) : 0;
+            if (own) return own;
+            return typeof AHB_PUBLIC_RATES !== 'undefined' ? AHB_PUBLIC_RATES.savingsApy : 0.045;
+        }
         const AD_META = {
-            1: { disclosure: "Variable APR 18.99%\u201327.99% based on creditworthiness. Subject to credit approval.", hoursUntilExpiry: 68 },
-            2: { disclosure: "APY accurate as of today and subject to change without notice. Early withdrawal penalties may apply.", hoursUntilExpiry: 30 },
-            3: { disclosure: "Rate shown assumes excellent credit and is subject to underwriting and property appraisal.", hoursUntilExpiry: 140 },
-            4: { disclosure: "Advisory services offered through Apex Horizon Wealth Partners. Minimum asset requirements apply.", hoursUntilExpiry: 300 },
-            5: { disclosure: "Business financing subject to underwriting review. Not all applicants will qualify.", hoursUntilExpiry: 12 }
+            1: { key: 'savings', disclosure: () => `APY accurate as of ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. The rate is variable and may change.` },
+            2: { key: 'cashback', disclosure: () => 'Earned on purchases with your Apex credit card. If a purchase is refunded, the cash back it earned comes back off.' },
+            3: { key: 'autopay', disclosure: () => "Autopay pays from Primary Checking on the due date. If checking doesn't have enough, nothing is paid and we'll let you know." },
+            4: { key: 'goals', disclosure: () => 'Round-ups come from Apex card purchases and move from checking into one goal at a time.' },
+            5: { key: 'linked', disclosure: () => 'Up to 8 linked accounts. Larger sends may ask for Face ID or your passcode.' },
+            6: { key: 'budgets', disclosure: () => 'Budgets count purchases, bills and money sent to people. Moving money between your own accounts never counts.' }
         };
-        (function initAdExpiries() {
-            const now = Date.now();
-            for (const key in AD_META) {
-                AD_META[key].expiresAt = now + AD_META[key].hoursUntilExpiry * 3600 * 1000;
-            }
+        (function snapshotOffersCarousel() {
             // Snapshot the pristine carousel markup now, before any dismiss
             // interaction can mutate it, so "Show offers again" restores the
             // original state rather than whatever was left after the last dismiss.
@@ -3824,7 +3849,7 @@ async function submitCreateRecurringTransfer(event) {
 
         function adDismissStorageKey() {
             const userKey = (typeof currentUserEmail !== 'undefined' && currentUserEmail) ? currentUserEmail : 'guest';
-            return `ahb_dismissed_offers_${userKey}`;
+            return `ahb_dismissed_offers_v2_${userKey}`;
         }
 
         function loadDismissedAdsFromStorage() {
@@ -5150,23 +5175,19 @@ if (activeLoanBalanceEl) {
             document.getElementById('cardVelocityLimitText').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
         }
 
-        function formatAdCountdown(ms) {
-            if (ms <= 0) return "Expired";
-            const totalMinutes = Math.floor(ms / 60000);
-            const days = Math.floor(totalMinutes / 1440);
-            const hours = Math.floor((totalMinutes % 1440) / 60);
-            const minutes = totalMinutes % 60;
-            if (days > 0) return `${days}d ${hours}h`;
-            if (hours > 0) return `${hours}h ${minutes}m`;
-            return `${minutes}m`;
+        function refreshOfferRates() {
+            const apy = offerApy();
+            const pct = `${(apy * 100).toFixed(2)}%`;
+            document.querySelectorAll('#view-offers .ahb-offer-apy').forEach((el) => { el.textContent = pct; });
+            const tenK = '$' + Math.round(10000 * apy).toLocaleString('en-US');
+            document.querySelectorAll('#view-offers .ahb-offer-apy-10k').forEach((el) => { el.textContent = tenK; });
         }
 
         function updateAdDisclosureFooter() {
             const footer = document.getElementById('adDisclosureFooter');
             const meta = AD_META[currentAdIndex];
             if (!footer || !meta) return;
-            const remaining = meta.expiresAt - Date.now();
-            footer.innerHTML = `<span class="text-emerald-400 font-semibold">Expires in ${formatAdCountdown(remaining)}</span> &middot; ${meta.disclosure}`;
+            footer.textContent = meta.disclosure();
         }
 
         function nextAvailableAdIndex(start, direction) {
@@ -5194,24 +5215,34 @@ if (activeLoanBalanceEl) {
         }
 
         function renderActiveAdState() {
-            document.getElementById('adIndexIndicator').innerText = `${currentAdIndex}/${totalRealAds}`;
-            
+            const indicator = document.getElementById('adIndexIndicator');
+            if (!indicator) return;
+            // Count what's still showing, so hiding an offer reads "2/5", not "2/6".
+            const visible = [];
+            for (let i = 1; i <= totalRealAds; i++) if (!dismissedAdIndices.has(i)) visible.push(i);
+            const pos = Math.max(0, visible.indexOf(currentAdIndex));
+            indicator.innerText = `${pos + 1}/${visible.length}`;
+
             for (let i = 1; i <= totalRealAds; i++) {
                 const template = document.getElementById(`adTemplate-${i}`);
                 const dot = document.getElementById(`adDot-${i}`);
-                
+                if (!template) continue;
                 if (i === currentAdIndex) {
                     template.classList.remove('hidden');
                     template.classList.add('block');
-                    if (dot) dot.className = "h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300";
+                    if (dot) { dot.className = "h-1.5 w-4 bg-emerald-400 rounded-full transition-all duration-300"; dot.setAttribute('aria-current', 'true'); }
                 } else {
                     template.classList.add('hidden');
                     template.classList.remove('block');
-                    if (dot) dot.className = dismissedAdIndices.has(i)
-                        ? "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300 hidden"
-                        : "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300";
+                    if (dot) {
+                        dot.className = dismissedAdIndices.has(i)
+                            ? "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300 hidden"
+                            : "h-1.5 w-1.5 bg-slate-600 rounded-full transition-all duration-300";
+                        dot.removeAttribute('aria-current');
+                    }
                 }
             }
+            refreshOfferRates();
             updateAdDisclosureFooter();
             closeAllAdMenus();
         }
@@ -5223,6 +5254,7 @@ if (activeLoanBalanceEl) {
             if (dot) dot.classList.add('hidden');
 
             if (dismissedAdIndices.size >= totalRealAds) {
+                closeAllAdMenus();
                 showAllOffersDismissedState();
                 return;
             }
@@ -5238,8 +5270,8 @@ if (activeLoanBalanceEl) {
                 <div class="flex flex-col items-center justify-center text-center py-4 space-y-2">
                     <i class="fa-solid fa-circle-check text-emerald-400 text-xl"></i>
                     <p class="text-xs font-bold">You're all caught up</p>
-                    <p class="text-[10px] text-slate-400">No new offers to show right now.</p>
-                    <button onclick="restoreAllAds()" class="text-[10px] font-mono text-emerald-400 hover:text-emerald-300 underline underline-offset-2 mt-1">Show offers again</button>
+                    <p class="text-[11px] text-slate-400">You've hidden every offer.</p>
+                    <button type="button" onclick="restoreAllAds()" class="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 mt-1">Show offers again</button>
                 </div>
             `;
         }
@@ -5254,14 +5286,30 @@ if (activeLoanBalanceEl) {
             renderActiveAdState();
         }
 
+        // On sign-out, forget the last person's hidden offers so the next person
+        // to sign in on this page starts from their own saved choices.
+        function resetOffersForSignOut() {
+            dismissedAdIndices.clear();
+            dismissedAdsSyncedForUser = false;
+            currentAdIndex = 1;
+            const card = document.getElementById('adCarouselCard');
+            if (card && adCarouselOriginalHTML !== null && !document.getElementById('adTemplate-1')) card.innerHTML = adCarouselOriginalHTML;
+            closeAllAdMenus();
+        }
+
         function toggleAdMenu(index) {
             const targetMenu = document.getElementById(`adMenu-${index}`);
+            if (!targetMenu) return;
             const isCurrentlyHidden = targetMenu.classList.contains('hidden');
-            
             closeAllAdMenus();
-            
             if (isCurrentlyHidden) {
                 targetMenu.classList.remove('hidden');
+                const more = document.getElementById(`adMore-${index}`);
+                if (more) {
+                    more.setAttribute('aria-expanded', 'true');
+                    const chev = more.querySelector('i');
+                    if (chev) chev.classList.add('rotate-180');
+                }
             }
         }
 
@@ -5269,69 +5317,50 @@ if (activeLoanBalanceEl) {
             for (let i = 1; i <= totalRealAds; i++) {
                 const menu = document.getElementById(`adMenu-${i}`);
                 if (menu) menu.classList.add('hidden');
+                const more = document.getElementById(`adMore-${i}`);
+                if (more) {
+                    more.setAttribute('aria-expanded', 'false');
+                    const chev = more.querySelector('i');
+                    if (chev) chev.classList.remove('rotate-180');
+                }
             }
         }
 
-        function selectCardTier(tier) {
-            const sigBtn = document.getElementById('tierBtn-signature');
-            const eliteBtn = document.getElementById('tierBtn-elite');
-            if (tier === 'signature') {
-                sigBtn.className = "p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left";
-                eliteBtn.className = "p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50";
-            } else {
-                eliteBtn.className = "p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left";
-                sigBtn.className = "p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50";
+        // Each offer's button goes straight to the real screen for it.
+        async function offerOpenAutopay() {
+            triggerViewSwitch('credit');
+            if (typeof openCardAutopay !== 'function') return;
+            // The Cards view loads the card on open; wait for it (up to ~5s) so the
+            // autopay sheet shows the right amounts and current choice.
+            for (let i = 0; i < 50 && (typeof creditCardState === 'undefined' || !creditCardState); i++) {
+                await new Promise((r) => setTimeout(r, 100));
             }
-        }
-
-        function updateAd5RangeLabel(val) {
-            document.getElementById('ad5RangeLabel').innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+            if (typeof creditCardState !== 'undefined' && creditCardState) openCardAutopay();
         }
 
         function executeAdAction(advertType) {
-            const loader = document.getElementById('preQualLoader');
-            loader.classList.remove('hidden');
-            
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                closeAllAdMenus();
-                
-                switch (advertType) {
-                    case 'credit-card':
-                        triggerViewSwitch('credit');
-                        switchCreditTab('pending');
-                        const shield = document.getElementById('cardShieldCheck').checked ? "with Protection Shield enabled" : "without Protection Shield";
-                        alert(`Apex Infinite card configuration processed ${shield}. Mapped directly to your pending profile.`);
-                        break;
-                        
-                    case 'cd-yield':
-                        alert(`Fixed Deposit Module is currently locked on an advanced high-yield layout.`);
-                        break;
-                        
-                    case 'mortgage':
-                        const value = document.getElementById('ad3HomeVal').value;
-                        const down = document.getElementById('ad3DownPayment').value;
-                        triggerViewSwitch('loans');
-                        document.getElementById('utilityProductSelect').value = "0.0595";
-                        document.getElementById('loanCalculatorAmountSlider').value = Math.min(Math.max(value - down, 5000), 150000);
-                        document.getElementById('loanCalculatorTermSlider').value = "60";
-                        runLiveLoanCalculator();
-                        alert(`Underwriting data synchronized! Estimated Mortgage Principle Value Loaded into Interactive Assessment Track below.`);
-                        break;
-                        
-                    case 'wealth':
-                        alert("Private Wealth Request Dispatched! Your dedicated asset strategist will contact your registered email node within 1 business hour.");
-                        break;
-                        
-                    case 'business':
-                        const funding = document.getElementById('ad5CapitalRange').value;
-                        triggerViewSwitch('wire');
-                        document.getElementById('wireAmountInput').value = funding;
-                        document.getElementById('wireRoutingInput').focus();
-                        alert(`Enterprise funding node unlocked ($${parseInt(funding).toLocaleString()}). Route structural corporate payouts safely using the clearing hub layout below.`);
-                        break;
-                }
-            }, 1000);
+            closeAllAdMenus();
+            switch (advertType) {
+                case 'savings':
+                    if (typeof openSavingsMove === 'function') openSavingsMove('in');
+                    else triggerViewSwitch('savings-summary');
+                    break;
+                case 'cashback':
+                    triggerViewSwitch('credit');
+                    break;
+                case 'autopay':
+                    offerOpenAutopay();
+                    break;
+                case 'goals':
+                    triggerViewSwitch('goals');
+                    break;
+                case 'linked':
+                    if (typeof openLinkSheet === 'function') openLinkSheet();
+                    break;
+                case 'budgets':
+                    triggerViewSwitch('budgets');
+                    break;
+            }
         }
 
         function maskAccountNumber(num) {
@@ -6162,13 +6191,6 @@ function updateHeaderClock() {
 }
 setInterval(updateHeaderClock, 1000);
 
-setInterval(() => {
-    const offersView = document.getElementById('view-offers');
-    const footer = document.getElementById('adDisclosureFooter');
-    if (offersView && !offersView.classList.contains('hidden') && footer) {
-        updateAdDisclosureFooter();
-    }
-}, 60000);
 updateHeaderClock();
 
 function updateHeaderUserName(fullName) {
@@ -7018,7 +7040,6 @@ fetchAndApplyProfilePhoto();
             }
         }
 
-        let loginOtpPendingToken = null;
 
         async function handleSignIn(event) {
             event.preventDefault();
@@ -7055,12 +7076,11 @@ fetchAndApplyProfilePhoto();
                     return;
                 }
 
-                if (data.requiresOtp) {
-                    loginOtpPendingToken = data.pendingToken;
+                if (data.verificationRequired) {
                     submitBtn.disabled = false;
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                     submitBtn.innerHTML = originalContent;
-                    openLoginOtpModal();
+                    openLoginOtpModal(data);
                     return;
                 }
             } catch (err) {
@@ -7087,74 +7107,183 @@ fetchAndApplyProfilePhoto();
                 method,
                 previousSignIn: data.previousSignIn || null,
                 newDevice: !!data.newDevice,
+                verifiedWith: data.verifiedWith || null,
                 fullName: data.user && (data.user.fullName || data.user.full_name),
             };
         }
 
-        function openLoginOtpModal() {
-            document.getElementById('loginOtpErrorBanner').classList.add('hidden');
-            document.getElementById('loginOtpCodeInput').value = '';
-            document.getElementById('loginOtpModal').classList.remove('hidden');
+        // ----- New device: confirm with the code we emailed (or the app passcode) -----
+        const loginOtpUi = { challengeId: null, method: null, resendAt: 0, timer: null, busy: false };
+
+        function loginOtpShowError(msg) {
+            const el = document.getElementById('loginOtpErrorBanner');
+            el.textContent = msg || '';
+            el.classList.toggle('hidden', !msg);
+        }
+
+        function loginOtpTick() {
+            const btn = document.getElementById('loginOtpResendBtn');
+            if (!btn) return;
+            const left = Math.ceil((loginOtpUi.resendAt - Date.now()) / 1000);
+            if (left > 0) {
+                btn.disabled = true;
+                btn.textContent = `Resend code in 0:${String(left).padStart(2, '0')}`;
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Resend code';
+            }
+        }
+
+        function openLoginOtpModal(info) {
+            info = info || {};
+            loginOtpUi.challengeId = info.challengeId || null;
+            loginOtpUi.method = info.method === 'passcode' ? 'passcode' : 'email';
+            loginOtpUi.busy = false;
+            const passcode = loginOtpUi.method === 'passcode';
+            const modal = document.getElementById('loginOtpModal');
+            const input = document.getElementById('loginOtpCodeInput');
+            document.getElementById('loginOtpTitle').textContent = passcode ? 'Enter your app passcode' : 'Check your email';
+            document.getElementById('loginOtpIcon').innerHTML = passcode ? '<i class="fa-solid fa-key"></i>' : '<i class="fa-solid fa-envelope-open-text"></i>';
+            document.getElementById('loginOtpIntro').textContent = passcode
+                ? "We don't recognize this device, and we couldn't email you a code just now. Enter your app passcode to finish signing in."
+                : `We don't recognize this device, so we sent a 6-digit code to ${info.destination || 'your email'}. Enter it to finish signing in.`;
+            document.getElementById('loginOtpLabel').textContent = passcode ? 'App passcode' : '6-digit code';
+            input.value = '';
+            input.type = passcode ? 'password' : 'text';
+            input.autocomplete = passcode ? 'off' : 'one-time-code';
+            input.placeholder = passcode ? '••••' : '••••••';
+            document.getElementById('loginOtpResendRow').classList.toggle('hidden', passcode);
+            document.getElementById('loginOtpRestart').classList.add('hidden');
+            const submit = document.getElementById('loginOtpSubmitBtn');
+            submit.disabled = false;
+            submit.textContent = 'Confirm and sign in';
+            submit.classList.remove('hidden');
+            input.disabled = false;
+            loginOtpShowError('');
+            loginOtpUi.resendAt = Date.now() + (Number(info.resendAfterSeconds) || 30) * 1000;
+            clearInterval(loginOtpUi.timer);
+            if (!passcode) { loginOtpTick(); loginOtpUi.timer = setInterval(loginOtpTick, 1000); }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { try { input.focus(); } catch (e) {} }, 60);
         }
 
         function closeLoginOtpModal() {
-            document.getElementById('loginOtpModal').classList.add('hidden');
-            loginOtpPendingToken = null;
+            const modal = document.getElementById('loginOtpModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            clearInterval(loginOtpUi.timer);
+            loginOtpUi.challengeId = null;
+            loginOtpUi.busy = false;
+            const pw = document.getElementById('loginPasswordInput');
+            if (pw) { pw.value = ''; try { pw.focus(); } catch (e) {} }
         }
 
-        async function submitLoginOtp() {
-            const errorEl = document.getElementById('loginOtpErrorBanner');
-            errorEl.classList.add('hidden');
+        // The check is over (expired, used, too many tries): only a fresh sign-in helps.
+        function loginOtpEnded(message) {
+            loginOtpShowError(message);
+            clearInterval(loginOtpUi.timer);
+            document.getElementById('loginOtpCodeInput').disabled = true;
+            document.getElementById('loginOtpSubmitBtn').classList.add('hidden');
+            document.getElementById('loginOtpResendRow').classList.add('hidden');
+            document.getElementById('loginOtpRestart').classList.remove('hidden');
+        }
 
-            const code = document.getElementById('loginOtpCodeInput').value.trim();
-            if (!/^\d{6}$/.test(code)) {
-                errorEl.textContent = 'Enter the 6-digit code from your email.';
-                errorEl.classList.remove('hidden');
+        async function submitLoginOtp(event) {
+            if (event) event.preventDefault();
+            if (loginOtpUi.busy) return;
+            const input = document.getElementById('loginOtpCodeInput');
+            const code = input.value.replace(/\s/g, '');
+            const passcode = loginOtpUi.method === 'passcode';
+            if (passcode ? !/^\d{4,6}$/.test(code) : !/^\d{6}$/.test(code)) {
+                loginOtpShowError(passcode ? 'Enter your app passcode.' : 'Enter the 6-digit code from the email.');
                 return;
             }
-            if (!loginOtpPendingToken) {
-                errorEl.textContent = 'This verification session expired. Please sign in again.';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
+            if (!loginOtpUi.challengeId) { loginOtpEnded('This sign-in check has ended. Please sign in again.'); return; }
             const btn = document.getElementById('loginOtpSubmitBtn');
-            const originalText = btn.innerText;
+            loginOtpUi.busy = true;
             btn.disabled = true;
-            btn.innerText = 'Verifying...';
-
+            btn.textContent = 'Checking…';
+            loginOtpShowError('');
             try {
                 const res = await fetch('/api/auth-session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ action: 'verify-login-otp', pendingToken: loginOtpPendingToken, code })
+                    body: JSON.stringify({ action: 'verify-device', challengeId: loginOtpUi.challengeId, code })
                 });
-                const data = await res.json();
-
-                btn.disabled = false;
-                btn.innerText = originalText;
-
+                const data = await res.json().catch(() => ({}));
+                loginOtpUi.busy = false;
                 if (!res.ok) {
-                    errorEl.textContent = data.error || 'Could not verify that code. Please try again.';
-                    errorEl.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Confirm and sign in';
+                    if (data.restart) { loginOtpEnded(data.error || 'Please sign in again.'); return; }
+                    loginOtpShowError(data.error || 'That code did not work. Please try again.');
+                    input.value = '';
+                    input.focus();
                     return;
                 }
-
-                document.getElementById('loginOtpModal').classList.add('hidden');
-                loginOtpPendingToken = null;
-
+                const modal = document.getElementById('loginOtpModal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                clearInterval(loginOtpUi.timer);
+                loginOtpUi.challengeId = null;
+                document.getElementById('loginPasswordInput').value = '';
                 runLoginSequence({
-                    dataPromise: loadRealAccountDataWithRetry().catch(err => console.error('Post-OTP data load failed (login itself succeeded):', err)),
+                    dataPromise: loadRealAccountDataWithRetry().catch(err => console.error('Post-verification data load failed (sign-in itself succeeded):', err)),
                     context: signinContextFrom(data, 'password'),
                 });
             } catch (err) {
+                loginOtpUi.busy = false;
                 btn.disabled = false;
-                btn.innerText = originalText;
-                errorEl.textContent = 'Network error. Please try again.';
-                errorEl.classList.remove('hidden');
+                btn.textContent = 'Confirm and sign in';
+                loginOtpShowError('Network error. Please check your connection and try again.');
             }
         }
+
+        async function resendLoginOtp() {
+            const btn = document.getElementById('loginOtpResendBtn');
+            if (!loginOtpUi.challengeId || btn.disabled) return;
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+            loginOtpShowError('');
+            try {
+                const res = await fetch('/api/auth-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ action: 'resend-device-code', challengeId: loginOtpUi.challengeId })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    if (data.restart) { loginOtpEnded(data.error); return; }
+                    if (data.retryAfterSeconds) loginOtpUi.resendAt = Date.now() + data.retryAfterSeconds * 1000;
+                    loginOtpShowError(data.error || "We couldn't send a new code. Please try again.");
+                    loginOtpTick();
+                    return;
+                }
+                loginOtpUi.resendAt = Date.now() + (Number(data.resendAfterSeconds) || 30) * 1000;
+                document.getElementById('loginOtpExpiry').textContent = `New code sent.${data.resendsLeft === 0 ? ' That was the last one for this sign-in.' : ''} It expires in 10 minutes.`;
+                loginOtpTick();
+                const input = document.getElementById('loginOtpCodeInput');
+                input.value = '';
+                input.focus();
+            } catch (err) {
+                loginOtpShowError('Network error. Please try again.');
+                loginOtpTick();
+            }
+        }
+
+        // Typing (or autofilling) the 6th digit submits straight away.
+        (function autoSubmitLoginOtp() {
+            const input = document.getElementById('loginOtpCodeInput');
+            if (!input) return;
+            input.addEventListener('input', () => {
+                if (loginOtpUi.method === 'passcode') return;
+                input.value = input.value.replace(/\D/g, '').slice(0, 6);
+                if (input.value.length === 6) submitLoginOtp();
+            });
+        })();
 
         async function loadRealAccountDataWithRetry() {
             try {
@@ -7176,17 +7305,6 @@ fetchAndApplyProfilePhoto();
 
         function showNotificationDetail(title, message) {
             openNotificationDetail({ title, message, is_read: true });
-        }
-
-        function showTrackInfo(type) {
-            const info = {
-                card: "Apex Pavilion Infinite card: 1.5% cash back on every purchase. Redeem it to checking or as a statement credit once you have $1. No annual fee.",
-                cd: "Certificate of Deposit locks: fixed-rate returns with zero market exposure. Early withdrawal forfeits accrued interest.",
-                mortgage: "Home Underwriting Portal: soft-pull pre-qualification with no impact to credit score. Rates locked for 45 days.",
-                wealth: "Private Wealth Management: dedicated strategist assigned within 1 business hour for qualifying asset thresholds.",
-                business: "Business Liquidity Node: revolving credit lines up to $250k with same-day funding for approved profiles."
-            };
-            alert(info[type] || "Additional details are not available for this offer right now.");
         }
 
         function showFDBreakdown() {
@@ -7364,7 +7482,14 @@ fetchAndApplyProfilePhoto();
             } else {
                 lastRow.classList.add('hidden');
             }
-            document.getElementById('signinNewDeviceRow').classList.toggle('hidden', !ctx.newDevice);
+            const newRow = document.getElementById('signinNewDeviceRow');
+            newRow.classList.toggle('hidden', !ctx.newDevice);
+            const newText = newRow.querySelector('p');
+            if (newText) {
+                newText.textContent = ctx.verifiedWith === 'email' ? 'New device confirmed with the code we emailed you. It will be remembered from now on.'
+                    : ctx.verifiedWith === 'passcode' ? 'New device confirmed with your app passcode. It will be remembered from now on.'
+                    : "First time on this device. We've added this sign-in to your security alerts.";
+            }
 
             const chips = document.getElementById('signinChips');
             chips.replaceChildren();
@@ -7491,7 +7616,7 @@ fetchAndApplyProfilePhoto();
             clearActiveBrowserSession();
             showLoginScreen();
             viewHistory = ['summary']; 
-            currentAdIndex = 1;
+            if (typeof resetOffersForSignOut === 'function') resetOffersForSignOut();
         }
 
         function executeCurrencyConversion() {
