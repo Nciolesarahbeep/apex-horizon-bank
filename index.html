@@ -176,6 +176,15 @@
             .ahb-receipt-foot { padding-bottom: 1rem; }
         }
         html.ahb-receipt-open, html.ahb-receipt-open body { overflow: hidden; }
+        /* Home balance cards: swipe sideways, snap to each card. */
+        .ahb-balance-track { scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+        .ahb-balance-track::-webkit-scrollbar { display: none; }
+        .ahb-balance-track:focus-visible { outline: 2px solid #34d399; outline-offset: 2px; border-radius: 1rem; }
+        .ahb-balance-slide { min-height: 168px; }
+        .ahb-balance-dot { width: 6px; height: 6px; border-radius: 999px; background: #cbd5e1; transition: width 0.2s ease, background-color 0.2s ease; }
+        .ahb-balance-dot[aria-selected="true"] { width: 18px; background: #059669; }
+        #appShellRoot.theme-dark .ahb-balance-dot { background: #475569; }
+        #appShellRoot.theme-dark .ahb-balance-dot[aria-selected="true"] { background: #34d399; }
         @media print {
             html.ahb-receipt-open body * { visibility: hidden !important; }
             html.ahb-receipt-open #receiptModal, html.ahb-receipt-open #receiptModal * { visibility: visible !important; }
@@ -1720,16 +1729,47 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-semibold text-gray-500">Total balance</span>
-                            <button type="button" id="balanceVisibilityBtn" onclick="toggleBalanceVisibility()" aria-label="Hide balances" aria-pressed="false" class="w-8 h-8 -mr-1.5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition">
-                                <i id="balanceVisibilityIcon" class="fa-regular fa-eye text-sm"></i>
-                            </button>
+                    <div id="homeBalanceCarousel" role="region" aria-roledescription="carousel" aria-label="Balances">
+                        <div id="homeBalanceTrack" class="ahb-balance-track flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 scroll-px-4" tabindex="0" aria-label="Swipe for savings and linked accounts">
+                            <div class="ahb-balance-slide snap-start shrink-0 w-full bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col" role="group" aria-roledescription="slide" aria-label="Total balance, 1 of 3" data-slide="0">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-semibold text-gray-500">Total balance</span>
+                                    <button type="button" id="balanceVisibilityBtn" onclick="toggleBalanceVisibility()" aria-label="Hide balances" aria-pressed="false" class="w-8 h-8 -mr-1.5 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition">
+                                        <i id="balanceVisibilityIcon" class="fa-regular fa-eye text-sm"></i>
+                                    </button>
+                                </div>
+                                <p id="homeTotalBalance" class="ahb-money text-3xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
+                                <p id="homeTotalSubtitle" class="text-[10px] text-gray-500 mt-0.5">Checking and savings</p>
+                                <p class="mt-auto pt-3 text-[10px] text-gray-400 flex items-center gap-1.5"><i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>Swipe for savings and linked accounts</p>
+                                <div class="horizon-line"></div>
+                            </div>
+
+                            <div class="ahb-balance-slide snap-start shrink-0 w-full rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-xs flex flex-col" role="group" aria-roledescription="slide" aria-label="High-Yield Savings, 2 of 3" data-slide="1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="flex items-center gap-2 min-w-0">
+                                        <span class="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-piggy-bank text-[11px]"></i></span>
+                                        <span class="text-[11px] font-semibold text-emerald-800 truncate">High-Yield Savings</span>
+                                    </span>
+                                    <span id="homeSavingsApyChip" class="text-[10px] font-bold bg-white text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">APY</span>
+                                </div>
+                                <p id="homeSavingsCardBalance" class="ahb-money text-3xl font-bold font-mono text-gray-900 tracking-tight mt-1">$0.00</p>
+                                <p id="homeSavingsCardSub" class="text-[10px] text-gray-600 mt-0.5">&nbsp;</p>
+                                <div class="grid grid-cols-3 gap-2 mt-auto pt-3">
+                                    <button type="button" onclick="openSavingsMove('in')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg transition flex items-center justify-center gap-1"><i class="fa-solid fa-plus text-[9px]" aria-hidden="true"></i>Add</button>
+                                    <button type="button" onclick="openSavingsMove('out')" class="bg-white border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold py-2 rounded-lg transition">Withdraw</button>
+                                    <button type="button" onclick="triggerViewSwitch('savings-summary')" class="bg-white border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold py-2 rounded-lg transition">Details</button>
+                                </div>
+                            </div>
+
+                            <div id="homeLinkedSlide" class="ahb-balance-slide snap-start shrink-0 w-full bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col" role="group" aria-roledescription="slide" aria-label="Linked accounts, 3 of 3" data-slide="2">
+                                <p class="text-xs text-gray-500 m-auto">Loading linked accounts…</p>
+                            </div>
                         </div>
-                        <p id="homeTotalBalance" class="ahb-money text-3xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
-                        <p id="homeTotalSubtitle" class="text-[10px] text-gray-500 mt-0.5">Checking and savings</p>
-                        <div class="horizon-line"></div>
+                        <div id="homeBalanceDots" class="flex items-center justify-center gap-1.5 mt-2.5" role="tablist" aria-label="Balance cards">
+                            <button type="button" role="tab" data-go="0" aria-label="Total balance" aria-selected="true" class="ahb-balance-dot"></button>
+                            <button type="button" role="tab" data-go="1" aria-label="High-Yield Savings" aria-selected="false" class="ahb-balance-dot"></button>
+                            <button type="button" role="tab" data-go="2" aria-label="Linked accounts" aria-selected="false" class="ahb-balance-dot"></button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-4 gap-2" role="group" aria-label="Quick actions">
@@ -2814,6 +2854,16 @@ async function submitCreateRecurringTransfer(event) {
                         <h1 class="text-md font-bold text-gray-900">Send Money</h1>
                     </div>
                     <div class="space-y-3">
+                        <button onclick="openLinkedList()" id="sendMenuLinkedBtn" class="w-full bg-white p-4 rounded-xl border border-gray-200 flex items-center space-x-3 text-left active:scale-[0.99] transition">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-link text-emerald-600"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-bold text-gray-900">Your linked accounts</h3>
+                                <p class="text-[10px] text-gray-400">Cash App, Venmo, PayPal, Zelle or another bank</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-gray-300 text-xs ml-auto"></i>
+                        </button>
                         <button onclick="triggerViewSwitch('send-p2p')" class="w-full bg-white p-4 rounded-xl border border-gray-200 flex items-center space-x-3 text-left active:scale-[0.99] transition">
                             <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                                 <i class="fa-solid fa-user text-emerald-600"></i>
@@ -10093,6 +10143,8 @@ setInterval(pollForIncomingMoney, 8000);
 
 (function () {
     let ptrStartY = 0;
+    let ptrStartX = 0;
+    let ptrDirection = null;
     let ptrCurrentY = 0;
     let ptrDragging = false;
     let ptrTriggered = false;
@@ -10127,6 +10179,8 @@ setInterval(pollForIncomingMoney, 8000);
         if (!isDashboardVisible() || isAnyOverlayOpen()) return;
         if (window.scrollY > 0) return;
         ptrStartY = e.touches[0].clientY;
+        ptrStartX = e.touches[0].clientX;
+        ptrDirection = null;
         ptrDragging = true;
         ptrTriggered = false;
     }, { passive: true });
@@ -10135,6 +10189,13 @@ setInterval(pollForIncomingMoney, 8000);
         if (!ptrDragging) return;
         ptrCurrentY = e.touches[0].clientY;
         const dy = ptrCurrentY - ptrStartY;
+        // Decide once whether this touch is going sideways (swiping cards) or down.
+        if (!ptrDirection) {
+            const dx = e.touches[0].clientX - ptrStartX;
+            if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+            ptrDirection = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        }
+        if (ptrDirection === 'x') { ptrDragging = false; resetIndicator(); return; }
         if (dy <= 0) return;
         if (window.scrollY > 0) { ptrDragging = false; return; }
 
@@ -12116,6 +12177,683 @@ function openSimulatePurchaseModal() {
       }
     }
   );
+}
+</script>
+<script>
+/* ===================== Home balance cards + linked accounts ===================== */
+// The balance card on Home swipes sideways: Total balance -> High-Yield
+// Savings -> Linked accounts (Cash App, Venmo, PayPal, Zelle, other banks).
+// Linking, sending and adding money go to /api/account-services
+// resource "external-accounts" (lib/linkedAccounts.js). The sheets reuse the
+// Cards screen's sheet (openCardSheet and friends). Everything typed or
+// returned by the server is set as text.
+
+const LINK_PROVIDERS = [
+  { id: 'cashapp', name: 'Cash App', icon: 'fa-dollar-sign', tone: 'bg-emerald-100 text-emerald-700', hint: 'Link with your $Cashtag', label: '$Cashtag', prefix: '$', placeholder: 'yourcashtag', inputMode: 'text' },
+  { id: 'venmo', name: 'Venmo', icon: 'fa-v', tone: 'bg-sky-100 text-sky-800', hint: 'Link with your @username', label: 'Venmo username', prefix: '@', placeholder: 'your-username', inputMode: 'text' },
+  { id: 'paypal', name: 'PayPal', icon: 'fa-p', tone: 'bg-blue-50 text-blue-600', hint: 'Link with the email on your PayPal account', label: 'PayPal email', prefix: '', placeholder: 'you@example.com', inputMode: 'email' },
+  { id: 'zelle', name: 'Zelle', icon: 'fa-bolt', tone: 'bg-purple-50 text-purple-500', hint: 'Link with the email or US mobile number you use with Zelle', label: 'Email or US mobile number', prefix: '', placeholder: 'you@example.com or (555) 123-4567', inputMode: 'email' },
+  { id: 'bank', name: 'Another bank', icon: 'fa-building-columns', tone: 'bg-gray-100 text-gray-600', hint: 'Link with the routing and account number', label: '', prefix: '', placeholder: '' },
+];
+const LINK_PROVIDER_BY_ID = Object.fromEntries(LINK_PROVIDERS.map((p) => [p.id, p]));
+const homeLinkedUi = { data: null, loading: null, error: false };
+
+function linkedMoney(n) {
+  return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function linkedProviderIcon(provider, size) {
+  const p = LINK_PROVIDER_BY_ID[provider] || LINK_PROVIDER_BY_ID.bank;
+  const wrap = cardEl('span', `${size || 'w-9 h-9'} rounded-full flex items-center justify-center shrink-0 ${p.tone}`);
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.appendChild(cardIcon(p.icon, 'text-xs'));
+  return wrap;
+}
+
+async function linkedApi(body) {
+  const res = await fetch('/api/account-services', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(Object.assign({ resource: 'external-accounts' }, body)),
+  });
+  let data = {};
+  try { data = await res.json(); } catch (err) {}
+  if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+  return data;
+}
+
+function linkedTakeList(data) {
+  if (data && Array.isArray(data.externalAccounts)) {
+    homeLinkedUi.data = { externalAccounts: data.externalAccounts, recentTransfers: data.recentTransfers || (homeLinkedUi.data && homeLinkedUi.data.recentTransfers) || [], limits: data.limits || (homeLinkedUi.data && homeLinkedUi.data.limits) || null, maxLinked: data.maxLinked || 8 };
+    homeLinkedUi.error = false;
+    renderHomeLinkedSlide();
+  }
+}
+
+async function loadHomeLinked() {
+  if (homeLinkedUi.loading) return homeLinkedUi.loading;
+  homeLinkedUi.loading = (async () => {
+    try {
+      const res = await fetch('/api/account-services?resource=external-accounts', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'failed');
+      linkedTakeList(data);
+    } catch (err) {
+      homeLinkedUi.error = true;
+      renderHomeLinkedSlide();
+    } finally {
+      homeLinkedUi.loading = null;
+    }
+  })();
+  return homeLinkedUi.loading;
+}
+
+// After money moves: reload balances, and tell the "money received" pop-up
+// these rows are already known (the sheet has just confirmed them).
+async function linkedAfterMoneyMoved() {
+  try { if (typeof loadRealAccountData === 'function') await loadRealAccountData(); } catch (err) {}
+  try {
+    if (typeof allTransactions !== 'undefined' && Array.isArray(allTransactions) && allTransactions.length && typeof latestKnownTxnId !== 'undefined') {
+      const newest = Math.max(...allTransactions.map((t) => Number(t.id) || 0));
+      latestKnownTxnId = Math.max(Number(latestKnownTxnId) || 0, newest);
+    }
+  } catch (err) {}
+}
+
+/* ---------- Slides ---------- */
+function renderHomeSavingsSlide() {
+  const balEl = document.getElementById('homeSavingsCardBalance');
+  if (!balEl) return;
+  const bal = Number(typeof savingsBalanceValue !== 'undefined' ? savingsBalanceValue : 0) || 0;
+  let apy = typeof FD_APY_RATE !== 'undefined' && FD_APY_RATE ? Number(FD_APY_RATE) : 0;
+  if (!apy && typeof AHB_PUBLIC_RATES !== 'undefined') apy = AHB_PUBLIC_RATES.savingsApy;
+  balEl.textContent = typeof homeMoney === 'function' ? homeMoney(bal) : linkedMoney(bal);
+  const chip = document.getElementById('homeSavingsApyChip');
+  if (chip) chip.textContent = `${(apy * 100).toFixed(2)}% APY`;
+  const sub = document.getElementById('homeSavingsCardSub');
+  if (sub) {
+    const masked = typeof mySavingsAccountNumber !== 'undefined' && mySavingsAccountNumber && typeof homeMaskedNumber === 'function' ? homeMaskedNumber(mySavingsAccountNumber) : '';
+    const monthly = bal * (Math.pow(1 + apy, 1 / 12) - 1);
+    const earn = bal > 0 && apy > 0 ? `About ${linkedMoney(monthly)} a month in interest at today's rate` : 'Add money to start earning interest';
+    sub.textContent = masked ? `${masked} · ${earn}` : earn;
+  }
+}
+
+function renderHomeLinkedSlide() {
+  const box = document.getElementById('homeLinkedSlide');
+  if (!box) return;
+  box.replaceChildren();
+  const d = homeLinkedUi.data;
+  if (!d) {
+    if (homeLinkedUi.error) {
+      const wrap = cardEl('div', 'm-auto text-center space-y-2');
+      wrap.appendChild(cardEl('p', 'text-xs text-gray-500', "We couldn't load your linked accounts."));
+      const retry = cardEl('button', 'text-[11px] font-bold text-emerald-700 hover:underline', 'Try again');
+      retry.type = 'button';
+      retry.addEventListener('click', () => loadHomeLinked());
+      wrap.appendChild(retry);
+      box.appendChild(wrap);
+    } else {
+      box.appendChild(cardEl('p', 'text-xs text-gray-500 m-auto', 'Loading linked accounts…'));
+    }
+    return;
+  }
+  const list = d.externalAccounts || [];
+  if (!list.length) {
+    const btn = cardEl('button', 'w-full h-full flex flex-col items-center justify-center text-center gap-2 rounded-xl border-2 border-dashed border-gray-200 hover:bg-gray-50 transition py-3 px-2');
+    btn.type = 'button';
+    btn.id = 'homeLinkAccountBtn';
+    btn.setAttribute('aria-label', 'Link an account');
+    const plus = cardEl('span', 'w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md');
+    plus.appendChild(cardIcon('fa-plus', 'text-lg'));
+    btn.append(plus, cardEl('span', 'text-sm font-bold text-gray-900', 'Link an account'), cardEl('span', 'text-[10px] text-gray-500 leading-snug max-w-[16rem]', 'Send money to, or add money from, Cash App, Venmo, PayPal, Zelle or another bank.'));
+    const chips = cardEl('span', 'flex flex-wrap justify-center gap-1');
+    LINK_PROVIDERS.forEach((p) => chips.appendChild(cardEl('span', 'text-[9px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5', p.id === 'bank' ? 'Banks' : p.name)));
+    btn.appendChild(chips);
+    btn.addEventListener('click', () => openLinkSheet());
+    box.appendChild(btn);
+    return;
+  }
+  const head = cardEl('div', 'flex items-center justify-between gap-2 mb-1');
+  const title = cardEl('div', 'min-w-0');
+  title.append(cardEl('p', 'text-[11px] font-semibold text-gray-500', 'Linked accounts'), cardEl('p', 'text-[10px] text-gray-400', `${list.length} linked · tap one to move money`));
+  const add = cardEl('button', 'w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-sm');
+  add.type = 'button';
+  add.id = 'homeLinkAccountBtn';
+  add.setAttribute('aria-label', 'Link another account');
+  add.appendChild(cardIcon('fa-plus', 'text-sm'));
+  add.addEventListener('click', () => openLinkSheet());
+  head.append(title, add);
+  box.appendChild(head);
+  const rows = cardEl('div', 'divide-y divide-gray-100');
+  list.slice(0, 3).forEach((a) => {
+    const row = cardEl('button', 'w-full flex items-center gap-3 py-2 text-left hover:bg-gray-50 rounded-lg transition');
+    row.type = 'button';
+    row.setAttribute('data-linked-id', String(a.id));
+    const mid = cardEl('span', 'flex-1 min-w-0');
+    mid.append(cardEl('span', 'block text-xs font-bold text-gray-900 truncate', a.name), cardEl('span', 'block text-[10px] text-gray-500 font-mono truncate', a.display));
+    row.append(linkedProviderIcon(a.provider, 'w-8 h-8'), mid, cardIcon('fa-chevron-right', 'text-gray-300 text-[10px]'));
+    row.addEventListener('click', () => openLinkedAccount(a.id));
+    rows.appendChild(row);
+  });
+  box.appendChild(rows);
+  if (list.length > 3) {
+    const more = cardEl('button', 'mt-auto pt-1 text-[11px] font-bold text-emerald-700 hover:underline self-start', `See all ${list.length}`);
+    more.type = 'button';
+    more.addEventListener('click', () => openLinkedList());
+    box.appendChild(more);
+  }
+}
+
+/* ---------- Swiping ---------- */
+// Same rule as the rest of the app: Settings > Appearance, else the device setting.
+function homeBalanceMotionReduced() {
+  const root = document.documentElement;
+  if (root.classList.contains('ahb-reduce-motion')) return true;
+  if (root.classList.contains('ahb-allow-motion')) return false;
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function homeBalanceGo(i, instant) {
+  const track = document.getElementById('homeBalanceTrack');
+  if (!track) return;
+  const slides = track.querySelectorAll('.ahb-balance-slide');
+  const n = Math.max(0, Math.min(slides.length - 1, i));
+  const reduce = homeBalanceMotionReduced();
+  track.scrollTo({ left: slides[n].offsetLeft - slides[0].offsetLeft, behavior: instant || reduce ? 'auto' : 'smooth' });
+}
+
+function homeBalanceIndex() {
+  const track = document.getElementById('homeBalanceTrack');
+  if (!track) return 0;
+  const slides = track.querySelectorAll('.ahb-balance-slide');
+  if (slides.length < 2) return 0;
+  const step = slides[1].offsetLeft - slides[0].offsetLeft;
+  return step > 0 ? Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / step))) : 0;
+}
+
+function homeBalanceSyncDots() {
+  const i = homeBalanceIndex();
+  document.querySelectorAll('#homeBalanceDots [data-go]').forEach((d) => d.setAttribute('aria-selected', Number(d.getAttribute('data-go')) === i ? 'true' : 'false'));
+}
+
+(function initHomeBalanceCarousel() {
+  const track = document.getElementById('homeBalanceTrack');
+  if (!track) return;
+  let raf = null;
+  track.addEventListener('scroll', () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = null; homeBalanceSyncDots(); });
+  }, { passive: true });
+  document.querySelectorAll('#homeBalanceDots [data-go]').forEach((d) => d.addEventListener('click', () => homeBalanceGo(Number(d.getAttribute('data-go')))));
+  track.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); homeBalanceGo(homeBalanceIndex() + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); homeBalanceGo(homeBalanceIndex() - 1); }
+  });
+  window.addEventListener('resize', () => homeBalanceGo(homeBalanceIndex(), true));
+})();
+
+// Once per device, a small peek to the next card so it's clear the card swipes.
+function homeBalanceNudgeOnce() {
+  let seen = false;
+  try { seen = localStorage.getItem('ahbBalanceNudged') === '1'; } catch (err) { seen = true; }
+  if (seen) return;
+  const reduce = homeBalanceMotionReduced();
+  if (reduce) return;
+  try { localStorage.setItem('ahbBalanceNudged', '1'); } catch (err) {}
+  setTimeout(() => {
+    const track = document.getElementById('homeBalanceTrack');
+    if (!track || track.scrollLeft > 0 || !track.offsetParent) return;
+    // Snapping would pull a part-way scroll straight back, so pause it for the peek.
+    track.style.scrollSnapType = 'none';
+    track.scrollTo({ left: 56, behavior: 'smooth' });
+    setTimeout(() => {
+      if (track.scrollLeft <= 60) track.scrollTo({ left: 0, behavior: 'smooth' });
+      setTimeout(() => { track.style.scrollSnapType = ''; }, 500);
+    }, 550);
+  }, 1200);
+}
+
+// Keep the slides in step with Home. Home's own functions are defined in
+// scripts further down the page, so hook them once everything has loaded.
+function hookHomeBalanceCards() {
+  const prevTotals = window.updateHomeTotals;
+  if (typeof prevTotals === 'function') {
+    window.updateHomeTotals = function () {
+      const r = prevTotals.apply(this, arguments);
+      try { renderHomeSavingsSlide(); } catch (err) {}
+      return r;
+    };
+  }
+  const prevRefresh = window.refreshHomeScreen;
+  if (typeof prevRefresh === 'function') {
+    window.refreshHomeScreen = function () {
+      const r = prevRefresh.apply(this, arguments);
+      try { renderHomeSavingsSlide(); loadHomeLinked(); homeBalanceNudgeOnce(); } catch (err) {}
+      return r;
+    };
+  }
+  const prevLogin = window.showLoginScreen;
+  if (typeof prevLogin === 'function') {
+    window.showLoginScreen = function () {
+      homeLinkedUi.data = null;
+      homeLinkedUi.error = false;
+      try { renderHomeLinkedSlide(); homeBalanceGo(0, true); } catch (err) {}
+      return prevLogin.apply(this, arguments);
+    };
+  }
+  renderHomeLinkedSlide();
+  renderHomeSavingsSlide();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hookHomeBalanceCards);
+else hookHomeBalanceCards();
+
+/* ---------- Savings: add / withdraw ---------- */
+function openSavingsMove(dir) {
+  const toSavings = dir !== 'out';
+  const checking = Number(typeof rawBalanceValue !== 'undefined' ? rawBalanceValue : 0) || 0;
+  const savings = Number(typeof savingsBalanceValue !== 'undefined' ? savingsBalanceValue : 0) || 0;
+  const available = toSavings ? checking : savings;
+  const ui = openCardSheet({ tag: 'High-Yield Savings', title: toSavings ? 'Add money to savings' : 'Move savings to checking', icon: 'fa-piggy-bank', iconCls: 'bg-emerald-600 text-white' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const showError = cardSheetError(body);
+  const mask = (n) => (n && typeof homeMaskedNumber === 'function' ? ' ' + homeMaskedNumber(n) : '');
+  const box = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+  box.appendChild(cardInfoRow('From', `${toSavings ? 'Primary Checking' + mask(typeof myCheckingAccountNumber !== 'undefined' ? myCheckingAccountNumber : '') : 'High-Yield Savings' + mask(typeof mySavingsAccountNumber !== 'undefined' ? mySavingsAccountNumber : '')} · ${linkedMoney(available)}`));
+  box.appendChild(cardInfoRow('To', toSavings ? 'High-Yield Savings' : 'Primary Checking'));
+  body.appendChild(box);
+  const { input, wrap } = linkedAmountField('savingsMoveAmount');
+  body.appendChild(wrap);
+  body.appendChild(linkedQuickAmounts(input, [25, 100, 500], available));
+  const btn = cardPrimaryBtn(toSavings ? 'Add to savings' : 'Move to checking', () => submit());
+  actions.appendChild(btn);
+  const refresh = () => {
+    const a = Math.round(Number(input.value) * 100) / 100;
+    btn.textContent = a > 0 ? `${toSavings ? 'Add' : 'Move'} ${linkedMoney(a)}` : (toSavings ? 'Add to savings' : 'Move to checking');
+    btn.disabled = !(a > 0);
+  };
+  input.addEventListener('input', refresh);
+  refresh();
+
+  async function submit() {
+    const amount = Math.round(Number(input.value) * 100) / 100;
+    showError('');
+    if (!(amount > 0)) { showError('Enter an amount.'); return; }
+    if (amount > available + 0.001) { showError(`You have ${linkedMoney(available)} in ${toSavings ? 'checking' : 'savings'}.`); return; }
+    cardSheetUi.busy = true;
+    btn.disabled = true;
+    btn.textContent = 'Moving…';
+    try {
+      const res = await fetch('/api/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ fromAccountType: toSavings ? 'checking' : 'savings', toAccountType: toSavings ? 'savings' : 'checking', amount, description: toSavings ? 'Transfer to savings' : 'Transfer to checking' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'That transfer did not go through. Please try again.');
+      cardSheetUi.busy = false;
+      cardSuccess(body, actions, {
+        title: `${linkedMoney(amount)} moved`,
+        lines: [
+          ['To', toSavings ? 'High-Yield Savings' : 'Primary Checking'],
+          ['Savings balance', linkedMoney(toSavings ? (data.to && data.to.balance) : (data.from && data.from.balance))],
+          ['Confirmation', data.transactionId ? `#TXN-${data.transactionId}` : '—'],
+        ],
+      });
+      await linkedAfterMoneyMoved();
+    } catch (err) {
+      cardSheetUi.busy = false;
+      showError(err.message);
+      refresh();
+    }
+  }
+}
+
+/* ---------- Shared bits for the money sheets ---------- */
+function linkedAmountField(id, label) {
+  const wrap = cardEl('div');
+  const l = cardEl('label', 'block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1', label || 'Amount');
+  l.htmlFor = id;
+  const row = cardEl('div', 'relative');
+  const cur = cardEl('span', 'absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-gray-400', '$');
+  cur.setAttribute('aria-hidden', 'true');
+  const input = cardEl('input', 'w-full bg-gray-50 border border-gray-300 rounded-lg pl-7 pr-3 py-2.5 text-xl font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500');
+  Object.assign(input, { id, type: 'number', step: '0.01', min: '1', inputMode: 'decimal', placeholder: '0.00' });
+  row.append(cur, input);
+  wrap.append(l, row);
+  return { input, wrap };
+}
+
+function linkedQuickAmounts(input, amounts, max) {
+  const row = cardEl('div', 'flex flex-wrap gap-2');
+  amounts.filter((a) => !max || a <= max).forEach((a) => {
+    const b = cardEl('button', 'text-[11px] font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full px-3 py-1.5 transition', `$${a}`);
+    b.type = 'button';
+    b.addEventListener('click', () => { input.value = String(a); input.dispatchEvent(new Event('input')); });
+    row.appendChild(b);
+  });
+  if (max > 0) {
+    const all = cardEl('button', 'text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full px-3 py-1.5 transition', `All ${linkedMoney(max)}`);
+    all.type = 'button';
+    all.addEventListener('click', () => { input.value = (Math.floor(max * 100) / 100).toFixed(2); input.dispatchEvent(new Event('input')); });
+    row.appendChild(all);
+  }
+  return row;
+}
+
+function linkedFind(id) {
+  const d = homeLinkedUi.data;
+  return d ? (d.externalAccounts || []).find((a) => Number(a.id) === Number(id)) : null;
+}
+
+/* ---------- All linked accounts ---------- */
+async function openLinkedList() {
+  const ui = openCardSheet({ tag: 'Move money', title: 'Linked accounts', icon: 'fa-link' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  if (!homeLinkedUi.data) {
+    body.appendChild(cardEl('p', 'text-xs text-gray-500', 'Loading…'));
+    await loadHomeLinked();
+    body.replaceChildren();
+  }
+  const d = homeLinkedUi.data;
+  if (!d) {
+    body.appendChild(cardEl('p', 'text-xs text-gray-600', "We couldn't load your linked accounts. Please try again."));
+    actions.appendChild(cardSecondaryBtn('Close', () => closeCardSheet()));
+    return;
+  }
+  const list = d.externalAccounts || [];
+  if (!list.length) {
+    body.appendChild(cardEl('p', 'text-sm text-gray-700', 'Link Cash App, Venmo, PayPal, Zelle or an account at another bank to send money to it or add money from it.'));
+  } else {
+    const rows = cardEl('div', 'bg-gray-50 rounded-xl divide-y divide-gray-100');
+    list.forEach((a) => {
+      const row = cardEl('button', 'w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-100 transition first:rounded-t-xl last:rounded-b-xl');
+      row.type = 'button';
+      row.setAttribute('data-linked-id', String(a.id));
+      const mid = cardEl('span', 'flex-1 min-w-0');
+      mid.append(cardEl('span', 'block text-xs font-bold text-gray-900 truncate', a.name), cardEl('span', 'block text-[10px] text-gray-500 font-mono truncate', a.display));
+      row.append(linkedProviderIcon(a.provider), mid, cardIcon('fa-chevron-right', 'text-gray-300 text-[10px]'));
+      row.addEventListener('click', () => openLinkedAccount(a.id));
+      rows.appendChild(row);
+    });
+    body.appendChild(rows);
+    if (d.limits) body.appendChild(cardEl('p', 'text-[10px] text-gray-500', `Today you can add up to ${linkedMoney(d.limits.inRemaining)} and send up to ${linkedMoney(d.limits.outRemaining)}.`));
+  }
+  const atMax = list.length >= (d.maxLinked || 8);
+  const addBtn = cardPrimaryBtn(atMax ? `You've linked ${d.maxLinked || 8} (the most)` : 'Link an account', () => openLinkSheet());
+  addBtn.disabled = atMax;
+  actions.appendChild(addBtn);
+}
+
+/* ---------- One linked account ---------- */
+function openLinkedAccount(id) {
+  const a = linkedFind(id);
+  if (!a) { openLinkedList(); return; }
+  const p = LINK_PROVIDER_BY_ID[a.provider] || LINK_PROVIDER_BY_ID.bank;
+  const ui = openCardSheet({ tag: a.name, title: a.display, icon: p.icon, iconCls: p.tone });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const box = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+  box.appendChild(cardInfoRow('Name on account', a.holderName || '—'));
+  box.appendChild(cardInfoRow('Type', a.provider === 'bank' ? `${a.name} · ${a.accountType === 'savings' ? 'Savings' : 'Checking'}` : a.name));
+  box.appendChild(cardInfoRow('Linked', a.linkedAt ? new Date(a.linkedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'));
+  box.appendChild(cardInfoRow('Sending', a.speed || '—'));
+  body.appendChild(box);
+
+  const recent = ((homeLinkedUi.data && homeLinkedUi.data.recentTransfers) || []).filter((t) => Number(t.accountId) === Number(a.id)).slice(0, 4);
+  const head = cardEl('p', 'text-[10px] font-bold uppercase tracking-wider text-gray-400', 'Recent');
+  body.appendChild(head);
+  if (!recent.length) {
+    body.appendChild(cardEl('p', 'text-[11px] text-gray-500 -mt-2', 'Nothing moved yet.'));
+  } else {
+    const list = cardEl('div', '-mt-2');
+    recent.forEach((t) => {
+      const row = cardEl('div', 'flex items-center justify-between py-1.5 text-[11px]');
+      row.append(cardEl('span', 'text-gray-600', `${t.direction === 'in' ? 'Added to checking' : 'Sent'} · ${new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`), cardEl('span', `font-bold font-mono ${t.direction === 'in' ? 'text-emerald-600' : 'text-gray-900'}`, `${t.direction === 'in' ? '+' : '-'}${linkedMoney(t.amount)}`));
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+  }
+
+  const two = cardEl('div', 'grid grid-cols-2 gap-2');
+  two.append(
+    cardPrimaryBtn('Add money', () => openLinkedTransfer(a.id, 'in'), 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition text-xs'),
+    cardPrimaryBtn('Send money', () => openLinkedTransfer(a.id, 'out'))
+  );
+  actions.appendChild(two);
+  const remove = cardSecondaryBtn('Remove this account', () => confirmRemove(), 'w-full text-red-600 font-bold py-2 rounded-lg text-xs hover:bg-red-50 transition');
+  actions.appendChild(remove);
+
+  function confirmRemove() {
+    actions.replaceChildren();
+    actions.appendChild(cardEl('p', 'text-[11px] text-gray-600 text-center', `Remove ${a.name} ${a.display}? You can link it again any time.`));
+    const row = cardEl('div', 'grid grid-cols-2 gap-2');
+    const keep = cardSecondaryBtn('Keep it', () => openLinkedAccount(a.id));
+    const go = cardPrimaryBtn('Remove', async () => {
+      go.disabled = true; keep.disabled = true; go.textContent = 'Removing…';
+      cardSheetUi.busy = true;
+      try {
+        const res = await linkedApi({ extAction: 'unlink', externalAccountId: a.id });
+        cardSheetUi.busy = false;
+        linkedTakeList(res);
+        cardSuccess(body, actions, { title: 'Account removed', lines: [['Removed', `${a.name} ${a.display}`]] });
+      } catch (err) {
+        cardSheetUi.busy = false;
+        go.disabled = false; keep.disabled = false; go.textContent = 'Remove';
+        cardSheetError(body)(err.message);
+      }
+    }, 'w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg transition text-xs');
+    row.append(keep, go);
+    actions.appendChild(row);
+  }
+}
+
+/* ---------- Add money / Send money ---------- */
+function openLinkedTransfer(id, dir) {
+  const a = linkedFind(id);
+  if (!a) { openLinkedList(); return; }
+  const adding = dir === 'in';
+  const p = LINK_PROVIDER_BY_ID[a.provider] || LINK_PROVIDER_BY_ID.bank;
+  const ui = openCardSheet({ tag: adding ? 'Add money' : 'Send money', title: `${adding ? 'From' : 'To'} ${a.name} ${a.display}`, icon: p.icon, iconCls: p.tone });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const showError = cardSheetError(body);
+  const checking = Number(typeof rawBalanceValue !== 'undefined' ? rawBalanceValue : 0) || 0;
+  const limits = (homeLinkedUi.data && homeLinkedUi.data.limits) || { inRemaining: 2500, outRemaining: 5000 };
+  const cap = adding ? Number(limits.inRemaining) : Math.min(Number(limits.outRemaining), checking);
+  const { input, wrap } = linkedAmountField('linkedTransferAmount');
+  body.appendChild(wrap);
+  body.appendChild(linkedQuickAmounts(input, [20, 50, 100], cap));
+  const noteLabel = cardEl('label', 'block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1', 'Note (optional)');
+  noteLabel.htmlFor = 'linkedTransferNote';
+  const note = cardEl('input', 'w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500');
+  Object.assign(note, { id: 'linkedTransferNote', type: 'text', maxLength: 60, placeholder: adding ? 'e.g. Paycheck' : 'e.g. Rent share' });
+  const noteWrap = cardEl('div');
+  noteWrap.append(noteLabel, note);
+  body.appendChild(noteWrap);
+  const box = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+  const chkMask = typeof myCheckingAccountNumber !== 'undefined' && myCheckingAccountNumber && typeof homeMaskedNumber === 'function' ? ' ' + homeMaskedNumber(myCheckingAccountNumber) : '';
+  box.appendChild(cardInfoRow('From', adding ? `${a.name} ${a.display}` : `Primary Checking${chkMask} · ${linkedMoney(checking)}`));
+  box.appendChild(cardInfoRow('To', adding ? `Primary Checking${chkMask}` : `${a.name} ${a.display}`));
+  box.appendChild(cardInfoRow('Arrives', adding ? 'In checking straight away' : (a.speed || '—')));
+  body.appendChild(box);
+  body.appendChild(cardEl('p', 'text-[10px] text-gray-500', adding
+    ? `You can add up to ${linkedMoney(limits.inRemaining)} more today from linked accounts.`
+    : `You can send up to ${linkedMoney(limits.outRemaining)} more today to linked accounts. Larger amounts may ask for Face ID or your passcode.`));
+
+  const btn = cardPrimaryBtn(adding ? 'Add money' : 'Send money', () => submit(), adding ? 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed' : undefined);
+  actions.appendChild(btn);
+  const refresh = () => {
+    const amt = Math.round(Number(input.value) * 100) / 100;
+    btn.textContent = amt > 0 ? `${adding ? 'Add' : 'Send'} ${linkedMoney(amt)}` : (adding ? 'Add money' : 'Send money');
+    btn.disabled = !(amt > 0);
+  };
+  input.addEventListener('input', refresh);
+  refresh();
+
+  async function submit() {
+    const amount = Math.round(Number(input.value) * 100) / 100;
+    showError('');
+    if (!(amount >= 1)) { showError('Enter an amount of at least $1.00.'); return; }
+    if (!adding && amount > checking + 0.001) { showError(`Your checking balance is ${linkedMoney(checking)}.`); return; }
+    cardSheetUi.busy = true;
+    btn.disabled = true;
+    btn.textContent = adding ? 'Adding…' : 'Sending…';
+    try {
+      const res = await linkedApi({ extAction: adding ? 'transferIn' : 'transferOut', externalAccountId: a.id, amount, note: note.value.trim() || undefined });
+      cardSheetUi.busy = false;
+      if (homeLinkedUi.data && res.limits) homeLinkedUi.data.limits = res.limits;
+      const when = res.transactionTimestamp ? new Date(res.transactionTimestamp) : new Date();
+      cardSuccess(body, actions, {
+        title: `${linkedMoney(res.amount)} ${adding ? 'added' : 'sent'}`,
+        lines: [
+          [adding ? 'From' : 'To', `${a.name} ${a.display}`],
+          [adding ? 'To' : 'From', 'Primary Checking'],
+          ['Checking balance', linkedMoney(res.checkingBalance)],
+          ...(adding ? [] : [['Arrives', a.speed || '—']]),
+          ['Date', when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })],
+          ['Confirmation', res.transactionId ? `#TXN-${res.transactionId}` : '—'],
+        ],
+      });
+      await linkedAfterMoneyMoved();
+      loadHomeLinked();
+    } catch (err) {
+      cardSheetUi.busy = false;
+      showError(/^Cancelled/.test(err.message) ? 'Cancelled. Nothing was sent.' : err.message);
+      refresh();
+    }
+  }
+}
+
+/* ---------- Link an account ---------- */
+function openLinkSheet(presetProvider) {
+  const d = homeLinkedUi.data;
+  if (d && (d.externalAccounts || []).length >= (d.maxLinked || 8)) { openLinkedList(); return; }
+  const ui = openCardSheet({ tag: 'Linked accounts', title: 'Link an account', icon: 'fa-plus' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  if (presetProvider && LINK_PROVIDER_BY_ID[presetProvider]) { showForm(presetProvider); return; }
+  body.appendChild(cardEl('p', 'text-xs text-gray-600', 'What would you like to link?'));
+  const group = cardEl('div', 'space-y-2');
+  LINK_PROVIDERS.forEach((p) => {
+    const b = cardEl('button', 'w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-left transition');
+    b.type = 'button';
+    b.setAttribute('data-provider', p.id);
+    const mid = cardEl('span', 'flex-1 min-w-0');
+    mid.append(cardEl('span', 'block text-xs font-bold text-gray-900', p.name), cardEl('span', 'block text-[10px] text-gray-500', p.hint));
+    b.append(linkedProviderIcon(p.id), mid, cardIcon('fa-chevron-right', 'text-gray-300 text-[10px]'));
+    b.addEventListener('click', () => showForm(p.id));
+    group.appendChild(b);
+  });
+  body.appendChild(group);
+  body.appendChild(cardEl('p', 'text-[10px] text-gray-400 flex items-start gap-1.5', 'Only link accounts in your own name. You can remove a linked account any time.'));
+  actions.appendChild(cardSecondaryBtn('Cancel', () => closeCardSheet()));
+
+  function showForm(providerId) {
+    const p = LINK_PROVIDER_BY_ID[providerId];
+    document.getElementById('cardSheetTitle').textContent = providerId === 'bank' ? 'Link another bank' : `Link ${p.name}`;
+    const iconBox = document.getElementById('cardSheetIcon');
+    iconBox.className = `w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.tone}`;
+    iconBox.replaceChildren(cardIcon(p.icon));
+    body.replaceChildren();
+    actions.replaceChildren();
+    const showError = cardSheetError(body);
+    const field = (id, labelText, attrs, prefix) => {
+      const w = cardEl('div');
+      const l = cardEl('label', 'block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1', labelText);
+      l.htmlFor = id;
+      const row = cardEl('div', 'relative');
+      const input = cardEl('input', `w-full bg-gray-50 border border-gray-300 rounded-lg ${prefix ? 'pl-7' : 'pl-3'} pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500`);
+      Object.assign(input, { id, autocomplete: 'off', spellcheck: false }, attrs || {});
+      if (prefix) {
+        const pre = cardEl('span', 'absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400', prefix);
+        pre.setAttribute('aria-hidden', 'true');
+        row.appendChild(pre);
+      }
+      row.appendChild(input);
+      w.append(l, row);
+      body.appendChild(w);
+      return input;
+    };
+    const inputs = {};
+    if (providerId === 'bank') {
+      inputs.bankName = field('linkBankName', 'Bank name', { type: 'text', maxLength: 60, placeholder: 'e.g. Chase, Wells Fargo' });
+      const typeWrap = cardEl('div', 'grid grid-cols-2 gap-2');
+      typeWrap.setAttribute('role', 'radiogroup');
+      typeWrap.setAttribute('aria-label', 'Account type');
+      ['checking', 'savings'].forEach((t) => typeWrap.appendChild(cardOption({ value: t, title: t === 'checking' ? 'Checking' : 'Savings' })));
+      body.appendChild(typeWrap);
+      let accountType = 'checking';
+      cardSelect(typeWrap, accountType);
+      typeWrap.addEventListener('click', (e) => { const b = e.target.closest('[role="radio"]'); if (!b) return; accountType = b.getAttribute('data-value'); cardSelect(typeWrap, accountType); });
+      inputs.accountType = () => accountType;
+      inputs.routingNumber = field('linkRouting', 'Routing number', { type: 'text', inputMode: 'numeric', maxLength: 11, placeholder: '9 digits' });
+      inputs.accountNumber = field('linkAccountNumber', 'Account number', { type: 'text', inputMode: 'numeric', maxLength: 20, placeholder: '4-17 digits' });
+      inputs.confirmAccountNumber = field('linkAccountNumber2', 'Confirm account number', { type: 'text', inputMode: 'numeric', maxLength: 20 });
+      body.appendChild(cardEl('p', 'text-[10px] text-gray-500', "You'll find both numbers at the bottom of a check or in your other bank's app."));
+    } else {
+      inputs.handle = field('linkHandle', p.label, { type: p.inputMode === 'email' ? 'email' : 'text', inputMode: p.inputMode, autocapitalize: 'none', maxLength: providerId === 'zelle' || providerId === 'paypal' ? 254 : 31, placeholder: p.placeholder }, p.prefix);
+    }
+    inputs.holder = field('linkHolder', 'Name on the account', { type: 'text', maxLength: 80, value: (typeof currentUserFullName !== 'undefined' && currentUserFullName) || '' });
+    const consentRow = cardEl('label', 'flex items-start gap-2 text-[11px] text-gray-600 cursor-pointer select-none');
+    const consent = cardEl('input', 'mt-0.5 w-4 h-4 accent-emerald-600 shrink-0');
+    consent.type = 'checkbox';
+    consent.id = 'linkConsent';
+    consentRow.append(consent, cardEl('span', '', providerId === 'bank' ? 'This account is in my name and I allow Apex to move money to and from it when I ask.' : `This ${p.name} account is mine and I allow Apex to move money to and from it when I ask.`));
+    body.appendChild(consentRow);
+
+    const back = cardSecondaryBtn('Back', () => { closeCardSheet(); openLinkSheet(); });
+    const go = cardPrimaryBtn(providerId === 'bank' ? 'Link bank account' : `Link ${p.name}`, () => submit());
+    const row = cardEl('div', 'grid grid-cols-3 gap-2');
+    back.className += ' col-span-1';
+    go.className += ' col-span-2';
+    row.append(back, go);
+    actions.appendChild(row);
+    setTimeout(() => { try { (inputs.handle || inputs.bankName).focus({ preventScroll: true }); } catch (err) {} }, 50);
+
+    async function submit() {
+      showError('');
+      if (!consent.checked) { showError(`Please confirm the ${providerId === 'bank' ? 'account' : p.name + ' account'} is yours.`); return; }
+      const payload = { extAction: 'link', provider: providerId, accountHolderName: inputs.holder.value };
+      if (providerId === 'bank') {
+        Object.assign(payload, { bankName: inputs.bankName.value, accountType: inputs.accountType(), routingNumber: inputs.routingNumber.value, accountNumber: inputs.accountNumber.value, confirmAccountNumber: inputs.confirmAccountNumber.value });
+      } else {
+        payload.handle = inputs.handle.value;
+      }
+      cardSheetUi.busy = true;
+      go.disabled = true; back.disabled = true;
+      go.textContent = 'Linking…';
+      try {
+        const res = await linkedApi(payload);
+        cardSheetUi.busy = false;
+        linkedTakeList(res);
+        const acct = res.externalAccount;
+        body.replaceChildren();
+        const wrapOk = cardEl('div', 'text-center py-3');
+        const tick = cardEl('span', 'w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3');
+        tick.appendChild(cardIcon('fa-check', 'text-2xl'));
+        wrapOk.append(tick, cardEl('p', 'text-base font-bold text-gray-900', `${acct.name} linked`), cardEl('p', 'text-xs text-gray-500 font-mono mt-1', acct.display));
+        body.appendChild(wrapOk);
+        body.appendChild(cardEl('p', 'text-[11px] text-gray-500 text-center', 'You can now send money to it and add money from it. Find it on Home by swiping the balance card.'));
+        actions.replaceChildren();
+        const two = cardEl('div', 'grid grid-cols-2 gap-2');
+        two.append(
+          cardPrimaryBtn('Add money', () => openLinkedTransfer(acct.id, 'in'), 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition text-xs'),
+          cardPrimaryBtn('Send money', () => openLinkedTransfer(acct.id, 'out'))
+        );
+        actions.append(two, cardSecondaryBtn('Done', () => closeCardSheet()));
+      } catch (err) {
+        cardSheetUi.busy = false;
+        go.disabled = false; back.disabled = false;
+        go.textContent = providerId === 'bank' ? 'Link bank account' : `Link ${p.name}`;
+        showError(err.message);
+      }
+    }
+  }
 }
 </script>
 </body>
@@ -15435,6 +16173,10 @@ document.addEventListener('keydown', (e) => {
                 if (body.cardAction === 'redeemRewards') return { kind: 'internal', amount };
                 if (body.cardAction === 'replaceCard' || body.cardAction === 'setVelocityLimit' || body.cardAction === 'setAutopay') return { kind: 'save' };
                 return { kind: 'toggle' };
+            case 'external-accounts':
+                if (body.extAction === 'transferOut') return { kind: 'p2p', amount };
+                if (body.extAction === 'transferIn') return { kind: 'internal', amount };
+                return { kind: 'save' };
             case 'loans':
                 if (body.loanAction === 'apply') return { kind: 'loanApply', amount };
                 if (body.loanAction === 'makePayment') return { kind: 'loanPayment', amount };
@@ -15848,6 +16590,10 @@ const HELP_ARTICLES = [
       intro: 'Tell us what went wrong and our team will look into it.',
       steps: ['In Help, tap "Dispute a charge" and pick the transaction, or', 'In Accounts, swipe the transaction left and tap Dispute.', "Choose what went wrong, add details and submit. We'll notify you of the outcome."],
       note: 'If you think someone else has your card, freeze it first.', action: { label: 'Dispute a charge', run: 'dispute' } },
+    { id: 'linked', icon: 'fa-link', title: 'Link Cash App, Venmo, PayPal, Zelle or another bank', keywords: 'link cash app cashapp venmo paypal zelle external bank account add money send money transfer out linked',
+      intro: 'Move money between Apex checking and your accounts elsewhere.',
+      steps: ['On Home, swipe the balance card to the end.', 'Tap Link an account and choose what to link: a $Cashtag, Venmo username, PayPal email, Zelle email or phone, or a bank routing and account number.', 'Then tap the linked account to Add money or Send money.'],
+      note: 'You can add up to $2,500 and send up to $5,000 a day. Larger sends may ask for Face ID or your passcode.', action: { label: 'Link an account', view: 'summary', after: 'openLinkSheet' } },
     { id: 'direct', icon: 'fa-money-bill-transfer', title: 'Set up direct deposit', keywords: 'direct deposit paycheck salary employer routing account number ach',
       intro: 'Get your pay straight into checking.',
       steps: ['Tap More, then Direct deposit.', 'Reveal your routing and account numbers.', 'Give them to your employer or payroll app.'],
@@ -16303,7 +17049,7 @@ function renderHelpArticle(body, params) {
     const more = hEl('div', 'bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2');
     more.appendChild(hEl('p', 'text-[12px] font-semibold text-gray-700', 'Still need help?'));
     const row = hEl('div', 'grid grid-cols-2 gap-2');
-    const guess = { freeze: 'card', lost: 'card', cardpay: 'card', cashback: 'card', dispute: 'fraud', send: 'transfer', request: 'transfer', bills: 'transfer', wire: 'transfer', password: 'login', faceid: 'login', devices: 'login' }[a.id] || 'account';
+    const guess = { freeze: 'card', lost: 'card', cardpay: 'card', cashback: 'card', dispute: 'fraud', send: 'transfer', linked: 'transfer', request: 'transfer', bills: 'transfer', wire: 'transfer', password: 'login', faceid: 'login', devices: 'login' }[a.id] || 'account';
     row.append(
         hButton('text-xs font-bold bg-white border border-gray-300 text-gray-800 py-2 rounded-lg', () => helpGo('chat', { ask: a.title }), hIcon('fa-robot', 'mr-1'), 'Ask assistant'),
         hButton('text-xs font-bold bg-white border border-gray-300 text-gray-800 py-2 rounded-lg', () => helpGo('compose', { category: guess, subject: a.title }), hIcon('fa-envelope', 'mr-1'), 'Message us'));
