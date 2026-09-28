@@ -203,7 +203,8 @@ module.exports = async function handler(req, res) {
           type: 'public-key',
         })),
       });
-      setChallengeCookie(res, options.challenge, { userId: session.userId, purpose: 'stepup', amount });
+      const scope = (req.body || {}).scope === 'card-details' ? 'card-details' : 'money';
+      setChallengeCookie(res, options.challenge, { userId: session.userId, purpose: 'stepup', amount, scope });
       return res.status(200).json(options);
     } catch (err) {
       console.error('WebAuthn stepup-options error:', err);
@@ -265,6 +266,7 @@ module.exports = async function handler(req, res) {
         jti: session.jti,
         method: 'face_id',
         maxAmount: challengeData.amount,
+        scope: challengeData.scope,
       });
       return res.status(200).json({ success: true, stepUpToken: token, expiresInSeconds });
     } catch (err) {

@@ -2500,11 +2500,12 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
 
                         <div class="z-10 my-auto">
-                            <p class="text-lg font-mono tracking-widest text-gray-100 font-bold flex items-center space-x-2" aria-label="Card number ending">
-                                <span>••••</span> <span>••••</span> <span>••••</span> <span id="cardLastFourLabel" class="text-emerald-400">••••</span>
+                            <p id="cardNumberLine" class="text-lg font-mono tracking-widest text-gray-100 font-bold flex items-center space-x-2">
+                                <span data-card-group>••••</span> <span data-card-group>••••</span> <span data-card-group>••••</span> <span id="cardLastFourLabel" class="text-emerald-400">••••</span>
                             </p>
                             <div class="flex items-center gap-4 mt-1 font-mono text-[9px] text-gray-400">
                                 <div>VALID THRU <span id="cardExpiryLabel" class="text-gray-200 font-bold">--/--</span></div>
+                                <div id="cardCvvFace" class="hidden">CVV <span id="cardCvvFaceValue" class="text-emerald-300 font-bold"></span></div>
                                 <div id="cardReplacedNote" class="hidden text-emerald-300"></div>
                             </div>
                         </div>
@@ -2517,6 +2518,18 @@ async function submitCreateRecurringTransfer(event) {
                             <span class="text-[8px] font-mono text-slate-500 uppercase tracking-widest">VISA PLATINUM</span>
                         </div>
                         </div>
+                    </div>
+
+                    <div id="cardDetailsPanel" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+                        <div class="flex items-center gap-3 px-4 py-3">
+                            <span class="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0" aria-hidden="true"><i id="cardDetailsIcon" class="fa-solid fa-eye-slash text-sm"></i></span>
+                            <div class="flex-1 min-w-0">
+                                <p id="cardDetailsLabel" class="text-xs font-bold text-gray-900">Show card details</p>
+                                <p id="cardDetailsSub" class="text-[10px] text-gray-500">Card number, expiry date and security code</p>
+                            </div>
+                            <button type="button" id="cardDetailsSwitch" role="switch" aria-checked="false" aria-labelledby="cardDetailsLabel" aria-controls="cardDetailsList" onclick="toggleCardDetails()" class="ahb-switch shrink-0"><span></span></button>
+                        </div>
+                        <div id="cardDetailsList" class="hidden border-t border-gray-100 px-4 py-1" aria-live="polite"></div>
                     </div>
 
                     <div id="cardDueCard" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
@@ -9126,6 +9139,9 @@ async function openStepUpSheet(info, done) {
     if (info.reason === 'settings') {
         title.textContent = "Confirm it's you";
         subtitle.textContent = 'Changing transfer protection needs a quick security check.';
+    } else if (info.reason === 'card-details') {
+        title.textContent = "Confirm it's you";
+        subtitle.textContent = 'Use Face ID or your passcode to see your full card number and security code.';
     } else {
         title.textContent = `Confirm ${money(info.amount)}`;
         subtitle.textContent = `For your security, payments of ${money(info.threshold)} or more need Face ID or your passcode.`;
@@ -9179,7 +9195,7 @@ async function openStepUpSheet(info, done) {
             const optRes = await nativeFetchForStepUp('/api/webauthn-register', {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'stepup-options', amount: info.amount })
+                body: JSON.stringify({ action: 'stepup-options', amount: info.amount, scope: info.reason === 'card-details' ? 'card-details' : undefined })
             });
             const opts = await optRes.json().catch(() => ({}));
             if (!optRes.ok) {
@@ -9224,7 +9240,7 @@ async function openStepUpSheet(info, done) {
             const res = await nativeFetchForStepUp('/api/account-services', {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resource: 'step-up', method, secret, amount: info.amount })
+                body: JSON.stringify({ resource: 'step-up', method, secret, amount: info.amount, scope: info.reason === 'card-details' ? 'card-details' : undefined })
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.stepUpToken) {
@@ -10875,8 +10891,11 @@ function cardRenderLoadError() {
 
 function cardRenderAll(data) {
   const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-  setText('cardLastFourLabel', data.lastFour || '••••');
-  setText('cardExpiryLabel', data.expiryMonth && data.expiryYear ? `${String(data.expiryMonth).padStart(2, '0')}/${String(data.expiryYear).slice(-2)}` : '--/--');
+  if (cardDetailsUi.shown && cardDetailsUi.shown.lastFour !== data.lastFour) hideCardDetails();
+  if (!cardDetailsUi.shown) {
+    setText('cardLastFourLabel', data.lastFour || '••••');
+    setText('cardExpiryLabel', data.expiryMonth && data.expiryYear ? `${String(data.expiryMonth).padStart(2, '0')}/${String(data.expiryYear).slice(-2)}` : '--/--');
+  }
   setText('cardCurrentBalanceLabel', ccMoney(data.balance));
   setText('cardAvailableCreditLabel', ccMoney(data.availableCredit));
 
@@ -10908,7 +10927,8 @@ function cardRenderAll(data) {
   }
 
   const restricted = !!data.accountRestricted;
-  ['cardFreezeBtn', 'cardPayBtn', 'cardAutopayBtn', 'cardAutopayLine'].forEach((id) => {
+  if (restricted && cardDetailsUi.shown) hideCardDetails();
+  ['cardFreezeBtn', 'cardPayBtn', 'cardAutopayBtn', 'cardAutopayLine', 'cardDetailsSwitch'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.disabled = restricted;
   });
@@ -11226,6 +11246,169 @@ function switchCreditTab(tabKey) {
   off[1].classList.remove('border-slate-900', 'text-slate-900');
   off[1].classList.add('border-transparent', 'text-gray-400');
 }
+
+/* ===================== Show card details (number, expiry, security code) ===================== */
+// The full number and security code come from the server only after Face ID
+// or the passcode (the step-up sheet opens by itself), stay on screen for 60
+// seconds, and are dropped from memory as soon as they're hidden: leaving
+// Cards, switching apps, signing out or replacing the card hides them too.
+const cardDetailsUi = { shown: null, timer: null, until: 0, busy: false };
+const CARD_DETAILS_SUB = 'Card number, expiry date and security code';
+
+function cardFormatNumber(n) {
+  return String(n || '').replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
+function cardDetailsHeader(state, text) {
+  const sw = document.getElementById('cardDetailsSwitch');
+  const label = document.getElementById('cardDetailsLabel');
+  const sub = document.getElementById('cardDetailsSub');
+  const icon = document.getElementById('cardDetailsIcon');
+  const on = state === 'on' || state === 'busy';
+  if (sw) sw.setAttribute('aria-checked', on ? 'true' : 'false');
+  if (label) label.textContent = state === 'on' ? 'Hide card details' : 'Show card details';
+  if (icon) icon.className = `fa-solid ${state === 'on' ? 'fa-eye' : 'fa-eye-slash'} text-sm`;
+  if (sub) {
+    sub.textContent = text || CARD_DETAILS_SUB;
+    sub.className = state === 'error' ? 'text-[10px] text-red-600' : 'text-[10px] text-gray-500';
+  }
+}
+
+async function toggleCardDetails() {
+  if (cardDetailsUi.busy) return;
+  if (cardDetailsUi.shown) { hideCardDetails(); return; }
+  const sw = document.getElementById('cardDetailsSwitch');
+  cardDetailsUi.busy = true;
+  if (sw) sw.disabled = true;
+  cardDetailsHeader('busy', "Confirming it's you…");
+  try {
+    const data = await cardApi({ cardAction: 'revealDetails' });
+    showCardDetails(data);
+  } catch (err) {
+    const cancelled = /^Cancelled/.test(err.message || '');
+    cardDetailsHeader(cancelled ? 'off' : 'error', cancelled ? '' : err.message);
+  } finally {
+    cardDetailsUi.busy = false;
+    if (sw) sw.disabled = !!(creditCardState && creditCardState.accountRestricted);
+  }
+}
+
+function cardCopyValue(value, btn) {
+  const done = () => {
+    const was = btn.getAttribute('aria-label');
+    btn.replaceChildren(cardIcon('fa-check', 'text-[10px]'), document.createTextNode(' Copied'));
+    btn.classList.add('text-emerald-700');
+    setTimeout(() => {
+      btn.replaceChildren(cardIcon('fa-copy', 'text-[10px]'), document.createTextNode(' Copy'));
+      btn.classList.remove('text-emerald-700');
+      btn.setAttribute('aria-label', was);
+    }, 1500);
+  };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (err) {}
+    ta.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done, fallback);
+  else fallback();
+}
+
+function showCardDetails(data) {
+  if (!data || !data.cardNumber) return;
+  cardDetailsUi.shown = { lastFour: data.lastFour };
+  const secs = Number(data.visibleSeconds) || 60;
+  cardDetailsUi.until = Date.now() + secs * 1000;
+  const number = String(data.cardNumber);
+  const exp = `${String(data.expiryMonth).padStart(2, '0')}/${String(data.expiryYear).slice(-2)}`;
+
+  // The card itself
+  const groups = document.querySelectorAll('#cardNumberLine [data-card-group]');
+  groups.forEach((g, i) => { g.textContent = number.slice(i * 4, i * 4 + 4); });
+  const four = document.getElementById('cardLastFourLabel');
+  if (four) four.textContent = number.slice(12);
+  const expEl = document.getElementById('cardExpiryLabel');
+  if (expEl) expEl.textContent = exp;
+  document.getElementById('cardCvvFaceValue').textContent = data.cvv;
+  cardShow(document.getElementById('cardCvvFace'));
+
+  // The list with copy buttons
+  const list = document.getElementById('cardDetailsList');
+  list.replaceChildren();
+  const row = (label, value, copy, copyLabel) => {
+    const r = cardEl('div', 'flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 last:border-0');
+    const left = cardEl('div', 'min-w-0');
+    left.append(cardEl('p', 'text-[10px] font-bold uppercase tracking-wider text-gray-400', label), cardEl('p', 'text-sm font-bold font-mono text-gray-900 mt-0.5 break-all', value));
+    r.appendChild(left);
+    if (copy) {
+      const b = cardEl('button', 'shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition');
+      b.type = 'button';
+      b.setAttribute('aria-label', copyLabel);
+      b.setAttribute('data-copy', label);
+      b.append(cardIcon('fa-copy', 'text-[10px]'), document.createTextNode(' Copy'));
+      b.addEventListener('click', () => cardCopyValue(copy, b));
+      r.appendChild(b);
+    }
+    return r;
+  };
+  if (data.nameOnCard) list.appendChild(row('Name on card', data.nameOnCard));
+  list.appendChild(row('Card number', cardFormatNumber(number), number, 'Copy card number'));
+  list.appendChild(row('Expiry date', exp, exp, 'Copy expiry date'));
+  list.appendChild(row('Security code (CVV)', data.cvv, data.cvv, 'Copy security code'));
+  const foot = cardEl('p', 'text-[10px] text-gray-400 py-2 flex items-center gap-1.5');
+  foot.append(cardIcon('fa-shield-halved', 'text-emerald-600'), document.createTextNode("Don't share these with anyone who contacts you. Apex will never ask for them."));
+  list.appendChild(foot);
+  cardShow(list);
+
+  const tick = () => {
+    const left = Math.ceil((cardDetailsUi.until - Date.now()) / 1000);
+    if (left <= 0) { hideCardDetails(); return; }
+    cardDetailsHeader('on', `Hiding in ${left}s`);
+  };
+  clearInterval(cardDetailsUi.timer);
+  cardDetailsUi.timer = setInterval(tick, 1000);
+  tick();
+}
+
+function hideCardDetails() {
+  clearInterval(cardDetailsUi.timer);
+  cardDetailsUi.timer = null;
+  const wasShown = !!cardDetailsUi.shown;
+  cardDetailsUi.shown = null;
+  document.querySelectorAll('#cardNumberLine [data-card-group]').forEach((g) => { g.textContent = '••••'; });
+  const cvv = document.getElementById('cardCvvFaceValue');
+  if (cvv) cvv.textContent = '';
+  cardHide(document.getElementById('cardCvvFace'));
+  const list = document.getElementById('cardDetailsList');
+  if (list) { list.replaceChildren(); cardHide(list); }
+  if (!cardDetailsUi.busy) cardDetailsHeader('off');
+  if (wasShown && creditCardState) {
+    const four = document.getElementById('cardLastFourLabel');
+    if (four) four.textContent = creditCardState.lastFour || '••••';
+    const expEl = document.getElementById('cardExpiryLabel');
+    if (expEl && creditCardState.expiryMonth) expEl.textContent = `${String(creditCardState.expiryMonth).padStart(2, '0')}/${String(creditCardState.expiryYear).slice(-2)}`;
+  }
+}
+
+document.addEventListener('ahb:viewchange', (e) => {
+  if (cardDetailsUi.shown && !(e.detail && e.detail.view === 'credit')) hideCardDetails();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && cardDetailsUi.shown) hideCardDetails();
+});
+(function hookCardDetailsSignOut() {
+  const previous = window.showLoginScreen;
+  if (typeof previous !== 'function') return;
+  window.showLoginScreen = function () {
+    try { hideCardDetails(); } catch (err) {}
+    return previous.apply(this, arguments);
+  };
+})();
 
 /* ===================== Card sheet (payment, autopay, redeem, replace, details) ===================== */
 const cardSheetUi = { busy: false, onClose: null };
@@ -11665,6 +11848,7 @@ function openCardReplace() {
   async function submit() {
     if (!reason) return;
     showError('');
+    hideCardDetails();
     cardSheetUi.busy = true;
     goBtn.disabled = true;
     goBtn.textContent = 'Replacing…';
@@ -15172,7 +15356,7 @@ document.addEventListener('keydown', (e) => {
             case 'credit-card':
                 if (body.cardAction === 'makePayment') return { kind: 'cardPayment', amount };
                 if (body.cardAction === 'charge') return { kind: 'cardCharge', amount };
-                if (body.cardAction === 'setPin') return { kind: 'secure' };
+                if (body.cardAction === 'setPin' || body.cardAction === 'revealDetails') return { kind: 'secure' };
                 if (body.cardAction === 'redeemRewards') return { kind: 'internal', amount };
                 if (body.cardAction === 'replaceCard' || body.cardAction === 'setVelocityLimit' || body.cardAction === 'setAutopay') return { kind: 'save' };
                 return { kind: 'toggle' };

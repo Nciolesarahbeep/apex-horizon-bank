@@ -579,7 +579,7 @@ module.exports = async function handler(req, res) {
     }
     try {
       await ensureStepUpSchema(sql);
-      const { method, secret, amount } = req.body || {};
+      const { method, secret, amount, scope } = req.body || {};
       if (!['passcode', 'password'].includes(method) || !secret) {
         return res.status(400).json({ error: 'Enter your passcode or password.' });
       }
@@ -612,7 +612,7 @@ module.exports = async function handler(req, res) {
           WHERE id = ${session.userId}
         `;
         if (lock) {
-          await createNotification(session.userId, 'Transfer Confirmation Locked', 'Too many incorrect passcode or password attempts while confirming a transfer. Confirmation is locked for 15 minutes. If this wasn\'t you, change your password.');
+          await createNotification(session.userId, 'Security Check Locked', 'Too many incorrect passcode or password attempts while confirming it was you. Confirmation is locked for 15 minutes. If this wasn\'t you, change your password.');
           return res.status(429).json({ error: 'Too many incorrect attempts. Confirmation is locked for 15 minutes.' });
         }
         const left = 5 - failures;
@@ -620,7 +620,7 @@ module.exports = async function handler(req, res) {
       }
 
       await sql`UPDATE users SET step_up_failed_attempts = 0, step_up_locked_until = NULL WHERE id = ${session.userId}`;
-      const { token, expiresInSeconds } = issueStepUpToken({ userId: session.userId, jti: session.jti, method, maxAmount: amount });
+      const { token, expiresInSeconds } = issueStepUpToken({ userId: session.userId, jti: session.jti, method, maxAmount: amount, scope });
       return res.status(200).json({ success: true, stepUpToken: token, expiresInSeconds });
     } catch (err) {
       console.error('Step-up (passcode) error:', err);
@@ -1281,6 +1281,29 @@ module.exports = async function handler(req, res) {
             expiryMonth: replaced.expiryMonth,
             expiryYear: replaced.expiryYear,
             message: replaced.message,
+          });
+        }
+
+        // Full card number, expiry and security code. Asks for Face ID or the
+        // passcode every time, and is never cached.
+        if (cardAction === 'revealDetails') {
+          res.setHeader('Cache-Control', 'no-store');
+          if (account.restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
+          const confirmed = await requireStepUp(sql, { req, res, session, amount: 0, reason: 'card-details', always: true });
+          if (!confirmed) return;
+          const shown = await cards.revealCardDetails(sql, { accountId: account.id, details });
+          const nameRows = await sql`SELECT full_name FROM users WHERE id = ${session.userId} LIMIT 1`;
+          return res.status(200).json({
+            success: true,
+            cardNumber: shown.cardNumber,
+            cvv: shown.cvv,
+            expiryMonth: shown.expiryMonth,
+            expiryYear: shown.expiryYear,
+            lastFour: shown.lastFour,
+            nameOnCard: nameRows.length && nameRows[0].full_name ? String(nameRows[0].full_name).toUpperCase() : null,
+            visibleSeconds: 60,
           });
         }
 
