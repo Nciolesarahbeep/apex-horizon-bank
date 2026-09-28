@@ -13,6 +13,7 @@ const crypto = require('crypto');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+const { withPush } = require('../lib/push');
 
 // Same device fingerprint lib/fraud.js uses for the known-device list.
 const deviceFingerprint = (req) => fingerprintFromRequest(req);
@@ -91,7 +92,7 @@ async function notify(userId, title, message) {
   }
 }
 
-module.exports = async function handler(req, res) {
+module.exports = withPush(async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -279,4 +280,4 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Invalid or missing action. Use "login", "verify-device", "resend-device-code" or "logout".' });
-};
+}, sql);

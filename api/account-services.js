@@ -13,6 +13,8 @@ const support = require('../lib/support');
 const settings = require('../lib/settings');
 const cards = require('../lib/cards');
 const linked = require('../lib/linkedAccounts');
+const push = require('../lib/push');
+const subscriptions = require('../lib/subscriptions');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -266,7 +268,7 @@ async function createNotification(userId, title, message) {
   }
 }
 
-module.exports = async function handler(req, res) {
+module.exports = push.withPush(async function handler(req, res) {
   const query = getQuery(req);
   let resource = (req.method === 'GET' || req.method === 'DELETE') ? query.resource : (req.body || {}).resource;
 
@@ -419,7 +421,15 @@ module.exports = async function handler(req, res) {
         console.error('Card cycle error:', cardErr);
       }
 
-      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups, budgets: budgetCheck, cards: cardCycle });
+      // Reminders a few days before subscriptions people asked about.
+      let subscriptionReminders = { users: 0, sent: 0 };
+      try {
+        subscriptionReminders = await subscriptions.runSubscriptionReminders(sql);
+      } catch (subErr) {
+        console.error('Subscription reminders error:', subErr);
+      }
+
+      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups, budgets: budgetCheck, cards: cardCycle, subscriptionReminders });
     } catch (err) {
       console.error('Process recurring transfers error:', err);
       return res.status(500).json({ error: 'Failed to process recurring transfers.' });
@@ -2356,6 +2366,67 @@ module.exports = async function handler(req, res) {
   }
 
   // ---------- Linked accounts: Cash App, Venmo, PayPal, Zelle, other banks (lib/linkedAccounts.js) ----------
+  // ---------- Subscriptions & bills (recurring payments) ----------
+  if (resource === 'subscriptions') {
+    try {
+      if (req.method === 'GET') {
+        return res.status(200).json(await subscriptions.listSubscriptions(sql, session.userId));
+      }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const body = req.body || {};
+      const subAction = body.subAction;
+      if (subAction === 'hide') return res.status(200).json(await subscriptions.setPreference(sql, session.userId, { key: body.key, hidden: true, remind: false }));
+      if (subAction === 'unhide') return res.status(200).json(await subscriptions.setPreference(sql, session.userId, { key: body.key, hidden: false }));
+      if (subAction === 'remind') return res.status(200).json(await subscriptions.setPreference(sql, session.userId, { key: body.key, remind: body.on === true }));
+      return res.status(400).json({ error: 'Unknown subscriptions action.' });
+    } catch (err) {
+      if (err instanceof subscriptions.SubscriptionError) return res.status(err.status).json({ error: err.message });
+      console.error('Subscriptions error:', err);
+      return res.status(500).json({ error: "Couldn't load your subscriptions. Please try again." });
+    }
+  }
+
+  // ---------- Push notifications (this device + the others) ----------
+  if (resource === 'push') {
+    try {
+      if (req.method === 'GET') {
+        const keys = push.vapidKeys();
+        return res.status(200).json({
+          available: !!keys,
+          publicKey: keys ? keys.publicKey : null,
+          devices: keys ? await push.listDevices(sql, session.userId) : [],
+          maxDevices: push.MAX_DEVICES,
+        });
+      }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const body = req.body || {};
+      const pushAction = body.pushAction;
+      if (pushAction === 'subscribe') {
+        return res.status(200).json(await push.subscribe(sql, session.userId, body.subscription, { userAgent: req.headers['user-agent'] }));
+      }
+      if (pushAction === 'unsubscribe') {
+        return res.status(200).json(await push.unsubscribe(sql, session.userId, { endpoint: body.endpoint, id: body.id }));
+      }
+      if (pushAction === 'release') {
+        return res.status(200).json(await push.releaseIfOtherUser(sql, session.userId, body.endpoint));
+      }
+      if (pushAction === 'test') {
+        return res.status(200).json(await push.sendTest(sql, session.userId));
+      }
+      return res.status(400).json({ error: 'Unknown push action.' });
+    } catch (err) {
+      if (err instanceof push.PushError) return res.status(err.status).json({ error: err.message });
+      console.error('Push error:', err);
+      return res.status(500).json({ error: "Couldn't update notifications. Please try again." });
+    }
+  }
+
   if (resource === 'external-accounts') {
     try {
       if (req.method === 'GET') {
@@ -2700,4 +2771,4 @@ App navigation cheatsheet (bottom tabs: Home, Accounts, Pay, Cards, More):
   }
 
   return res.status(400).json({ error: 'Invalid or missing resource. Use "kyc", "disputes", "direct-deposit", "passcode", "notifications", "credit-card", "email-change", "sessions", "statement", "loans", "recurring-transfers", "profile-photo", "external-accounts", "check-deposits", "transaction-security", "step-up", or "assistant".' });
-};
+}, sql);

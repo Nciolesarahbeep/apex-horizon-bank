@@ -1860,6 +1860,20 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
+                    <button type="button" id="homeSubsRow" onclick="triggerViewSwitch('subscriptions')" class="w-full bg-white rounded-xl border border-gray-200 p-3.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition text-left">
+                        <span class="flex items-center gap-3 min-w-0">
+                            <span class="w-9 h-9 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-rotate text-sm" aria-hidden="true"></i></span>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-semibold text-gray-900">Subscriptions &amp; bills</span>
+                                <span id="homeSubsSub" class="block text-[10px] text-gray-500 truncate">See what comes out every month</span>
+                            </span>
+                        </span>
+                        <span class="flex items-center gap-2 shrink-0">
+                            <span id="homeSubsTotal" class="ahb-money ahb-money-right text-sm font-bold font-mono text-gray-900"></span>
+                            <i class="fa-solid fa-chevron-right text-gray-300 text-[10px]" aria-hidden="true"></i>
+                        </span>
+                    </button>
+
                     <div>
                         <div class="flex items-center justify-between mb-2 px-1">
                             <h2 class="text-sm font-bold text-gray-900">Recent activity</h2>
@@ -1941,6 +1955,34 @@ async function submitCreateRecurringTransfer(event) {
                             <p class="p-4 text-xs text-gray-500 text-center bg-white rounded-xl border border-gray-200">Loading…</p>
                         </div>
                     </div>
+                </section>
+
+                <section id="view-subscriptions" class="hidden space-y-4 animate-fade-in">
+                    <div class="flex items-center space-x-2">
+                        <button type="button" onclick="navigateBackward()" aria-label="Back" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h1 class="text-md font-bold text-gray-900">Subscriptions &amp; bills</h1>
+                    </div>
+                    <div id="subsSummary" class="bg-white rounded-2xl border border-gray-200 p-4">
+                        <p class="text-[11px] font-semibold text-gray-500">Going out every month</p>
+                        <p id="subsMonthly" class="ahb-money text-2xl font-bold font-mono text-gray-900 tracking-tight">$0.00</p>
+                        <p id="subsSummarySub" class="text-[10px] text-gray-500 mt-0.5">Loading…</p>
+                    </div>
+                    <p id="subsMsg" class="hidden text-[11px] font-semibold rounded-lg px-3 py-2" role="status" aria-live="polite"></p>
+                    <div id="subsUpcomingWrap" class="hidden">
+                        <h2 class="text-sm font-bold text-gray-900 mb-2 px-1">Coming up in the next 30 days</h2>
+                        <div id="subsUpcoming" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"></div>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 mb-2 px-1">Repeat payments</h2>
+                        <div id="subsList" class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                            <p class="p-4 text-xs text-gray-500 text-center">Loading…</p>
+                        </div>
+                    </div>
+                    <div id="subsHiddenWrap" class="hidden">
+                        <button type="button" id="subsHiddenToggle" onclick="toggleSubsHidden()" aria-expanded="false" aria-controls="subsHidden" class="text-[11px] font-semibold text-gray-600 px-1 py-1"><span id="subsHiddenLabel">Hidden</span> <i class="fa-solid fa-chevron-down text-[9px] ml-0.5" aria-hidden="true"></i></button>
+                        <div id="subsHidden" class="hidden mt-1 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500 px-1 leading-relaxed">We look at the last 13 months of card purchases and payments for anything paid about once a week, month or year. To cancel a subscription, cancel it with the company. If they keep charging you after that, you can dispute the charge.</p>
                 </section>
 
                 <section id="view-offers" class="hidden space-y-4">
@@ -3464,47 +3506,56 @@ async function submitCreateRecurringTransfer(event) {
                 </section>
                 <section id="view-settings-notifications" class="hidden space-y-4 animate-fade-in">
                     <div class="flex items-center space-x-2">
-                        <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <button type="button" onclick="navigateBackward()" aria-label="Back" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
                         <h1 class="text-md font-bold text-gray-900" data-i18n="settings.notifications">Notifications</h1>
                     </div>
-                    <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-                        <div class="p-3.5 flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">Push Notifications</p>
-                                <p class="text-[10px] text-gray-400">Alerts sent directly to this device</p>
+
+                    <div id="pushDeviceCard" class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-start gap-3 min-w-0">
+                                <span class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-bell text-sm" aria-hidden="true"></i></span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-gray-900" id="pushToggleLabel">Notifications on this device</p>
+                                    <p id="pushStatusText" class="text-[11px] text-gray-500 leading-snug">Checking this device…</p>
+                                </div>
                             </div>
-                            <button onclick="toggleNotifPref('push')" id="notifToggle-push" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
-                                <div class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform duration-300"></div>
-                            </button>
+                            <button type="button" id="pushToggle" role="switch" aria-checked="false" aria-labelledby="pushToggleLabel" aria-describedby="pushStatusText" onclick="togglePushThisDevice()" disabled class="ahb-switch shrink-0 mt-0.5"><span></span></button>
                         </div>
-                        <div class="p-3.5 flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">Email Alerts</p>
-                                <p class="text-[10px] text-gray-400">Statements and account summaries</p>
-                            </div>
-                            <button onclick="toggleNotifPref('email')" id="notifToggle-email" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
-                                <div class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform duration-300"></div>
-                            </button>
+                        <div id="pushHelp" class="hidden text-[11px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 leading-relaxed"></div>
+                        <div id="pushActions" class="hidden">
+                            <button type="button" id="pushTestBtn" onclick="sendTestPush()" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full transition disabled:opacity-50"><i class="fa-solid fa-paper-plane mr-1" aria-hidden="true"></i>Send a test notification</button>
                         </div>
-                        <div class="p-3.5 flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">Transaction Alerts</p>
-                                <p class="text-[10px] text-gray-400">Notify on every debit and credit</p>
+                        <p id="pushMsg" class="hidden text-[11px] font-semibold rounded-lg px-3 py-2" role="status" aria-live="polite"></p>
+                        <div id="pushOtherDevices" class="hidden border-t border-gray-100 pt-3 space-y-2"></div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 mb-2 px-1">What to tell me about</h2>
+                        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                        <div class="p-3.5 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900" id="notifLabel-txn">Money in and out</p>
+                                <p class="text-[11px] text-gray-500 leading-snug">Notifications for payments, deposits, transfers and card charges</p>
                             </div>
-                            <button onclick="toggleNotifPref('txn')" id="notifToggle-txn" class="w-11 h-6 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
-                                <div class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform duration-300"></div>
-                            </button>
+                            <button type="button" onclick="toggleNotifPref('txn')" id="notifToggle-txn" role="switch" aria-checked="true" aria-labelledby="notifLabel-txn" class="ahb-switch shrink-0"><span></span></button>
                         </div>
-                        <div class="p-3.5 flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">Marketing Offers</p>
-                                <p class="text-[10px] text-gray-400">Product news and promotions</p>
+                        <div class="p-3.5 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900" id="notifLabel-push">Banners in the app</p>
+                                <p class="text-[11px] text-gray-500 leading-snug">Show new alerts at the top of the screen while you have the app open</p>
                             </div>
-                            <button onclick="toggleNotifPref('marketing')" id="notifToggle-marketing" class="w-11 h-6 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300 cursor-pointer shrink-0">
-                                <div class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
-                            </button>
+                            <button type="button" onclick="toggleNotifPref('push')" id="notifToggle-push" role="switch" aria-checked="true" aria-labelledby="notifLabel-push" class="ahb-switch shrink-0"><span></span></button>
+                        </div>
+                        <div class="p-3.5 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900" id="notifLabel-email">Email receipts</p>
+                                <p class="text-[11px] text-gray-500 leading-snug">An email each time you send or receive money from someone</p>
+                            </div>
+                            <button type="button" onclick="toggleNotifPref('email')" id="notifToggle-email" role="switch" aria-checked="true" aria-labelledby="notifLabel-email" class="ahb-switch shrink-0"><span></span></button>
+                        </div>
                         </div>
                     </div>
+                    <p class="text-[10px] text-gray-500 px-1 leading-relaxed">Security alerts, like a sign-in from a new device or a password change, always come through, and so do sign-in codes by email. You can see every alert under the bell at the top of the app.</p>
                 </section>
 
                 <section id="view-settings-appearance" class="hidden space-y-4 animate-fade-in">
@@ -4182,6 +4233,7 @@ if (activeLoanBalanceEl) {
             }
             if (targetViewId === 'settings-notifications') {
                 loadNotificationPrefs();
+                if (typeof loadPushSettings === 'function') loadPushSettings();
             }
             if (targetViewId === 'settings-biometrics') {
                 loadBiometricsView();
@@ -4226,6 +4278,9 @@ if (activeLoanBalanceEl) {
             if (targetViewId === 'goals' && typeof loadGoals === 'function') {
                 loadGoals().catch(() => {});
             }
+            if (targetViewId === 'subscriptions' && typeof loadSubscriptions === 'function') {
+                loadSubscriptions().catch(() => {});
+            }
             if (targetViewId === 'budgets' && typeof loadBudgets === 'function') {
                 if (typeof showBudgetsMsg === 'function') showBudgetsMsg(null, '');
                 loadBudgets().catch(() => {});
@@ -4234,7 +4289,7 @@ if (activeLoanBalanceEl) {
         }
 
         function switchView(targetViewId) {
-            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals', 'budgets', 'settings-security-checkup', 'settings-alerts', 'settings-auto-lock', 'settings-data'];
+            const views = ['summary', 'checking', 'wire', 'send-menu', 'send-p2p', 'bill-pay', 'loans', 'settings', 'credit', 'fx', 'savings-summary', 'savings-analytics', 'savings-withdraw', 'settings-notifications', 'settings-appearance', 'settings-language', 'settings-linked-devices', 'settings-login-history', 'settings-change-password', 'settings-passcode', 'settings-transaction-confirmation', 'settings-biometrics', 'spending-insights', 'direct-deposit', 'offers', 'statements', 'profile', 'manage-account', 'locations', 'check-deposit', 'goals', 'budgets', 'subscriptions', 'settings-security-checkup', 'settings-alerts', 'settings-auto-lock', 'settings-data'];
             views.forEach(v => {
                 const element = document.getElementById('view-' + v);
                 const footerBtn = document.getElementById('nav-' + v);
@@ -8496,7 +8551,10 @@ fetchAndApplyProfilePhoto();
 
         function toggleGenericSwitch(toggleId, isOn) {
             const toggle = document.getElementById(toggleId);
+            if (!toggle) return;
             const ball = toggle.querySelector('div');
+            if (toggle.getAttribute('role') === 'switch') toggle.setAttribute('aria-checked', isOn ? 'true' : 'false');
+            if (!ball) return;
             if (isOn) {
                 toggle.classList.remove('bg-gray-200');
                 toggle.classList.add('bg-emerald-500');
@@ -8523,7 +8581,7 @@ fetchAndApplyProfilePhoto();
                     txn: prefs.txn !== false,
                     marketing: prefs.marketing === true,
                 };
-                ['push', 'email', 'txn', 'marketing'].forEach(k => {
+                ['push', 'email', 'txn'].forEach(k => {
                     toggleGenericSwitch(`notifToggle-${k}`, notifPrefs[k]);
                 });
             } catch (err) {
@@ -14164,13 +14222,17 @@ const MORE_ITEMS = [
     { label: 'Savings', icon: 'fa-piggy-bank', tone: 'emerald', view: 'savings-summary' },
     { label: 'Goals', icon: 'fa-bullseye', tone: 'emerald', view: 'goals' },
     { label: 'Budgets', icon: 'fa-chart-simple', tone: 'amber', view: 'budgets' },
+    { label: 'Subscriptions', icon: 'fa-rotate', tone: 'purple', view: 'subscriptions' },
     { label: 'Loans', icon: 'fa-hand-holding-dollar', tone: 'blue', view: 'loans' },
     { label: 'Statements', icon: 'fa-file-lines', tone: 'gray', view: 'statements' },
     { label: 'Insights', icon: 'fa-chart-pie', tone: 'purple', view: 'spending-insights' },
     { label: 'Currency', icon: 'fa-globe', tone: 'blue', view: 'fx' },
+    { label: 'Linked accounts', icon: 'fa-link', tone: 'blue', run: () => { if (typeof openLinkedList === 'function') openLinkedList(); } },
     { label: 'Offers', icon: 'fa-gift', tone: 'amber', view: 'offers' },
     { label: 'Branches', icon: 'fa-location-dot', tone: 'red', view: 'locations' },
     { label: 'Profile', icon: 'fa-id-card', tone: 'gray', view: 'profile' },
+    { label: 'Notifications', icon: 'fa-bell', tone: 'emerald', view: 'settings-notifications' },
+    { label: 'Security', icon: 'fa-shield-halved', tone: 'emerald', view: 'settings-security-checkup' },
     { label: 'Settings', icon: 'fa-gear', tone: 'gray', view: 'settings' },
     { label: 'Help', icon: 'fa-circle-question', tone: 'purple', run: openHelpChat },
     { label: 'Sign out', icon: 'fa-right-from-bracket', tone: 'red', run: () => handleSignOut() }
@@ -16845,6 +16907,14 @@ const HELP_ARTICLES = [
       intro: 'Keep an eye on what you spend in each category.',
       steps: ['Tap More, then Budgets, then Add budget.', 'Pick a category and a monthly limit.', "We'll alert you at 80% and again at 100%."],
       action: { label: 'Open Budgets', view: 'budgets' } },
+    { id: 'subscriptions', icon: 'fa-rotate', title: 'See your subscriptions and bills', keywords: 'subscriptions recurring bills netflix spotify repeat payments monthly cancel reminder price increase',
+      intro: 'We find the payments that come out every week, month or year, and add them up.',
+      steps: ['Tap More, then Subscriptions.', 'Tap one to see its history and when the next payment is due.', 'Turn on "Remind me 3 days before" to get a notification ahead of the charge.'],
+      note: "To cancel a subscription, cancel it with the company. If they keep charging you afterwards, dispute the charge.", action: { label: 'Open Subscriptions', view: 'subscriptions' } },
+    { id: 'push', icon: 'fa-bell', title: 'Get notifications on your phone', keywords: 'notifications push alerts phone lock screen badge iphone android turn on off',
+      intro: 'Get told the moment money arrives, a payment goes out or someone signs in, even when the app is closed.',
+      steps: ['On iPhone, open the app in Safari, tap Share, then Add to Home Screen, and open it from there.', 'Tap More, then Notifications.', 'Turn on Notifications on this device and tap Allow.'],
+      note: "You can turn off money alerts and keep security alerts. Sign-in alerts always come through.", action: { label: 'Open Notifications', view: 'settings-notifications' } },
     { id: 'password', icon: 'fa-key', title: 'Change your password', keywords: 'password change reset forgot login security',
       intro: "Pick a strong password you don't use anywhere else.",
       steps: ['Tap More, then Settings.', 'Tap Change Password.', 'Enter your current password, then your new one.'],
@@ -18193,4 +18263,667 @@ document.addEventListener('ahb:viewchange', (e) => {
         };
     }
 })();
+</script>
+<script>
+// ===== Push notifications on this device =====
+// Server side: lib/push.js (resource 'push'). Alerts are encrypted for each
+// device and sent by our server straight to Apple/Google/Mozilla's push
+// service; service-worker.js shows them. On iPhone this works once the app is
+// on the Home Screen (iOS 16.4+), which is also what makes the app-icon badge
+// work.
+
+const pushUi = { info: null, busy: false, thisHash: null, sub: null, state: 'checking', on: false };
+
+function pushIsIOS() {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function pushIsStandalone() {
+    try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; } catch (e) { return false; }
+}
+function pushSupported() {
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+function pushSupportState() {
+    if (pushIsIOS() && !pushIsStandalone()) return 'ios-install';
+    if (!pushSupported()) return 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    return 'ready';
+}
+function pushKeyBytes(b64) {
+    const s = String(b64 || '').replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(s + '='.repeat((4 - (s.length % 4)) % 4));
+    return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+async function pushHash(endpoint) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint));
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+}
+async function pushRegistration() {
+    if (!('serviceWorker' in navigator)) return null;
+    try {
+        let reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) reg = await navigator.serviceWorker.register('/service-worker.js');
+        const ready = await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 6000))]);
+        return ready || reg;
+    } catch (e) {
+        return null;
+    }
+}
+async function pushCurrentSubscription() {
+    const reg = await pushRegistration();
+    if (!reg || !reg.pushManager) return null;
+    try { return await reg.pushManager.getSubscription(); } catch (e) { return null; }
+}
+function pushSameKey(sub, publicKey) {
+    try {
+        const k = sub && sub.options && sub.options.applicationServerKey;
+        if (!k) return true;
+        const a = new Uint8Array(k);
+        const b = pushKeyBytes(publicKey);
+        return a.length === b.length && a.every((v, i) => v === b[i]);
+    } catch (e) {
+        return true;
+    }
+}
+async function pushApi(body) {
+    const res = await fetch('/api/account-services', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource: 'push', ...body }),
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(data.error || "Couldn't update notifications. Please try again.");
+    return data;
+}
+function pushShowMsg(text, kind) {
+    const el = document.getElementById('pushMsg');
+    if (!el) return;
+    if (!text) { el.classList.add('hidden'); el.textContent = ''; return; }
+    el.textContent = text;
+    el.className = `text-[11px] font-semibold rounded-lg px-3 py-2 ${kind === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}`;
+}
+
+async function loadPushSettings() {
+    const toggle = document.getElementById('pushToggle');
+    if (!toggle) return;
+    if (!pushUi.busy) toggle.disabled = true;
+    let info = null;
+    try {
+        const res = await fetch('/api/account-services?resource=push', { credentials: 'include', cache: 'no-store' });
+        if (res.ok) info = await res.json();
+    } catch (e) {}
+    pushUi.info = info;
+    const state = pushSupportState();
+    let on = false;
+    pushUi.sub = null;
+    pushUi.thisHash = null;
+    if (state === 'ready' && info && info.available) {
+        const sub = await pushCurrentSubscription();
+        if (sub && pushSameKey(sub, info.publicKey)) {
+            pushUi.sub = sub;
+            pushUi.thisHash = await pushHash(sub.endpoint);
+            on = Notification.permission === 'granted' && (info.devices || []).some((d) => d.endpointHash === pushUi.thisHash);
+        }
+    }
+    pushUi.state = state;
+    pushUi.on = on;
+    renderPushCard();
+}
+
+function renderPushCard() {
+    const toggle = document.getElementById('pushToggle');
+    const status = document.getElementById('pushStatusText');
+    const help = document.getElementById('pushHelp');
+    const actions = document.getElementById('pushActions');
+    const others = document.getElementById('pushOtherDevices');
+    if (!toggle || !status) return;
+    const info = pushUi.info;
+    const state = pushUi.state;
+    const on = pushUi.on;
+    toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    toggle.disabled = pushUi.busy || !info || !info.available || state !== 'ready';
+    let text = '';
+    let helpHtml = null;
+    if (!info) text = "Couldn't check notifications right now. Try again in a moment.";
+    else if (!info.available) text = "Notifications aren't set up on the server yet.";
+    else if (state === 'ios-install') {
+        text = 'On iPhone, notifications work once Apex Horizon is on your Home Screen.';
+        helpHtml = [
+            ['1', 'In Safari, tap the Share button', 'fa-arrow-up-from-bracket'],
+            ['2', 'Choose Add to Home Screen, then Add', 'fa-square-plus'],
+            ['3', 'Open Apex Horizon from your Home Screen, sign in and come back here', 'fa-bell'],
+        ];
+    } else if (state === 'unsupported') text = "This browser can't show notifications. Try Safari on iPhone, or Chrome.";
+    else if (state === 'denied') {
+        text = 'Notifications are blocked for this app.';
+        helpHtml = pushIsIOS()
+            ? [['1', "Open your iPhone's Settings", 'fa-gear'], ['2', 'Tap Notifications, then Apex Horizon', 'fa-bell'], ['3', 'Turn on Allow Notifications, then come back here', 'fa-toggle-on']]
+            : [['1', "Open this site's settings in your browser (the icon next to the address)", 'fa-sliders'], ['2', 'Set Notifications to Allow, then come back here', 'fa-bell']];
+    } else if (on) text = 'On. Payments, sign-ins and account alerts show up on this device, even when the app is closed.';
+    else text = 'Off. Turn on to get alerts on this device, even when the app is closed.';
+    status.textContent = text;
+
+    if (help) {
+        help.replaceChildren();
+        if (helpHtml) {
+            const list = document.createElement('ol');
+            list.className = 'space-y-2';
+            helpHtml.forEach(([n, line, icon]) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start gap-2.5';
+                const badge = document.createElement('span');
+                badge.className = 'w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0';
+                badge.textContent = n;
+                const span = document.createElement('span');
+                span.className = 'pt-0.5';
+                span.textContent = line + ' ';
+                const i = document.createElement('i');
+                i.className = `fa-solid ${icon} text-gray-400 text-[10px]`;
+                i.setAttribute('aria-hidden', 'true');
+                span.appendChild(i);
+                li.append(badge, span);
+                list.appendChild(li);
+            });
+            help.appendChild(list);
+            help.classList.remove('hidden');
+        } else help.classList.add('hidden');
+    }
+    if (actions) actions.classList.toggle('hidden', !on);
+
+    if (others) {
+        others.replaceChildren();
+        const list = ((info && info.devices) || []).filter((d) => d.endpointHash !== pushUi.thisHash);
+        if (list.length) {
+            const h = document.createElement('p');
+            h.className = 'text-[11px] font-semibold text-gray-500';
+            h.textContent = on ? 'Also getting notifications' : 'Getting notifications';
+            others.appendChild(h);
+            list.forEach((d) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-3';
+                const left = document.createElement('div');
+                left.className = 'min-w-0';
+                const name = document.createElement('p');
+                name.className = 'text-xs font-semibold text-gray-900 truncate';
+                name.textContent = d.label;
+                const sub = document.createElement('p');
+                sub.className = 'text-[10px] text-gray-500';
+                const added = d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                sub.textContent = d.failing ? "Not reachable lately" : (added ? `Added ${added}` : '');
+                left.append(name, sub);
+                const rm = document.createElement('button');
+                rm.type = 'button';
+                rm.className = 'text-[11px] font-semibold text-red-600 hover:underline shrink-0';
+                rm.textContent = 'Remove';
+                rm.setAttribute('aria-label', `Stop notifications on ${d.label}`);
+                rm.onclick = () => removePushDevice(d.id);
+                row.append(left, rm);
+                others.appendChild(row);
+            });
+            others.classList.remove('hidden');
+        } else others.classList.add('hidden');
+    }
+}
+
+async function togglePushThisDevice() {
+    const toggle = document.getElementById('pushToggle');
+    if (pushUi.busy || !toggle || !pushUi.info || !pushUi.info.available) return;
+    const turningOn = !pushUi.on;
+    pushShowMsg(null);
+    try {
+        if (turningOn) {
+            // Ask first, straight from the tap: iPhone only shows the prompt
+            // when it comes directly from a tap.
+            const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+            if (perm !== 'granted') {
+                await loadPushSettings();
+                if (perm !== 'denied') pushShowMsg('Notifications stay off until you choose Allow.', 'error');
+                return;
+            }
+            pushUi.busy = true;
+            toggle.disabled = true;
+            const reg = await pushRegistration();
+            if (!reg || !reg.pushManager) throw new Error("This browser can't show notifications.");
+            let sub = await reg.pushManager.getSubscription();
+            if (sub && !pushSameKey(sub, pushUi.info.publicKey)) { try { await sub.unsubscribe(); } catch (e) {} sub = null; }
+            if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKeyBytes(pushUi.info.publicKey) });
+            await pushApi({ pushAction: 'subscribe', subscription: sub.toJSON() });
+            pushUi.busy = false;
+            await loadPushSettings();
+            pushShowMsg("You're all set. Tap Send a test notification to see one.", 'ok');
+        } else {
+            pushUi.busy = true;
+            toggle.disabled = true;
+            const sub = pushUi.sub || await pushCurrentSubscription();
+            if (sub) {
+                try { await pushApi({ pushAction: 'unsubscribe', endpoint: sub.endpoint }); }
+                finally { try { await sub.unsubscribe(); } catch (e) {} }
+            }
+            pushUi.busy = false;
+            await loadPushSettings();
+            pushShowMsg('Notifications are off on this device.', 'ok');
+        }
+    } catch (err) {
+        pushUi.busy = false;
+        await loadPushSettings();
+        pushShowMsg((err && err.message) || "Couldn't update notifications. Please try again.", 'error');
+    }
+}
+
+async function sendTestPush() {
+    const btn = document.getElementById('pushTestBtn');
+    if (btn) btn.disabled = true;
+    pushShowMsg(null);
+    try {
+        const r = await pushApi({ pushAction: 'test' });
+        pushShowMsg(r.sent > 0 ? 'Sent. It should appear in a few seconds.' : "We couldn't reach this device. Turn notifications off and on again.", r.sent > 0 ? 'ok' : 'error');
+        if (pushUi.info) pushUi.info.devices = r.devices || pushUi.info.devices;
+        renderPushCard();
+    } catch (err) {
+        pushShowMsg(err.message, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function removePushDevice(id) {
+    pushShowMsg(null);
+    try {
+        const r = await pushApi({ pushAction: 'unsubscribe', id });
+        if (pushUi.info) pushUi.info.devices = r.devices || [];
+        renderPushCard();
+        pushShowMsg("That device won't get notifications any more.", 'ok');
+    } catch (err) {
+        pushShowMsg(err.message, 'error');
+    }
+}
+
+// After sign-in: if this phone was getting someone else's alerts, stop that.
+async function pushSyncAfterSignIn() {
+    try {
+        if (!pushSupported() || Notification.permission !== 'granted') return;
+        const sub = await pushCurrentSubscription();
+        if (!sub) return;
+        await pushApi({ pushAction: 'release', endpoint: sub.endpoint });
+    } catch (e) { /* best effort */ }
+}
+
+// The unread count on the app icon follows the bell's badge.
+function syncAppBadge() {
+    if (!('setAppBadge' in navigator)) return;
+    const badge = document.getElementById('notifBadge');
+    const n = badge && !badge.classList.contains('hidden') ? parseInt(badge.textContent, 10) : 0;
+    try { (n > 0 ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch (e) {}
+}
+
+// Tapping a notification opens the alerts list.
+let pushOpenPending = false;
+function openNotificationsFromPush() {
+    const app = document.getElementById('dashboardApp');
+    const menu = document.getElementById('notifDropdown');
+    if (!app || app.classList.contains('hidden') || !menu) { pushOpenPending = true; return; }
+    pushOpenPending = false;
+    if (menu.classList.contains('hidden') && typeof openNotificationPanel === 'function') openNotificationPanel();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const params = new URLSearchParams(location.search);
+        if (params.get('open') === 'notifications') {
+            pushOpenPending = true;
+            params.delete('open');
+            const q = params.toString();
+            history.replaceState(null, '', location.pathname + (q ? `?${q}` : '') + location.hash);
+        }
+    } catch (e) {}
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'ahb-open-notifications') openNotificationsFromPush();
+        });
+    }
+    const badge = document.getElementById('notifBadge');
+    if (badge && 'MutationObserver' in window) {
+        new MutationObserver(syncAppBadge).observe(badge, { attributes: true, attributeFilter: ['class'], childList: true, characterData: true, subtree: true });
+    }
+    const previousShow = window.showDashboardScreen;
+    if (typeof previousShow === 'function') {
+        window.showDashboardScreen = function () {
+            const out = previousShow.apply(this, arguments);
+            pushSyncAfterSignIn();
+            if (pushOpenPending) setTimeout(openNotificationsFromPush, 600);
+            return out;
+        };
+    }
+    const previousLogin = window.showLoginScreen;
+    if (typeof previousLogin === 'function') {
+        window.showLoginScreen = function () {
+            try { if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {}); } catch (e) {}
+            return previousLogin.apply(this, arguments);
+        };
+    }
+});
+</script>
+<script>
+// ===== Subscriptions & bills =====
+// Server side: lib/subscriptions.js (resource 'subscriptions'). It finds
+// payments that repeat weekly, monthly or yearly; reminders go out from the
+// daily cron as notifications.
+
+const subsUi = { data: null, loading: null, showHidden: false };
+
+function subsMoney(n) {
+    return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function subsDate(iso, opts) {
+    if (!iso) return '';
+    return new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', ...(opts || { month: 'short', day: 'numeric' }) });
+}
+function subsDaysUntil(iso) {
+    const today = new Date();
+    const t = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    return Math.round((Date.parse(`${iso}T00:00:00Z`) - t) / 864e5);
+}
+function subsWhen(iso) {
+    const d = subsDaysUntil(iso);
+    if (d === 0) return 'Today';
+    if (d === 1) return 'Tomorrow';
+    if (d > 1 && d < 7) return `In ${d} days · ${subsDate(iso, { weekday: 'short' })}`;
+    return subsDate(iso);
+}
+const SUBS_FREQ = { monthly: 'Monthly', weekly: 'Weekly', yearly: 'Yearly' };
+function subsNextText(s) {
+    if (s.nextDate) return `next ${subsDate(s.nextDate)}`;
+    if (s.nextMonth) return `usually once in ${new Date(`${s.nextMonth}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })}`;
+    return '';
+}
+function subsIcon(cat) {
+    const wrap = document.createElement('span');
+    wrap.className = 'w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white';
+    wrap.style.background = (cat && cat.color) || '#94a3b8';
+    const i = document.createElement('i');
+    i.className = `fa-solid ${(cat && cat.icon) || 'fa-rotate'} text-xs`;
+    i.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(i);
+    return wrap;
+}
+function subsRow(s, { sub, right, onClick, chip }) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition';
+    const mid = document.createElement('span');
+    mid.className = 'flex-1 min-w-0';
+    const t = document.createElement('span');
+    t.className = 'flex items-center gap-1.5 text-sm font-semibold text-gray-900';
+    const name = document.createElement('span');
+    name.className = 'truncate';
+    name.textContent = s.name;
+    t.appendChild(name);
+    if (chip) {
+        const c = document.createElement('span');
+        c.className = 'text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full shrink-0';
+        c.textContent = chip;
+        t.appendChild(c);
+    }
+    const st = document.createElement('span');
+    st.className = 'block text-[10px] text-gray-500 truncate';
+    st.textContent = sub;
+    mid.append(t, st);
+    const r = document.createElement('span');
+    r.className = 'ahb-money ahb-money-right text-sm font-bold font-mono text-gray-900 shrink-0';
+    r.textContent = right;
+    b.append(subsIcon(s.category), mid, r);
+    if (onClick) b.onclick = onClick;
+    return b;
+}
+function subsShowMsg(text, kind) {
+    const el = document.getElementById('subsMsg');
+    if (!el) return;
+    if (!text) { el.classList.add('hidden'); return; }
+    el.textContent = text;
+    el.className = `text-[11px] font-semibold rounded-lg px-3 py-2 ${kind === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'}`;
+}
+
+async function fetchSubscriptions() {
+    if (subsUi.loading) return subsUi.loading;
+    subsUi.loading = (async () => {
+        const res = await fetch('/api/account-services?resource=subscriptions', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.totals || !Array.isArray(data.subscriptions)) throw new Error(data.error || "Couldn't load your subscriptions.");
+        subsUi.data = data;
+        return data;
+    })();
+    try { return await subsUi.loading; } finally { subsUi.loading = null; }
+}
+
+async function loadSubscriptions() {
+    const list = document.getElementById('subsList');
+    if (!list) return;
+    if (!subsUi.data) {
+        list.replaceChildren();
+        const p = document.createElement('p');
+        p.className = 'p-4 text-xs text-gray-500 text-center';
+        p.textContent = 'Loading…';
+        list.appendChild(p);
+    }
+    try {
+        await fetchSubscriptions();
+        renderSubscriptions();
+        renderHomeSubs();
+    } catch (err) {
+        list.replaceChildren();
+        const p = document.createElement('p');
+        p.className = 'p-4 text-xs text-red-600 text-center';
+        p.textContent = err.message;
+        list.appendChild(p);
+        document.getElementById('subsSummarySub').textContent = '';
+    }
+}
+
+function renderSubscriptions() {
+    const d = subsUi.data;
+    if (!d) return;
+    document.getElementById('subsMonthly').textContent = subsMoney(d.totals.monthly);
+    document.getElementById('subsSummarySub').textContent = d.totals.count
+        ? `${subsMoney(d.totals.yearly)} a year · ${d.totals.count} repeat payment${d.totals.count === 1 ? '' : 's'}`
+        : 'Nothing repeating found yet';
+
+    const upWrap = document.getElementById('subsUpcomingWrap');
+    const up = document.getElementById('subsUpcoming');
+    up.replaceChildren();
+    d.upcoming.forEach((u) => {
+        const s = d.subscriptions.find((x) => x.key === u.key) || u;
+        up.appendChild(subsRow(s, { sub: subsWhen(u.nextDate), right: subsMoney(u.amount), onClick: () => openSubscriptionDetail(u.key) }));
+    });
+    upWrap.classList.toggle('hidden', !d.upcoming.length);
+
+    const list = document.getElementById('subsList');
+    list.replaceChildren();
+    if (!d.subscriptions.length) {
+        const box = document.createElement('div');
+        box.className = 'p-5 text-center space-y-1.5';
+        const icon = document.createElement('span');
+        icon.className = 'w-10 h-10 mx-auto rounded-full bg-purple-50 text-purple-500 flex items-center justify-center';
+        icon.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i>';
+        const t = document.createElement('p');
+        t.className = 'text-sm font-semibold text-gray-900';
+        t.textContent = 'No repeat payments yet';
+        const p = document.createElement('p');
+        p.className = 'text-[11px] text-gray-500';
+        p.textContent = "Once you've paid the same place for about three months in a row, it'll show up here.";
+        box.append(icon, t, p);
+        list.appendChild(box);
+    }
+    d.subscriptions.forEach((s) => {
+        const next = subsNextText(s);
+        const sub = [SUBS_FREQ[s.frequency], next, s.remind ? 'reminder on' : null].filter(Boolean).join(' · ');
+        list.appendChild(subsRow(s, {
+            sub,
+            right: (s.variable ? '~' : '') + subsMoney(s.variable ? s.typicalAmount : s.amount),
+            chip: s.priceChange ? 'Price up' : null,
+            onClick: () => openSubscriptionDetail(s.key),
+        }));
+    });
+
+    const hWrap = document.getElementById('subsHiddenWrap');
+    const hList = document.getElementById('subsHidden');
+    hList.replaceChildren();
+    d.hidden.forEach((s) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-3.5';
+        const name = document.createElement('span');
+        name.className = 'flex-1 min-w-0 text-sm text-gray-700 truncate';
+        name.textContent = s.name;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-[11px] font-semibold text-emerald-700 hover:underline shrink-0';
+        btn.textContent = 'Show again';
+        btn.onclick = () => subsAction({ subAction: 'unhide', key: s.key }, `${s.name} is back in your list.`);
+        row.append(subsIcon(s.category), name, btn);
+        hList.appendChild(row);
+    });
+    hWrap.classList.toggle('hidden', !d.hidden.length);
+    document.getElementById('subsHiddenLabel').textContent = `Hidden (${d.hidden.length})`;
+    hList.classList.toggle('hidden', !subsUi.showHidden);
+    document.getElementById('subsHiddenToggle').setAttribute('aria-expanded', subsUi.showHidden ? 'true' : 'false');
+}
+
+function toggleSubsHidden() {
+    subsUi.showHidden = !subsUi.showHidden;
+    renderSubscriptions();
+}
+
+async function subsAction(body, okText) {
+    subsShowMsg(null);
+    const res = await fetch('/api/account-services', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource: 'subscriptions', ...body }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || 'Something went wrong. Please try again.'), { shown: false });
+    subsUi.data = data;
+    renderSubscriptions();
+    renderHomeSubs();
+    if (okText) subsShowMsg(okText, 'ok');
+    return data;
+}
+
+function openSubscriptionDetail(key) {
+    const d = subsUi.data;
+    const s = d && d.subscriptions.find((x) => x.key === key);
+    if (!s) return;
+    const ui = openCardSheet({ tag: s.category.name, title: s.name, icon: s.category.icon || 'fa-rotate', iconCls: 'bg-purple-50 text-purple-500' });
+    if (!ui) return;
+    const { body, actions } = ui;
+    const showError = cardSheetError(body);
+
+    const big = cardEl('div', 'text-center py-1');
+    big.append(
+        cardEl('p', 'text-2xl font-bold font-mono text-gray-900', (s.variable ? 'About ' : '') + subsMoney(s.variable ? s.typicalAmount : s.amount)),
+        cardEl('p', 'text-[11px] text-gray-500', `${SUBS_FREQ[s.frequency]}${s.variable ? ', the amount changes' : ''}`)
+    );
+    body.appendChild(big);
+    if (s.priceChange) {
+        const note = cardEl('div', 'bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium rounded-lg px-3 py-2', `Price went up from ${subsMoney(s.priceChange.from)} to ${subsMoney(s.priceChange.to)} on your last payment.`);
+        body.appendChild(note);
+    }
+    const box = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+    box.appendChild(cardInfoRow('Last paid', subsDate(s.lastDate, { month: 'short', day: 'numeric', year: 'numeric' })));
+    box.appendChild(cardInfoRow('Next payment', s.nextDate ? subsDate(s.nextDate, { weekday: 'short', month: 'short', day: 'numeric' }) : (s.nextMonth ? `Sometime in ${new Date(`${s.nextMonth}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })}` : '—')));
+    box.appendChild(cardInfoRow('A year', subsMoney(s.yearlyCost)));
+    body.appendChild(box);
+
+    // Reminder
+    const remindRow = cardEl('div', 'flex items-start justify-between gap-3 py-1');
+    const remindText = cardEl('div', 'min-w-0');
+    remindText.append(
+        cardEl('p', 'text-sm font-semibold text-gray-900', `Remind me ${d.remindDaysBefore} days before`),
+        cardEl('p', 'text-[11px] text-gray-500', s.nextDate ? "We'll send a notification so it doesn't catch you out." : `${s.name} doesn't charge on a set day, so we can't time a reminder.`)
+    );
+    remindText.firstChild.id = 'subsRemindLabel';
+    const sw = cardEl('button', 'ahb-switch shrink-0 mt-0.5');
+    sw.type = 'button';
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-checked', s.remind ? 'true' : 'false');
+    sw.setAttribute('aria-labelledby', 'subsRemindLabel');
+    sw.disabled = !s.nextDate;
+    sw.appendChild(document.createElement('span'));
+    sw.onclick = async () => {
+        const next = sw.getAttribute('aria-checked') !== 'true';
+        sw.disabled = true;
+        showError(null);
+        try {
+            await subsAction({ subAction: 'remind', key: s.key, on: next });
+            sw.setAttribute('aria-checked', next ? 'true' : 'false');
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            sw.disabled = false;
+        }
+    };
+    remindRow.append(remindText, sw);
+    body.appendChild(remindRow);
+
+    if (s.history && s.history.length) {
+        body.appendChild(cardEl('p', 'text-[11px] font-semibold text-gray-500 pt-1', 'Recent payments'));
+        const hist = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+        s.history.forEach((h) => hist.appendChild(cardInfoRow(subsDate(h.date, { month: 'short', day: 'numeric', year: 'numeric' }), subsMoney(h.amount))));
+        body.appendChild(hist);
+    }
+    body.appendChild(cardEl('p', 'text-[10px] text-gray-500 leading-relaxed', `To stop paying ${s.name}, cancel with them directly. If they keep charging after you've cancelled, dispute the charge from your activity.`));
+
+    actions.appendChild(cardSecondaryBtn('Not a subscription? Hide it', async () => {
+        showError(null);
+        try {
+            await subsAction({ subAction: 'hide', key: s.key }, `${s.name} is hidden. You can show it again at the bottom of the page.`);
+            closeCardSheet();
+        } catch (err) {
+            showError(err.message);
+        }
+    }));
+}
+
+function renderHomeSubs() {
+    const sub = document.getElementById('homeSubsSub');
+    const total = document.getElementById('homeSubsTotal');
+    const d = subsUi.data;
+    if (!sub || !total || !d) return;
+    if (!d.totals.count) {
+        sub.textContent = 'No repeat payments found yet';
+        total.textContent = '';
+        return;
+    }
+    const next = d.upcoming[0];
+    const n = next ? subsDaysUntil(next.nextDate) : null;
+    const rel = n === null ? '' : n === 0 ? 'today' : n === 1 ? 'tomorrow' : n < 7 ? `in ${n} days` : `on ${subsDate(next.nextDate)}`;
+    sub.textContent = next ? `${next.name} ${rel} · ${d.totals.count} in total` : `${d.totals.count} repeat payment${d.totals.count === 1 ? '' : 's'}`;
+    total.textContent = `${subsMoney(d.totals.monthly)}/mo`;
+}
+
+function loadHomeSubs() {
+    fetchSubscriptions().then(() => {
+        renderHomeSubs();
+        const view = document.getElementById('view-subscriptions');
+        if (view && !view.classList.contains('hidden')) renderSubscriptions();
+    }).catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const previousRefresh = window.refreshHomeScreen;
+    if (typeof previousRefresh === 'function') {
+        window.refreshHomeScreen = function () {
+            const out = previousRefresh.apply(this, arguments);
+            loadHomeSubs();
+            return out;
+        };
+    }
+    const previousLogin = window.showLoginScreen;
+    if (typeof previousLogin === 'function') {
+        window.showLoginScreen = function () {
+            subsUi.data = null;
+            subsUi.showHidden = false;
+            return previousLogin.apply(this, arguments);
+        };
+    }
+});
 </script>

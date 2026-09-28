@@ -3,9 +3,10 @@ const { getQuery } = require('../lib/query');
 const { getUserFromRequest } = require('../lib/auth');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+const { withPush } = require('../lib/push');
 const MAX_ACH_DAILY_LIMIT = 25000;
 
-module.exports = async function handler(req, res) {
+module.exports = withPush(async function handler(req, res) {
   const query = getQuery(req);
   const session = await getUserFromRequest(req);
   if (!session) {
@@ -256,4 +257,4 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Invalid or missing resource.' });
-};
+}, sql);

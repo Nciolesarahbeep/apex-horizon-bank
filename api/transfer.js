@@ -6,6 +6,7 @@ const { flagLargeTransfer } = require('../lib/fraud');
 const { requireStepUp } = require('../lib/stepUp');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+const { withPush } = require('../lib/push');
 
 async function ensureMoneyRequestsTable() {
   await sql`
@@ -114,7 +115,7 @@ async function isDemoUser(userId) {
 
 const DEMO_BLOCKED_MESSAGE = 'Sending or requesting money from other people is turned off on the demo account. Try a transfer between your own accounts instead.';
 
-module.exports = async function handler(req, res) {
+module.exports = withPush(async function handler(req, res) {
   const query = getQuery(req);
   if (req.method === 'GET') {
     try {
@@ -440,8 +441,15 @@ module.exports = async function handler(req, res) {
         const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
         await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at) VALUES (${session.userId}, 'Payment Sent', ${'You sent $' + amountFormatted + ' to ' + recipientInfo.full_name + '.'}, FALSE, NOW())`;
         await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at) VALUES (${recipientInfo.id}, 'Payment Received', ${'You received $' + amountFormatted + ' from ' + senderName + '.'}, FALSE, NOW())`;
-        if (senderEmail) await sendEmail({ to: senderEmail, subject: `You sent $${amountFormatted} - Apex Horizon Bank`, html: moneySentEmailHtml({ senderName, recipientName: recipientInfo.full_name, amount: amountFormatted, note: description, date: nowStr }) });
-        if (recipientInfo.email) await sendEmail({ to: recipientInfo.email, subject: `You received $${amountFormatted} - Apex Horizon Bank`, html: moneyReceivedEmailHtml({ recipientName: recipientInfo.full_name, senderName, amount: amountFormatted, note: description, date: nowStr }) });
+        // "Email receipts" in Settings > Notifications. The column only exists
+        // once someone has opened those settings; until then everyone gets them.
+        let emailOff = new Set();
+        try {
+          const offRows = await sql`SELECT id FROM users WHERE id IN (${session.userId}, ${recipientInfo.id}) AND notif_email = FALSE`;
+          emailOff = new Set(offRows.map((r) => Number(r.id)));
+        } catch (_) { /* no preference column yet */ }
+        if (senderEmail && !emailOff.has(Number(session.userId))) await sendEmail({ to: senderEmail, subject: `You sent $${amountFormatted} - Apex Horizon Bank`, html: moneySentEmailHtml({ senderName, recipientName: recipientInfo.full_name, amount: amountFormatted, note: description, date: nowStr }) });
+        if (recipientInfo.email && !emailOff.has(Number(recipientInfo.id))) await sendEmail({ to: recipientInfo.email, subject: `You received $${amountFormatted} - Apex Horizon Bank`, html: moneyReceivedEmailHtml({ recipientName: recipientInfo.full_name, senderName, amount: amountFormatted, note: description, date: nowStr }) });
       } catch (notifyErr) { console.error('Notification/email dispatch error (non-fatal):', notifyErr); }
     } else {
       try {
@@ -466,4 +474,4 @@ module.exports = async function handler(req, res) {
     console.error('Transfer error:', err);
     return res.status(500).json({ error: 'Something went wrong processing the transfer. Please try again.' });
   }
-};
+}, sql);

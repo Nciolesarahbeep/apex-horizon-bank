@@ -3,6 +3,7 @@ const { getUserFromRequest } = require('../lib/auth');
 const { requireStepUp } = require('../lib/stepUp');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+const { withPush } = require('../lib/push');
 
 async function createNotification(userId, title, message) {
   try {
@@ -42,7 +43,7 @@ async function ensureBillPayTables() {
   await sql`CREATE INDEX IF NOT EXISTS bill_payments_user_idx ON bill_payments (user_id, created_at DESC)`;
 }
 
-module.exports = async function handler(req, res) {
+module.exports = withPush(async function handler(req, res) {
   const session = await getUserFromRequest(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated' });
 
@@ -183,4 +184,4 @@ module.exports = async function handler(req, res) {
 
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'Method not allowed' });
-};
+}, sql);

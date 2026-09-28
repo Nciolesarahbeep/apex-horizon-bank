@@ -2,6 +2,7 @@ const { neon } = require('@neondatabase/serverless');
 const { getQuery } = require('../lib/query');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+const { withPush } = require('../lib/push');
 const { creditSavingsInterest } = require('../lib/interest');
 const goals = require('../lib/goals');
 const support = require('../lib/support');
@@ -315,7 +316,7 @@ function generateAccountHistory({ accountType, yearsBack, density }) {
   return rows;
 }
 
-module.exports = async function handler(req, res) {
+module.exports = withPush(async function handler(req, res) {
   const query = getQuery(req);
   if (!checkAdminAuth(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -1133,4 +1134,4 @@ module.exports = async function handler(req, res) {
     console.error('Admin API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
-};
+}, sql);
