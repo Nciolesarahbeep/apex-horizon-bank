@@ -2,7 +2,7 @@ const { neon } = require('@neondatabase/serverless');
 const { generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server');
 const { normalizeEmail, signToken, setSessionCookie, createSession } = require('../lib/auth');
 const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('../lib/webauthn');
-const { logSignInActivity } = require('../lib/loginActivity');
+const { logSignInActivity, getPreviousSignIn } = require('../lib/loginActivity');
 const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
 
 
@@ -151,11 +151,13 @@ module.exports = async function handler(req, res) {
       if (!known) {
         await recordKnownDevice({ userId: user.id, req });
       }
+      const previousSignIn = await getPreviousSignIn(user.id);
       await logSignInActivity({ req, userId: user.id, email: user.email, method: 'webauthn', isNewDevice: !known });
 
       return res.status(200).json({
-
         user: { id: user.id, email: user.email, fullName: user.full_name },
+        previousSignIn,
+        newDevice: !known,
       });
     } catch (err) {
       console.error('WebAuthn login-verify error:', err);

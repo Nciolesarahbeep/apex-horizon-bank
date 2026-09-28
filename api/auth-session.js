@@ -4,7 +4,7 @@ const {
   normalizeEmail, signToken, setSessionCookie, clearSessionCookie,
   createSession, revokeSessionByJti, decodeTokenUnsafe, parseCookies, COOKIE_NAME,
 } = require('../lib/auth');
-const { logSignInActivity } = require('../lib/loginActivity');
+const { logSignInActivity, getPreviousSignIn } = require('../lib/loginActivity');
 const { getClientIp, checkLoginRateLimit, recordLoginAttempt, pruneOldAttempts } = require('../lib/rateLimit');
 const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
 
@@ -127,11 +127,16 @@ module.exports = async function handler(req, res) {
       const token = signToken({ userId: user.id, email: user.email, jti });
       setSessionCookie(res, token);
 
+      // The sign-in before this one, for the "last signed in" line on the welcome screen.
+      const previousSignIn = await getPreviousSignIn(user.id);
+
       // Only surface an in-app "new device" notification when the device was unknown.
       await logSignInActivity({ req, userId: user.id, email: user.email, method: 'password', isNewDevice: !known });
 
       return res.status(200).json({
         user: { id: user.id, email: user.email, fullName: user.full_name, lastLoginAt: updatedRows[0].last_login_at },
+        previousSignIn,
+        newDevice: !known,
       });
     } catch (err) {
       console.error('Login error:', err);
