@@ -96,7 +96,7 @@
         }
         /* The floating Help button steps aside while a bottom sheet is open or a
            payment is processing, so it never covers buttons or looks tappable mid-payment. */
-        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden), #loadingOverlay:not(.hidden), #preQualLoader:not(.hidden), #helpSheet:not(.hidden)) #ahb-help-widget {
+        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden), #cardSheet:not(.hidden), #loadingOverlay:not(.hidden), #preQualLoader:not(.hidden), #helpSheet:not(.hidden)) #ahb-help-widget {
             display: none !important;
         }
         /* Savings goals: progress rings, on/off switch, account choice cards. */
@@ -275,6 +275,11 @@
         #appShellRoot.theme-dark .border-red-200 { border-color: rgba(239,68,68,0.35) !important; }
         #appShellRoot.theme-dark .border-amber-200 { border-color: rgba(245,158,11,0.35) !important; }
         #appShellRoot.theme-dark .border-purple-100 { border-color: rgba(168,85,247,0.3) !important; }
+        #appShellRoot.theme-dark .bg-teal-100 { background-color: rgba(20,184,166,0.2) !important; }
+        #appShellRoot.theme-dark .text-teal-800 { color: #5eead4 !important; }
+        #appShellRoot.theme-dark .bg-sky-100 { background-color: rgba(14,165,233,0.2) !important; }
+        #appShellRoot.theme-dark .text-sky-800 { color: #7dd3fc !important; }
+        #appShellRoot.theme-dark #cardRedeemBtn:disabled { background-color: #334155 !important; color: #a3b0c2 !important; }
         /* Tailwind v4 draws dividers as bottom borders on every child but the last, so recolor all children. */
         #appShellRoot.theme-dark .divide-gray-100 > *, #appShellRoot.theme-dark .divide-gray-200 > * { border-color: #334155 !important; }
         #appShellRoot.theme-dark input, #appShellRoot.theme-dark select, #appShellRoot.theme-dark textarea { background-color: #0f172a !important; color: #f1f5f9 !important; border-color: #334155 !important; }
@@ -1499,7 +1504,22 @@ async function submitCreateRecurringTransfer(event) {
     </div>
 </div>
 
-<div id="goalDetailSheet" class=""hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalDetail()">
+<div id="cardSheet" class="hidden fixed inset-0 z-[9987] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeCardSheet()">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl animate-fade-in max-h-[90vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="cardSheetTitle">
+        <div class="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
+            <span id="cardSheetIcon" class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-700" aria-hidden="true"></span>
+            <div class="flex-1 min-w-0">
+                <p id="cardSheetTag" class="text-[10px] font-bold uppercase tracking-wider text-emerald-700"></p>
+                <h3 id="cardSheetTitle" class="text-sm font-bold text-gray-900 truncate"></h3>
+            </div>
+            <button type="button" onclick="closeCardSheet()" aria-label="Close" class="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
+        <div id="cardSheetBody" class="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4"></div>
+        <div id="cardSheetActions" class="shrink-0 border-t border-gray-100 p-4 space-y-2"></div>
+    </div>
+</div>
+
+<div id="goalDetailSheet" class="hidden fixed inset-0 z-[9986] bg-slate-900/60 backdrop-blur-sm items-end sm:items-center justify-center" onclick="closeGoalDetail()">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="goalDetailTitle">
         <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
@@ -1864,7 +1884,7 @@ async function submitCreateRecurringTransfer(event) {
                             <div id="adTemplate-1" class="w-full space-y-1 block cursor-pointer" onclick="toggleAdMenu(1)">
                                 <span class="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Limited Offer</span>
                                 <h4 class="text-xs font-bold tracking-tight flex items-center justify-between">Apex Horizon Infinite Card <i class="fa-solid fa-circle-chevron-down text-emerald-400 text-[10px] animate-pulse"></i></h4>
-                                <p class="text-[9px] text-gray-300 leading-tight">Earn unlimited 3% cash back on daily transactions. Zero annual fees.</p>
+                                <p class="text-[9px] text-gray-300 leading-tight">Earn 1.5% cash back on every card purchase. Redeem it from $1. No annual fee.</p>
                             </div>
 
                             <div id="adTemplate-2" class="w-full space-y-1 hidden cursor-pointer" onclick="toggleAdMenu(2)">
@@ -1911,7 +1931,7 @@ async function submitCreateRecurringTransfer(event) {
                         <div class="grid grid-cols-2 gap-2">
                             <button onclick="selectCardTier('signature')" id="tierBtn-signature" class="p-2 border-2 border-emerald-500 bg-emerald-50/50 rounded-lg text-left">
                                 <span class="block text-[10px] font-bold text-gray-900">Infinite Signature</span>
-                                <span class="block text-[8px] text-gray-500">3% Cash back everywhere</span>
+                                <span class="block text-[8px] text-gray-500">1.5% cash back everywhere</span>
                             </button>
                             <button onclick="selectCardTier('elite')" id="tierBtn-elite" class="p-2 border border-gray-200 rounded-lg text-left hover:bg-gray-50">
                                 <span class="block text-[10px] font-bold text-gray-900">Prestige Elite</span>
@@ -2455,38 +2475,37 @@ async function submitCreateRecurringTransfer(event) {
                 <section id="view-credit" class="hidden space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <button onclick="navigateBackward()" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left"></i></button>
+                            <button onclick="navigateBackward()" aria-label="Back" class="text-xs bg-gray-200 hover:bg-gray-300 px-2.5 py-1 rounded-md transition"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
                             <h1 class="text-md font-bold text-gray-900">Cards</h1>
                         </div>
-                        <span class="text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded shadow-2xs">Active Engine</span>
+                        <span id="cardStatusChip" class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1" role="status"><i class="fa-solid fa-circle text-[6px]" aria-hidden="true"></i><span>Active</span></span>
                     </div>
 
                     <div class="relative w-full aspect-[1.586/1]" style="perspective: 1200px;">
                         <div class="relative w-full h-full bg-gradient-to-tr from-slate-950 via-slate-900 to-emerald-950 rounded-2xl p-5 text-white flex flex-col justify-between shadow-xl border border-slate-800 overflow-hidden" id="visualCreditCard" style="transform-style: preserve-3d;">
                             <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_50%_120%,#10b981,transparent)]"></div>
                             <div id="cardFrostOverlay" class="hidden absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 rounded-2xl">
-                                <i class="fa-solid fa-snowflake text-3xl text-sky-300"></i>
+                                <i class="fa-solid fa-snowflake text-3xl text-sky-300" aria-hidden="true"></i>
                                 <span class="text-xs font-bold tracking-widest uppercase text-sky-100">Card Frozen</span>
                             </div>
-                        
+
                         <div class="flex justify-between items-start z-10">
                             <div>
                                 <p class="text-[9px] font-mono tracking-widest text-emerald-400 uppercase font-bold">Apex Pavilion Infinite</p>
                                 <p class="text-xs font-semibold text-gray-400 mt-0.5" id="cardHolderName">—</p>
                             </div>
                             <div class="text-emerald-400 text-xl">
-                                <i class="fa-solid fa-building-columns"></i>
+                                <i class="fa-solid fa-building-columns" aria-hidden="true"></i>
                             </div>
                         </div>
 
                         <div class="z-10 my-auto">
-                            <p class="text-lg font-mono tracking-widest text-gray-100 font-bold flex items-center space-x-2">
-                                <span>••••</span> <span>••••</span> <span>••••</span> <span id="cardLastFourLabel" class="text-emerald-400">8821</span>
+                            <p class="text-lg font-mono tracking-widest text-gray-100 font-bold flex items-center space-x-2" aria-label="Card number ending">
+                                <span>••••</span> <span>••••</span> <span>••••</span> <span id="cardLastFourLabel" class="text-emerald-400">••••</span>
                             </p>
-                            <div class="flex space-x-4 mt-1 font-mono text-[9px] text-gray-400">
-                                <div>Expiry: <span class="text-gray-200 font-bold">08/31</span></div>
-                                <div>CVV: <span id="cardCvvLabel" class="text-emerald-400 font-bold">•••</span></div>
-                                <div>PIN: <span id="cardPinLabel" class="text-emerald-400 font-bold">••••</span></div>
+                            <div class="flex items-center gap-4 mt-1 font-mono text-[9px] text-gray-400">
+                                <div>VALID THRU <span id="cardExpiryLabel" class="text-gray-200 font-bold">--/--</span></div>
+                                <div id="cardReplacedNote" class="hidden text-emerald-300"></div>
                             </div>
                         </div>
 
@@ -2500,23 +2519,88 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-                            <span class="text-[9px] text-gray-400 font-bold uppercase block">Current Balance</span>
-                            <span id="cardCurrentBalanceLabel" class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$1,102.40</span>
+                    <div id="cardDueCard" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+                        <div class="p-4 space-y-3">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payment</p>
+                                    <p id="cardDueTitle" class="text-sm font-bold text-gray-900 mt-0.5">Loading your statement…</p>
+                                </div>
+                                <span id="cardDuePill" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"></span>
+                            </div>
+                            <div id="cardDueFigures" class="hidden grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-[9px] text-gray-400 font-bold uppercase block">Statement balance</span>
+                                    <span id="cardStatementBalance" class="text-base font-bold font-mono text-gray-900 block mt-0.5">$0.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] text-gray-400 font-bold uppercase block">Minimum payment</span>
+                                    <span id="cardMinimumDue" class="text-base font-bold font-mono text-gray-900 block mt-0.5">$0.00</span>
+                                </div>
+                            </div>
+                            <p id="cardDueNote" class="text-[11px] text-gray-500 leading-snug"></p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" onclick="makeCardPayment()" id="cardPayBtn" class="bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-money-check-dollar" aria-hidden="true"></i>Make a Payment</button>
+                                <button type="button" onclick="openCardAutopay()" id="cardAutopayBtn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-rotate text-emerald-600" aria-hidden="true"></i><span id="cardAutopayBtnLabel">Set up autopay</span></button>
+                            </div>
                         </div>
-                        <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-                            <span class="text-[9px] text-gray-400 font-bold uppercase block">Available Credit</span>
-                            <span id="cardAvailableCreditLabel" class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$23,897.60</span>
+                        <button type="button" onclick="openCardAutopay()" id="cardAutopayLine" class="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-gray-50 border-t border-gray-100 text-left hover:bg-gray-100">
+                            <span class="flex items-center gap-2 min-w-0"><i class="fa-solid fa-rotate text-gray-400 text-xs" aria-hidden="true"></i><span id="cardAutopayText" class="text-[11px] text-gray-600 truncate">Autopay is off</span></span>
+                            <i class="fa-solid fa-chevron-right text-gray-300 text-[10px]" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase block">Current balance</span>
+                                <span id="cardCurrentBalanceLabel" class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$0.00</span>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase block">Available credit</span>
+                                <span id="cardAvailableCreditLabel" class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$0.00</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between text-[10px] font-bold">
+                                <span class="text-gray-500 uppercase">Credit used</span>
+                                <span id="cardUtilLabel" class="text-gray-700 font-mono">0% of $0</span>
+                            </div>
+                            <div class="h-2 bg-gray-100 rounded-full overflow-hidden mt-1.5" role="progressbar" aria-label="Credit used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="cardUtilBar">
+                                <div id="cardUtilFill" class="h-full rounded-full bg-emerald-500 transition-all duration-500" style="width:0%"></div>
+                            </div>
+                            <p id="cardUtilNote" class="text-[10px] text-gray-500 mt-1.5 leading-snug"></p>
                         </div>
                     </div>
 
-                    <button onclick="makeCardPayment()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer">
-                        <i class="fa-solid fa-money-check-dollar mr-1"></i> Make a Payment
-                    </button>
+                    <div id="cardRewardsCard" class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-xs">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-start gap-3 min-w-0">
+                                <span class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-gift text-sm"></i></span>
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Cash back</p>
+                                    <p id="cardRewardsAvailable" class="text-lg font-bold font-mono text-gray-900 leading-tight">$0.00</p>
+                                    <p id="cardRewardsSub" class="text-[10px] text-gray-500 mt-0.5">1.5% on every purchase</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openCardRedeem()" id="cardRedeemBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-3.5 py-2 rounded-lg transition shrink-0 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed">Redeem</button>
+                        </div>
+                    </div>
+
+                    <div id="cardSpendCard" class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Spending this statement</p>
+                                <p id="cardSpendSince" class="text-[10px] text-gray-500 mt-0.5"></p>
+                            </div>
+                            <p id="cardSpendTotal" class="text-sm font-bold font-mono text-gray-900">$0.00</p>
+                        </div>
+                        <div id="cardSpendBar" class="hidden h-2 rounded-full overflow-hidden flex bg-gray-100" aria-hidden="true"></div>
+                        <div id="cardSpendList" class="space-y-2"></div>
+                    </div>
 
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
-                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Card Configuration Controls</h3>
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Card controls</h3>
                         
                         <div class="grid grid-cols-2 gap-2">
                             <button onclick="toggleCardFreezeState()" id="cardFreezeBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
@@ -2539,7 +2623,7 @@ async function submitCreateRecurringTransfer(event) {
                                 </div>
                             </button>
 
-                            <button onclick="toggleCardCvvVisibility()" id="cardCvvBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer col-span-2">
+                            <button onclick="toggleCardCvvVisibility()" id="cardCvvBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center space-x-2 min-w-0">
                                     <i class="fa-solid fa-shield-halved text-teal-500 text-xs"></i>
                                     <span class="text-[11px] font-semibold text-gray-700 truncate">View Card CVV</span>
@@ -2547,6 +2631,14 @@ async function submitCreateRecurringTransfer(event) {
                                 <div id="cvvToggleNode" class="w-7 h-4 bg-gray-200 rounded-full p-0.5 flex items-center transition-colors duration-300">
                                     <div class="w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-300"></div>
                                 </div>
+                            </button>
+
+                            <button type="button" onclick="openCardReplace()" id="cardReplaceBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <i class="fa-solid fa-arrows-rotate text-rose-500 text-xs" aria-hidden="true"></i>
+                                    <span class="text-[11px] font-semibold text-gray-700 truncate">Replace card</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-300 text-[10px]" aria-hidden="true"></i>
                             </button>
                         </div>
 
@@ -2591,10 +2683,10 @@ async function submitCreateRecurringTransfer(event) {
 
                     <div class="flex border-b border-gray-200 pt-1">
                         <button id="tabBtn-cleared" onclick="switchCreditTab('cleared')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-slate-900 text-slate-900 cursor-pointer">
-                            Cleared History
+                            Posted
                         </button>
                         <button id="tabBtn-pending" onclick="switchCreditTab('pending')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-transparent text-gray-400 cursor-pointer">
-                            Pending Ledger
+                            Pending
                         </button>
                     </div>
 
@@ -2962,7 +3054,7 @@ async function submitCreateRecurringTransfer(event) {
                             </div>
                             <div>
                                 <label class="block text-[9px] font-bold uppercase text-gray-400 mb-0.5">Description (optional)</label>
-                                <input type="text" id="ddDescriptionInput" placeholder="Description"" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
+                                <input type="text" id="ddDescriptionInput" placeholder="Description" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none">
                             </div>
                             <button onclick="submitDirectDeposit()" id="ddSubmitBtn" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs py-2.5 rounded-lg transition mt-1">
                                 Submit Direct Deposit
@@ -6952,7 +7044,7 @@ fetchAndApplyProfilePhoto();
 
         function showTrackInfo(type) {
             const info = {
-                card: "Apex Infinite Signature Card: 3% unlimited cash back, zero annual fee, instant virtual card issuance upon approval.",
+                card: "Apex Pavilion Infinite card: 1.5% cash back on every purchase. Redeem it to checking or as a statement credit once you have $1. No annual fee.",
                 cd: "Certificate of Deposit locks: fixed-rate returns with zero market exposure. Early withdrawal forfeits accrued interest.",
                 mortgage: "Home Underwriting Portal: soft-pull pre-qualification with no impact to credit score. Rates locked for 45 days.",
                 wealth: "Private Wealth Management: dedicated strategist assigned within 1 business hour for qualifying asset thresholds.",
@@ -7257,7 +7349,11 @@ fetchAndApplyProfilePhoto();
                 ach_in: 'Direct Deposit (ACH)',
                 loan_disbursement: 'Loan Disbursement',
                 debit: 'Debit',
-                credit: 'Credit'
+                credit: 'Credit',
+                credit_purchase: 'Card Purchase',
+                credit_payment: 'Card Payment',
+                credit_reward: 'Cash Back Credit',
+                credit_refund: 'Card Refund'
             };
             return map[rawType] || rawType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         }
@@ -7459,13 +7555,17 @@ fetchAndApplyProfilePhoto();
                 if (btn) btn.className = 'p-2.5 border-2 border-gray-200 rounded-lg text-left text-xs font-semibold text-gray-700 hover:bg-gray-50';
             });
 
-            const isDebit = txn.type === 'debit' || parseFloat(txn.amount) < 0;
+            const isDebit = typeof txnIsOutgoing === 'function' ? txnIsOutgoing(txn) : (txn.type === 'debit' || parseFloat(txn.amount) < 0);
             const amountAbs = Math.abs(parseFloat(txn.amount));
             const amountFormatted = `${isDebit ? '-' : '+'}$${amountAbs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            document.getElementById('disputeTxnSummary').innerHTML = `
-                <p class="font-bold text-gray-900">${txn.description}</p>
-                <p class="mt-0.5">${amountFormatted} · #TXN-${txn.id}</p>
-            `;
+            // Descriptions can hold merchant text, so they go in as text, never HTML.
+            const summaryName = document.createElement('p');
+            summaryName.className = 'font-bold text-gray-900';
+            summaryName.textContent = txn.description || 'Transaction';
+            const summaryMeta = document.createElement('p');
+            summaryMeta.className = 'mt-0.5';
+            summaryMeta.textContent = `${amountFormatted} · #TXN-${txn.id}`;
+            document.getElementById('disputeTxnSummary').replaceChildren(summaryName, summaryMeta);
 
             document.getElementById('disputeModal').classList.remove('hidden');
         }
@@ -10612,14 +10712,27 @@ setInterval(pollForIncomingMoney, 8000);
 <!-- ===== End Pinch-to-Zoom ===== -->
 
 <script>
-/* ===================== REAL CREDIT CARD FEATURE ===================== */
-/* Paste this whole block right before </body>. It redefines the card
-   functions declared earlier in the file, so it must load AFTER the
-   main inline <script> — placing it near the end of <body> guarantees
-   that. No other edits needed; existing onclick="" attributes already
-   reference these same function names. */
+/* ===================== Cards screen ===================== */
+// Everything on the Cards tab: the card, payment due, credit used, cash back,
+// spending this statement, card controls and card activity. Data comes from
+// GET /api/account-services?resource=credit-card; statements, autopay and
+// cash back are worked out on the server (lib/cards.js). All text from the
+// server (merchant names especially) is set with textContent.
 
-let creditCardState = null; // last GET /credit-card payload, cached for tab rendering
+let creditCardState = null; // last GET /credit-card payload
+const CARD_CASH_BACK_RATE = 0.015;
+const CARD_TXN_LABELS = { credit_purchase: 'Purchase', credit_payment: 'Payment', credit_reward: 'Cash back credit', credit_refund: 'Refund' };
+const CARD_AUTOPAY_CHOICES = [
+  { mode: 'off', title: 'Off', text: "You'll pay each month yourself. We'll remind you 3 days before the due date." },
+  { mode: 'minimum', title: 'Minimum payment', text: 'Pays the minimum due each month so you never miss a payment.' },
+  { mode: 'statement', title: 'Statement balance', text: 'Pays off what you owed when the statement closed, in full.' },
+  { mode: 'balance', title: 'Full balance', text: 'Pays everything you owe on the due date, including newer purchases.' },
+];
+const CARD_REPLACE_REASONS = [
+  { reason: 'lost', title: 'Lost', icon: 'fa-magnifying-glass', text: 'Your card number changes. The old one stops working right away.' },
+  { reason: 'stolen', title: 'Stolen', icon: 'fa-user-secret', text: 'Your card number changes. The old one stops working right away.' },
+  { reason: 'damaged', title: 'Damaged', icon: 'fa-heart-crack', text: 'Keep the same card number and PIN. You get a new expiry date.' },
+];
 
 function ccMoney(n) {
   return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -10629,7 +10742,58 @@ function ccDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// ---------- One-time UI relabeling (no HTML edits required) ----------
+function cardWholeMoney(n) {
+  return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+// 'YYYY-MM-DD' from the server is a calendar date, so show it as-is.
+function cardDay(isoDate, withYear) {
+  if (!isoDate) return '';
+  const d = new Date(String(isoDate).slice(0, 10) + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', Object.assign({ month: 'short', day: 'numeric', timeZone: 'UTC' }, withYear ? { year: 'numeric' } : {}));
+}
+
+function cardEl(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+
+function cardIcon(name, cls) {
+  const i = document.createElement('i');
+  i.className = `fa-solid ${name}${cls ? ' ' + cls : ''}`;
+  i.setAttribute('aria-hidden', 'true');
+  return i;
+}
+
+function cardShow(el, display) {
+  if (!el) return;
+  el.classList.remove('hidden');
+  if (display) el.classList.add(display);
+}
+
+function cardHide(el, display) {
+  if (!el) return;
+  el.classList.add('hidden');
+  if (display) el.classList.remove(display);
+}
+
+async function cardApi(body) {
+  const res = await fetch('/api/account-services', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(Object.assign({ resource: 'credit-card' }, body)),
+  });
+  let data = {};
+  try { data = await res.json(); } catch (err) {}
+  if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+  return data;
+}
+
+// ---------- One-time relabeling of the older control buttons ----------
 function ccRelabelButtonsOnce() {
   if (window.__ccRelabelled) return;
   window.__ccRelabelled = true;
@@ -10640,7 +10804,6 @@ function ccRelabelButtonsOnce() {
     if (label) label.textContent = 'Set / Change PIN';
     const icon = pinBtn.querySelector('i');
     if (icon) icon.className = 'fa-solid fa-key text-emerald-500 text-xs';
-    // This is a settings action, not a live status toggle — hide the on/off pill.
     const toggle = document.getElementById('pinToggleNode');
     if (toggle) toggle.classList.add('hidden');
     pinBtn.setAttribute('onclick', 'openSetCardPinModal()');
@@ -10658,7 +10821,6 @@ function ccRelabelButtonsOnce() {
   }
 }
 
-// ---------- Small restricted-account banner (inserted once, toggled) ----------
 function ccEnsureRestrictedBanner() {
   let banner = document.getElementById('ccRestrictedBanner');
   if (banner) return banner;
@@ -10671,7 +10833,7 @@ function ccEnsureRestrictedBanner() {
   return banner;
 }
 
-// ---------- Load real data from the backend ----------
+// ---------- Load ----------
 async function loadCreditCardData() {
   ccRelabelButtonsOnce();
   const banner = ccEnsureRestrictedBanner();
@@ -10684,53 +10846,57 @@ async function loadCreditCardData() {
 
     if (!cardRes.ok) {
       console.error('Failed to load credit card data');
+      cardRenderLoadError();
       return;
     }
     const data = await cardRes.json();
     creditCardState = data;
 
-    // Cardholder name (best-effort — falls back silently if /api/me shape differs)
     try {
       if (meRes && meRes.ok) {
         const me = await meRes.json();
         const name = me.fullName || me.full_name || (me.user && (me.user.fullName || me.user.full_name));
-        if (name) document.getElementById('cardHolderName').innerText = name;
+        if (name) document.getElementById('cardHolderName').textContent = name;
       }
     } catch (_) {}
 
-    document.getElementById('cardLastFourLabel').innerText = data.lastFour || '----';
-    document.getElementById('cardCurrentBalanceLabel').innerText = ccMoney(data.balance);
-    document.getElementById('cardAvailableCreditLabel').innerText = ccMoney(data.availableCredit);
-
-    // Velocity slider + label reflect the real persisted limit
-    const slider = document.getElementById('cardVelocitySlider');
-    if (slider) slider.value = data.velocityLimit;
-    updateCardVelocitySliderLabel(data.velocityLimit);
-
-    // Freeze state
-    applyFreezeUI(data.isFrozen);
-
-    // Restricted-account banner + disable money-moving actions
     if (banner) banner.classList.toggle('hidden', !data.accountRestricted);
-    const freezeBtn = document.getElementById('cardFreezeBtn');
-    if (freezeBtn) freezeBtn.disabled = !!data.accountRestricted;
-
-    // PIN button label: Set vs Change
-    const pinBtn = document.getElementById('cardPinBtn');
-    if (pinBtn) {
-      const label = pinBtn.querySelector('span');
-      if (label) label.textContent = data.hasPin ? 'Change PIN' : 'Set PIN';
-    }
-
-    renderCreditTransactions(data.transactions || []);
+    cardRenderAll(data);
   } catch (err) {
     console.error('Load credit card data error:', err);
+    cardRenderLoadError();
   }
 }
 
-function applyFreezeUI(isFrozen) {
-  cardIsFrozen = !!isFrozen;
-  if (typeof data !== 'undefined' && data) {
+function cardRenderLoadError() {
+  const title = document.getElementById('cardDueTitle');
+  if (title && !creditCardState) title.textContent = "We couldn't load your card. Pull to refresh or try again shortly.";
+}
+
+function cardRenderAll(data) {
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('cardLastFourLabel', data.lastFour || '••••');
+  setText('cardExpiryLabel', data.expiryMonth && data.expiryYear ? `${String(data.expiryMonth).padStart(2, '0')}/${String(data.expiryYear).slice(-2)}` : '--/--');
+  setText('cardCurrentBalanceLabel', ccMoney(data.balance));
+  setText('cardAvailableCreditLabel', ccMoney(data.availableCredit));
+
+  const replacedNote = document.getElementById('cardReplacedNote');
+  if (replacedNote) {
+    const at = data.replacedAt ? new Date(data.replacedAt) : null;
+    const recent = at && !isNaN(at.getTime()) && Date.now() - at.getTime() < 30 * 86400000;
+    replacedNote.textContent = recent ? `NEW CARD · ${at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}` : '';
+    replacedNote.classList.toggle('hidden', !recent);
+  }
+
+  cardRenderStatusChip(data);
+  cardRenderUtil(data);
+
+  const slider = document.getElementById('cardVelocitySlider');
+  if (slider) slider.value = data.velocityLimit;
+  updateCardVelocitySliderLabel(data.velocityLimit);
+
+  applyFreezeUI(data.isFrozen);
+  if (typeof cardChannelState !== 'undefined') {
     cardChannelState.online = data.onlineEnabled !== false;
     cardChannelState.atm = data.atmEnabled !== false;
     cardChannelState.international = data.internationalEnabled !== false;
@@ -10740,6 +10906,211 @@ function applyFreezeUI(isFrozen) {
       applyChannelToggleVisual('international', cardChannelState.international);
     }
   }
+
+  const restricted = !!data.accountRestricted;
+  ['cardFreezeBtn', 'cardPayBtn', 'cardAutopayBtn', 'cardAutopayLine'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = restricted;
+  });
+
+  const pinBtn = document.getElementById('cardPinBtn');
+  if (pinBtn) {
+    const label = pinBtn.querySelector('span');
+    if (label) label.textContent = data.hasPin ? 'Change PIN' : 'Set PIN';
+  }
+
+  cardRenderDue(data);
+  cardRenderRewards(data);
+  cardRenderSpending(data);
+  renderCreditTransactions(data.transactions || []);
+}
+
+function cardRenderStatusChip(data) {
+  const chip = document.getElementById('cardStatusChip');
+  if (!chip) return;
+  const label = chip.querySelector('span');
+  const base = 'text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ';
+  if (data.accountRestricted) {
+    chip.className = base + 'bg-red-100 text-red-700';
+    if (label) label.textContent = 'On hold';
+  } else if (data.isFrozen) {
+    chip.className = base + 'bg-sky-100 text-sky-800';
+    if (label) label.textContent = 'Frozen';
+  } else {
+    chip.className = base + 'bg-emerald-100 text-emerald-800';
+    if (label) label.textContent = 'Active';
+  }
+}
+
+function cardRenderUtil(data) {
+  const limit = Number(data.creditLimit) || 0;
+  const owed = Math.max(0, Number(data.balance) || 0);
+  const pct = limit > 0 ? Math.min(100, (owed / limit) * 100) : 0;
+  const shown = owed > 0 && pct < 1 ? '<1' : String(Math.round(pct));
+  const label = document.getElementById('cardUtilLabel');
+  if (label) label.textContent = `${shown}% of ${cardWholeMoney(limit)}`;
+  const fill = document.getElementById('cardUtilFill');
+  const tone = pct < 30 ? 'bg-emerald-500' : pct < 50 ? 'bg-amber-500' : 'bg-red-500';
+  if (fill) {
+    fill.className = `h-full rounded-full ${tone} transition-all duration-500`;
+    fill.style.width = `${owed > 0 ? Math.max(pct, 1.5) : 0}%`;
+  }
+  const bar = document.getElementById('cardUtilBar');
+  if (bar) bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+  const note = document.getElementById('cardUtilNote');
+  if (note) {
+    note.textContent = owed <= 0 ? 'Nothing owed right now.'
+      : pct < 30 ? "You're using under 30% of your limit, which is good for your credit score."
+      : pct < 50 ? 'Keeping this under 30% of your limit is better for your credit score.'
+      : "You're using a lot of your limit. Paying it down can help your credit score.";
+  }
+}
+
+function cardDuePill(st) {
+  if (st.status === 'paid') return { text: 'Paid', cls: 'bg-emerald-100 text-emerald-800' };
+  if (st.status === 'min_paid') return { text: 'Minimum paid', cls: 'bg-teal-100 text-teal-800' };
+  if (st.status === 'past_due') return { text: 'Past due', cls: 'bg-red-100 text-red-700' };
+  if (st.status === 'due') {
+    const n = Number(st.daysUntilDue);
+    if (n <= 0) return { text: 'Due today', cls: 'bg-amber-100 text-amber-800' };
+    if (n === 1) return { text: 'Due tomorrow', cls: 'bg-amber-100 text-amber-800' };
+    return { text: `Due in ${n} days`, cls: n <= 5 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700' };
+  }
+  return null;
+}
+
+function cardRenderDue(data) {
+  const st = data.statement;
+  const ap = data.autopay || { mode: 'off' };
+  const title = document.getElementById('cardDueTitle');
+  const pill = document.getElementById('cardDuePill');
+  const figures = document.getElementById('cardDueFigures');
+  const note = document.getElementById('cardDueNote');
+  if (!title) return;
+
+  if (!st) {
+    title.textContent = 'Pay your card any time';
+    note.textContent = 'Payments come from your checking account.';
+    cardHide(figures, 'grid');
+    cardHide(pill);
+  } else {
+    const p = cardDuePill(st);
+    if (p) {
+      pill.textContent = p.text;
+      pill.className = `text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${p.cls}`;
+    } else {
+      cardHide(pill);
+    }
+
+    if (st.status === 'none') {
+      title.textContent = 'No payment due';
+      note.textContent = st.creditBalance > 0
+        ? `You have a ${ccMoney(st.creditBalance)} credit on your card. Your next statement closes ${cardDay(st.nextStatementDate)}.`
+        : `Your next statement closes ${cardDay(st.nextStatementDate)}.`;
+      cardHide(figures, 'grid');
+    } else {
+      cardShow(figures, 'grid');
+      const leftLabel = figures.querySelector('div:first-child > span:first-child');
+      const partPaid = st.paidSinceStatement > 0 && st.remainingStatement > 0;
+      if (leftLabel) leftLabel.textContent = partPaid ? 'Statement balance left' : 'Statement balance';
+      document.getElementById('cardStatementBalance').textContent = ccMoney(st.status === 'paid' ? st.statementBalance : st.remainingStatement);
+      document.getElementById('cardMinimumDue').textContent = st.remainingMinimum > 0 ? ccMoney(st.remainingMinimum) : 'Paid';
+
+      if (st.status === 'paid') {
+        title.textContent = 'Paid in full';
+        note.textContent = `Your ${cardDay(st.statementDate)} statement is paid. Your next statement closes ${cardDay(st.nextStatementDate)}.`;
+      } else if (st.status === 'past_due') {
+        title.textContent = 'Payment past due';
+        note.textContent = `Your minimum payment was due ${cardDay(st.dueDate)}. Pay at least ${ccMoney(st.remainingMinimum)} as soon as you can.`;
+      } else if (st.status === 'min_paid') {
+        title.textContent = `Payment due ${cardDay(st.dueDate)}`;
+        note.textContent = `Minimum paid. Pay the other ${ccMoney(st.remainingStatement)} to pay this statement in full.`;
+      } else {
+        title.textContent = `Payment due ${cardDay(st.dueDate)}`;
+        note.textContent = st.newPurchases > 0
+          ? `From your ${cardDay(st.statementDate)} statement. ${ccMoney(st.newPurchases)} in newer purchases will be on your next one.`
+          : `From your ${cardDay(st.statementDate)} statement.`;
+      }
+    }
+  }
+
+  const apText = document.getElementById('cardAutopayText');
+  const apBtn = document.getElementById('cardAutopayBtnLabel');
+  if (ap.mode === 'off') {
+    if (apText) apText.textContent = 'Autopay is off. Tap to set it up.';
+    if (apBtn) apBtn.textContent = 'Set up autopay';
+  } else {
+    const next = ap.nextRunDate ? ` · next ${cardDay(ap.nextRunDate)}` : '';
+    const amount = ap.nextAmount > 0 && ap.nextRunDate ? ` (${ccMoney(ap.nextAmount)})` : '';
+    if (apText) apText.textContent = `Autopay: ${ap.label}${next}${amount}`;
+    if (apBtn) apBtn.textContent = 'Autopay on';
+  }
+}
+
+function cardRenderRewards(data) {
+  const r = data.rewards;
+  const box = document.getElementById('cardRewardsCard');
+  if (!box) return;
+  if (!r) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  document.getElementById('cardRewardsAvailable').textContent = ccMoney(r.available);
+  const bits = [`${(r.rate * 100).toFixed(1)}% on every purchase`];
+  if (r.thisPeriod > 0) bits.push(`${ccMoney(r.thisPeriod)} this statement`);
+  if (r.redeemed > 0) bits.push(`${ccMoney(r.redeemed)} redeemed`);
+  document.getElementById('cardRewardsSub').textContent = bits.join(' · ');
+  const btn = document.getElementById('cardRedeemBtn');
+  if (btn) {
+    const tooLittle = Number(r.available) < Number(r.minRedeem || 1);
+    btn.disabled = tooLittle || !!data.accountRestricted;
+    btn.title = tooLittle ? `You can redeem once you have ${ccMoney(r.minRedeem || 1)}` : '';
+  }
+}
+
+function cardRenderSpending(data) {
+  const sp = data.spending;
+  const box = document.getElementById('cardSpendCard');
+  if (!box) return;
+  if (!sp) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  document.getElementById('cardSpendSince').textContent = `Since ${cardDay(sp.since)} · ${sp.count} ${sp.count === 1 ? 'purchase' : 'purchases'}`;
+  document.getElementById('cardSpendTotal').textContent = ccMoney(sp.total);
+  const bar = document.getElementById('cardSpendBar');
+  const list = document.getElementById('cardSpendList');
+  bar.replaceChildren();
+  list.replaceChildren();
+  if (!sp.categories || !sp.categories.length) {
+    cardHide(bar, 'flex');
+    list.appendChild(cardEl('p', 'text-[11px] text-gray-500', 'No card purchases since your last statement closed.'));
+    return;
+  }
+  cardShow(bar, 'flex');
+  sp.categories.forEach((c) => {
+    const seg = cardEl('div', 'h-full');
+    seg.style.width = `${Math.max(c.share * 100, 2)}%`;
+    seg.style.backgroundColor = c.color;
+    bar.appendChild(seg);
+  });
+  sp.categories.slice(0, 5).forEach((c) => {
+    const row = cardEl('div', 'flex items-center gap-3');
+    const icon = cardEl('span', 'w-7 h-7 rounded-full flex items-center justify-center shrink-0');
+    icon.style.backgroundColor = c.color + '1f';
+    icon.style.color = c.color;
+    icon.appendChild(cardIcon(c.icon, 'text-[11px]'));
+    icon.setAttribute('aria-hidden', 'true');
+    const mid = cardEl('div', 'flex-1 min-w-0');
+    mid.appendChild(cardEl('p', 'text-xs font-semibold text-gray-800 truncate', c.name));
+    mid.appendChild(cardEl('p', 'text-[10px] text-gray-400', `${c.count} ${c.count === 1 ? 'purchase' : 'purchases'} · ${Math.round(c.share * 100)}%`));
+    row.append(icon, mid, cardEl('span', 'text-xs font-bold font-mono text-gray-900 shrink-0', ccMoney(c.amount)));
+    list.appendChild(row);
+  });
+  if (sp.categories.length > 5) {
+    const rest = sp.categories.slice(5).reduce((sum, c) => sum + c.amount, 0);
+    list.appendChild(cardEl('p', 'text-[10px] text-gray-400 pl-10', `+ ${ccMoney(rest)} in ${sp.categories.length - 5} more ${sp.categories.length - 5 === 1 ? 'category' : 'categories'}`));
+  }
+}
+
+function applyFreezeUI(isFrozen) {
+  cardIsFrozen = !!isFrozen;
   const overlay = document.getElementById('cardFrostOverlay');
   if (overlay) overlay.classList.toggle('hidden', !isFrozen);
 
@@ -10756,34 +11127,28 @@ function applyFreezeUI(isFrozen) {
       if (ball) ball.classList.remove('translate-x-3');
     }
   }
+  if (creditCardState) {
+    creditCardState.isFrozen = !!isFrozen;
+    cardRenderStatusChip(creditCardState);
+  }
 }
 
-// ---------- Freeze / unfreeze (real, persisted) ----------
+// ---------- Freeze / unfreeze ----------
 async function toggleCardFreezeState() {
   const btn = document.getElementById('cardFreezeBtn');
   if (btn) btn.disabled = true;
   try {
-    const res = await fetch('/api/account-services', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ resource: 'credit-card', cardAction: 'toggleFreeze' }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || 'Could not update freeze status.');
-      return;
-    }
+    const data = await cardApi({ cardAction: 'toggleFreeze' });
     applyFreezeUI(data.isFrozen);
   } catch (err) {
     console.error('Toggle freeze error:', err);
-    alert('Network error. Please try again.');
+    alert(err.message || 'Could not update freeze status.');
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) btn.disabled = !!(creditCardState && creditCardState.accountRestricted);
   }
 }
 
-// ---------- Velocity limit (drag = cosmetic, release = persisted) ----------
+// ---------- Single transaction limit (drag = label, release = saved) ----------
 function updateCardVelocitySliderLabel(val) {
   const label = document.getElementById('cardVelocityLimitText');
   if (label) label.innerText = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
@@ -10791,39 +11156,34 @@ function updateCardVelocitySliderLabel(val) {
 
 async function saveCardVelocityLimit(val) {
   try {
-    const res = await fetch('/api/account-services', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ resource: 'credit-card', cardAction: 'setVelocityLimit', velocityLimit: Number(val) }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || 'Could not update transaction limit.');
-      await loadCreditCardData(); // snap slider back to the real persisted value
-      return;
-    }
+    const data = await cardApi({ cardAction: 'setVelocityLimit', velocityLimit: Number(val) });
     updateCardVelocitySliderLabel(data.velocityLimit);
+    if (creditCardState) creditCardState.velocityLimit = data.velocityLimit;
   } catch (err) {
-    console.error('Save velocity limit error:', err);
+    alert(err.message || 'Could not update transaction limit.');
     await loadCreditCardData();
   }
 }
 
-// ---------- Cleared / Pending tabs, driven by real transactions ----------
+// ---------- Card activity ----------
+function cardTxnIsCharge(t) {
+  return t.type === 'credit_purchase';
+}
+
 function renderCreditTransactionRow(t) {
-  const isCharge = t.type === 'credit_purchase';
-  const dateStr = ccDate(t.created_at);
-  const amountClass = isCharge ? 'text-gray-900' : 'text-emerald-600';
-  const sign = isCharge ? '' : '+';
-  return `
-    <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center">
-      <div class="min-w-0 pr-2">
-        <h4 class="text-xs font-bold text-gray-900 truncate">${t.description || (isCharge ? 'Card Purchase' : 'Payment')}</h4>
-        <p class="text-[9px] text-gray-400 font-mono">${dateStr}</p>
-      </div>
-      <span class="text-xs font-bold font-mono ${amountClass} shrink-0">${sign}${ccMoney(Math.abs(t.amount))}</span>
-    </div>`;
+  const isCharge = cardTxnIsCharge(t);
+  const row = cardEl('button', 'w-full bg-white p-3 rounded-xl border border-gray-200 flex items-center gap-3 text-left hover:bg-gray-50 transition');
+  row.type = 'button';
+  row.setAttribute('data-card-txn', String(t.id));
+  if (typeof txnCategoryIconEl === 'function') row.appendChild(txnCategoryIconEl(t, 'w-8 h-8'));
+  const mid = cardEl('div', 'min-w-0 flex-1');
+  mid.appendChild(cardEl('p', 'text-xs font-bold text-gray-900 truncate', t.description || (isCharge ? 'Card purchase' : 'Payment')));
+  mid.appendChild(cardEl('p', 'text-[10px] text-gray-400', `${ccDate(t.created_at)} · ${CARD_TXN_LABELS[t.type] || 'Transaction'}`));
+  const amount = Math.abs(Number(t.amount));
+  const amt = cardEl('span', `text-xs font-bold font-mono shrink-0 ${isCharge ? 'text-gray-900' : 'text-emerald-600'}`, `${isCharge ? '' : '+'}${ccMoney(amount)}`);
+  row.append(mid, amt);
+  row.addEventListener('click', () => openCardTxn(t));
+  return row;
 }
 
 function renderCreditTransactions(transactions) {
@@ -10831,27 +11191,24 @@ function renderCreditTransactions(transactions) {
   const pendingEl = document.getElementById('creditTab-pending');
   if (!clearedEl) return;
 
-  if (transactions.length === 0) {
-    clearedEl.innerHTML = `
-      <div class="text-center py-8 px-4">
-        <i class="fa-solid fa-receipt text-gray-300 text-2xl mb-2"></i>
-        <p class="text-sm font-bold text-gray-700">No card activity yet</p>
-        <p class="text-xs text-gray-400 mt-1">Purchases and payments will show up here.</p>
-      </div>`;
+  clearedEl.replaceChildren();
+  if (!transactions.length) {
+    const empty = cardEl('div', 'text-center py-8 px-4');
+    empty.appendChild(cardIcon('fa-receipt', 'text-gray-300 text-2xl mb-2'));
+    empty.appendChild(cardEl('p', 'text-sm font-bold text-gray-700', 'No card activity yet'));
+    empty.appendChild(cardEl('p', 'text-xs text-gray-400 mt-1', 'Purchases and payments will show up here.'));
+    clearedEl.appendChild(empty);
   } else {
-    clearedEl.innerHTML = transactions.map(renderCreditTransactionRow).join('');
+    transactions.forEach((t) => clearedEl.appendChild(renderCreditTransactionRow(t)));
   }
 
-  // This app settles every transaction immediately server-side — there is
-  // no real async settlement window, so "pending" is honestly always empty
-  // rather than showing fabricated placeholder rows.
+  // Every card transaction posts straight away, so pending is honestly empty.
   if (pendingEl) {
-    pendingEl.innerHTML = `
-      <div class="text-center py-8 px-4">
-        <i class="fa-regular fa-clock text-gray-300 text-2xl mb-2"></i>
-        <p class="text-sm font-bold text-gray-700">Nothing pending</p>
-        <p class="text-xs text-gray-400 mt-1">Transactions post immediately on this account.</p>
-      </div>`;
+    const empty = cardEl('div', 'text-center py-8 px-4');
+    empty.appendChild(cardIcon('fa-clock', 'text-gray-300 text-2xl mb-2'));
+    empty.appendChild(cardEl('p', 'text-sm font-bold text-gray-700', 'Nothing pending'));
+    empty.appendChild(cardEl('p', 'text-xs text-gray-400 mt-1', 'Card transactions post straight away on this account.'));
+    pendingEl.replaceChildren(empty);
   }
 }
 
@@ -10860,25 +11217,532 @@ function switchCreditTab(tabKey) {
   const pendingTab = document.getElementById('creditTab-pending');
   const clearedBtn = document.getElementById('tabBtn-cleared');
   const pendingBtn = document.getElementById('tabBtn-pending');
+  const on = tabKey === 'cleared' ? [clearedTab, clearedBtn] : [pendingTab, pendingBtn];
+  const off = tabKey === 'cleared' ? [pendingTab, pendingBtn] : [clearedTab, clearedBtn];
+  on[0].classList.remove('hidden');
+  off[0].classList.add('hidden');
+  on[1].classList.add('border-slate-900', 'text-slate-900');
+  on[1].classList.remove('border-transparent', 'text-gray-400');
+  off[1].classList.remove('border-slate-900', 'text-slate-900');
+  off[1].classList.add('border-transparent', 'text-gray-400');
+}
 
-  if (tabKey === 'cleared') {
-    clearedTab.classList.remove('hidden');
-    pendingTab.classList.add('hidden');
-    clearedBtn.classList.add('border-slate-900', 'text-slate-900');
-    clearedBtn.classList.remove('border-transparent', 'text-gray-400');
-    pendingBtn.classList.remove('border-slate-900', 'text-slate-900');
-    pendingBtn.classList.add('border-transparent', 'text-gray-400');
-  } else {
-    pendingTab.classList.remove('hidden');
-    clearedTab.classList.add('hidden');
-    pendingBtn.classList.add('border-slate-900', 'text-slate-900');
-    pendingBtn.classList.remove('border-transparent', 'text-gray-400');
-    clearedBtn.classList.remove('border-slate-900', 'text-slate-900');
-    clearedBtn.classList.add('border-transparent', 'text-gray-400');
+/* ===================== Card sheet (payment, autopay, redeem, replace, details) ===================== */
+const cardSheetUi = { busy: false, onClose: null };
+
+function openCardSheet({ tag, title, icon, iconCls }) {
+  const sheet = document.getElementById('cardSheet');
+  if (!sheet) return null;
+  document.getElementById('cardSheetTag').textContent = tag || '';
+  document.getElementById('cardSheetTitle').textContent = title || '';
+  const iconBox = document.getElementById('cardSheetIcon');
+  iconBox.className = `w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconCls || 'bg-emerald-50 text-emerald-700'}`;
+  iconBox.replaceChildren(cardIcon(icon || 'fa-credit-card'));
+  document.getElementById('cardSheetBody').replaceChildren();
+  document.getElementById('cardSheetActions').replaceChildren();
+  cardSheetUi.busy = false;
+  if (sheet.classList.contains('hidden')) {
+    sheet.classList.remove('hidden');
+    sheet.classList.add('flex');
+  }
+  return { body: document.getElementById('cardSheetBody'), actions: document.getElementById('cardSheetActions') };
+}
+
+function closeCardSheet() {
+  if (cardSheetUi.busy) return;
+  const sheet = document.getElementById('cardSheet');
+  if (!sheet || sheet.classList.contains('hidden')) return;
+  sheet.classList.add('hidden');
+  sheet.classList.remove('flex');
+  const after = cardSheetUi.onClose;
+  cardSheetUi.onClose = null;
+  if (typeof after === 'function') after();
+}
+
+function cardSheetError(body) {
+  let box = body.querySelector('[data-card-error]');
+  if (!box) {
+    box = cardEl('div', 'hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2');
+    box.setAttribute('data-card-error', '');
+    box.setAttribute('role', 'alert');
+    body.prepend(box);
+  }
+  return (msg) => {
+    box.textContent = msg || '';
+    box.classList.toggle('hidden', !msg);
+  };
+}
+
+function cardPrimaryBtn(label, onClick, cls) {
+  const b = cardEl('button', cls || 'w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed', label);
+  b.type = 'button';
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function cardSecondaryBtn(label, onClick, cls) {
+  const b = cardEl('button', cls || 'w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-bold py-2.5 rounded-lg transition text-xs', label);
+  b.type = 'button';
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+// A radio-style option card. Returns the button; `selected` styling is toggled by cardSelect().
+function cardOption({ value, title, text, right, icon, disabled }) {
+  const b = cardEl('button', 'w-full flex items-center gap-3 p-3 rounded-xl border-2 border-gray-200 text-left transition disabled:opacity-40 disabled:cursor-not-allowed');
+  b.type = 'button';
+  b.setAttribute('role', 'radio');
+  b.setAttribute('aria-checked', 'false');
+  b.setAttribute('data-value', value);
+  if (disabled) b.disabled = true;
+  const dot = cardEl('span', 'w-4 h-4 rounded-full border-2 border-gray-300 shrink-0 flex items-center justify-center');
+  dot.setAttribute('data-dot', '');
+  dot.appendChild(cardEl('span', 'w-2 h-2 rounded-full bg-emerald-600 hidden'));
+  b.appendChild(dot);
+  if (icon) {
+    const ic = cardEl('span', 'w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0');
+    ic.appendChild(cardIcon(icon, 'text-xs'));
+    b.appendChild(ic);
+  }
+  const mid = cardEl('span', 'flex-1 min-w-0');
+  mid.appendChild(cardEl('span', 'block text-xs font-bold text-gray-900', title));
+  if (text) mid.appendChild(cardEl('span', 'block text-[10px] text-gray-500 mt-0.5 leading-snug', text));
+  b.appendChild(mid);
+  if (right !== undefined && right !== null) b.appendChild(cardEl('span', 'text-xs font-bold font-mono text-gray-900 shrink-0', right));
+  return b;
+}
+
+function cardSelect(group, value) {
+  group.querySelectorAll('[role="radio"]').forEach((b) => {
+    const on = b.getAttribute('data-value') === value;
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.classList.toggle('border-emerald-500', on);
+    b.classList.toggle('bg-emerald-50', on);
+    b.classList.toggle('border-gray-200', !on);
+    const dot = b.querySelector('[data-dot]');
+    if (dot) {
+      dot.classList.toggle('border-emerald-600', on);
+      dot.classList.toggle('border-gray-300', !on);
+      dot.firstChild.classList.toggle('hidden', !on);
+    }
+  });
+}
+
+function cardInfoRow(label, value, valueCls) {
+  const row = cardEl('div', 'flex items-start justify-between gap-3 py-2 border-b border-gray-100 last:border-0');
+  row.append(cardEl('span', 'text-[11px] text-gray-500 shrink-0', label), cardEl('span', `text-[11px] font-semibold text-right ${valueCls || 'text-gray-900'}`, value));
+  return row;
+}
+
+function cardSuccess(body, actions, { title, lines, done }) {
+  body.replaceChildren();
+  const wrap = cardEl('div', 'text-center py-4');
+  const tick = cardEl('span', 'w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3');
+  tick.appendChild(cardIcon('fa-check', 'text-2xl'));
+  wrap.append(tick, cardEl('p', 'text-base font-bold text-gray-900', title));
+  body.appendChild(wrap);
+  if (lines && lines.length) {
+    const box = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+    lines.forEach(([k, v]) => box.appendChild(cardInfoRow(k, v)));
+    body.appendChild(box);
+  }
+  actions.replaceChildren(cardPrimaryBtn(done || 'Done', () => closeCardSheet()));
+}
+
+function cardCheckingLine() {
+  const c = creditCardState && creditCardState.checking;
+  if (!c) return 'From Primary Checking';
+  return `From Primary Checking${c.lastFour ? ' ••' + c.lastFour : ''} · ${ccMoney(c.balance)} available`;
+}
+
+/* ---------- Make a Payment ---------- */
+function makeCardPayment() {
+  const data = creditCardState || {};
+  const st = data.statement || null;
+  const owed = Math.max(0, Number(data.balance) || 0);
+  const ui = openCardSheet({ tag: 'Credit card', title: 'Make a payment', icon: 'fa-money-check-dollar' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const showError = cardSheetError(body);
+
+  if (data.accountRestricted) {
+    body.appendChild(cardEl('p', 'text-xs text-gray-600', 'There is an issue on this account that requires in-person verification at a branch.'));
+    actions.appendChild(cardSecondaryBtn('Close', () => closeCardSheet()));
+    return;
+  }
+  if (owed <= 0) {
+    body.appendChild(cardEl('p', 'text-sm text-gray-700', "You don't owe anything on your card right now."));
+    actions.appendChild(cardSecondaryBtn('Close', () => closeCardSheet()));
+    return;
+  }
+
+  // Minimum, statement balance and current balance; an option that would
+  // show the same amount as a more useful one is left out.
+  const same = (a, b) => Math.abs(a - b) < 0.005;
+  const minAmt = st && st.remainingMinimum > 0 ? Math.min(st.remainingMinimum, owed) : 0;
+  const stAmt = st && st.remainingStatement > 0 ? Math.min(st.remainingStatement, owed) : 0;
+  const unique = [];
+  if (minAmt > 0 && !same(minAmt, stAmt)) unique.push({ value: 'minimum', title: 'Minimum payment', text: st.status === 'past_due' ? 'Past due. Pay at least this now.' : `Due ${cardDay(st.dueDate)}`, amount: minAmt });
+  if (stAmt > 0) unique.push({ value: 'statement', title: 'Statement balance', text: `Pays your ${cardDay(st.statementDate)} statement in full${st.status === 'past_due' ? '' : ', due ' + cardDay(st.dueDate)}`, amount: stAmt });
+  if (!same(owed, stAmt)) unique.push({ value: 'current', title: 'Current balance', text: 'Everything you owe right now', amount: owed });
+
+  const group = cardEl('div', 'space-y-2');
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Payment amount');
+  unique.forEach((o) => group.appendChild(cardOption({ value: o.value, title: o.title, text: o.text, right: ccMoney(o.amount) })));
+  const other = cardOption({ value: 'other', title: 'Other amount' });
+  group.appendChild(other);
+  body.appendChild(group);
+
+  const otherWrap = cardEl('div', 'hidden');
+  const otherLabel = cardEl('label', 'block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1', 'Amount');
+  otherLabel.htmlFor = 'cardPayOther';
+  const otherInput = cardEl('input', 'w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500');
+  Object.assign(otherInput, { id: 'cardPayOther', type: 'number', step: '0.01', min: '0.01', inputMode: 'decimal', placeholder: '0.00' });
+  otherWrap.append(otherLabel, otherInput);
+  body.appendChild(otherWrap);
+  body.appendChild(cardEl('p', 'text-[11px] text-gray-500 flex items-center gap-1.5', cardCheckingLine()));
+
+  let choice = (unique.find((o) => o.value === 'statement') || unique[0]).value;
+  const amountFor = () => {
+    if (choice === 'other') return Math.round(Number(otherInput.value) * 100) / 100;
+    const o = unique.find((x) => x.value === choice);
+    return o ? o.amount : 0;
+  };
+  const payBtn = cardPrimaryBtn('Pay', () => submit());
+  const refresh = () => {
+    cardSelect(group, choice);
+    otherWrap.classList.toggle('hidden', choice !== 'other');
+    const amt = amountFor();
+    payBtn.textContent = amt > 0 ? `Pay ${ccMoney(amt)}` : 'Pay';
+    payBtn.disabled = !(amt > 0);
+  };
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('[role="radio"]');
+    if (!b || b.disabled) return;
+    choice = b.getAttribute('data-value');
+    refresh();
+    if (choice === 'other') otherInput.focus();
+  });
+  otherInput.addEventListener('input', refresh);
+  actions.appendChild(payBtn);
+  refresh();
+
+  async function submit() {
+    const amount = amountFor();
+    showError('');
+    if (!(amount > 0)) { showError('Enter an amount to pay.'); return; }
+    if (amount > owed + 0.001) { showError(`That's more than you owe (${ccMoney(owed)}).`); return; }
+    const chk = data.checking;
+    if (chk && amount > Number(chk.balance) + 0.001) { showError(`Your checking balance is ${ccMoney(chk.balance)}.`); return; }
+    cardSheetUi.busy = true;
+    payBtn.disabled = true;
+    payBtn.textContent = 'Paying…';
+    try {
+      const res = await cardApi({ cardAction: 'makePayment', amount });
+      cardSheetUi.busy = false;
+      const when = res.transactionTimestamp ? new Date(res.transactionTimestamp) : new Date();
+      cardSuccess(body, actions, {
+        title: `${ccMoney(amount)} paid`,
+        lines: [
+          ['To', `Apex card ••${data.lastFour || ''}`],
+          ['From', `Primary Checking${chk && chk.lastFour ? ' ••' + chk.lastFour : ''}`],
+          ['New card balance', ccMoney(res.cardBalance)],
+          ['Date', when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })],
+          ['Confirmation', res.transactionId ? `#TXN-${res.transactionId}` : '—'],
+        ],
+      });
+      cardSheetUi.onClose = null;
+      await loadCreditCardData();
+      if (typeof refreshUIBalances === 'function') refreshUIBalances();
+      if (typeof fetchTransactions === 'function') { try { fetchTransactions(); } catch (err) {} }
+    } catch (err) {
+      cardSheetUi.busy = false;
+      showError(err.message);
+      refresh();
+    }
   }
 }
 
-/* ===================== Shared tiny modal shell ===================== */
+/* ---------- Autopay ---------- */
+function openCardAutopay() {
+  const data = creditCardState || {};
+  const current = (data.autopay && data.autopay.mode) || 'off';
+  const st = data.statement;
+  const ui = openCardSheet({ tag: 'Credit card', title: 'Autopay', icon: 'fa-rotate' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const showError = cardSheetError(body);
+  body.appendChild(cardEl('p', 'text-xs text-gray-600 leading-relaxed', 'Pay your card automatically from Primary Checking on each due date (the 20th of the month).'));
+
+  const group = cardEl('div', 'space-y-2');
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Autopay amount');
+  CARD_AUTOPAY_CHOICES.forEach((c) => {
+    let right = null;
+    if (st && st.status !== 'none' && st.status !== 'paid') {
+      if (c.mode === 'minimum' && st.remainingMinimum > 0) right = ccMoney(st.remainingMinimum);
+      if (c.mode === 'statement' && st.remainingStatement > 0) right = ccMoney(st.remainingStatement);
+    }
+    if (c.mode === 'balance' && Number(data.balance) > 0) right = ccMoney(data.balance);
+    group.appendChild(cardOption({ value: c.mode, title: c.title, text: c.text, right }));
+  });
+  body.appendChild(group);
+  body.appendChild(cardEl('p', 'text-[11px] text-gray-500 leading-snug', "If checking doesn't have enough on the due date, nothing is paid and we'll let you know so you can pay yourself."));
+
+  let choice = current;
+  const saveBtn = cardPrimaryBtn('Save', () => save());
+  const refresh = () => {
+    cardSelect(group, choice);
+    saveBtn.disabled = choice === current;
+    saveBtn.textContent = choice === current ? 'No changes' : (choice === 'off' ? 'Turn off autopay' : 'Save autopay');
+  };
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('[role="radio"]');
+    if (!b) return;
+    choice = b.getAttribute('data-value');
+    refresh();
+  });
+  actions.appendChild(saveBtn);
+  refresh();
+
+  async function save() {
+    showError('');
+    cardSheetUi.busy = true;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      const res = await cardApi({ cardAction: 'setAutopay', mode: choice });
+      cardSheetUi.busy = false;
+      if (creditCardState) {
+        creditCardState.autopay = res.autopay;
+        cardRenderDue(creditCardState);
+      }
+      const ap = res.autopay || {};
+      cardSuccess(body, actions, {
+        title: ap.mode === 'off' ? 'Autopay is off' : 'Autopay is on',
+        lines: ap.mode === 'off'
+          ? [['Reminder', "We'll remind you 3 days before each due date."]]
+          : [['Pays', ap.label ? ap.label.charAt(0).toUpperCase() + ap.label.slice(1) : ''], ['From', 'Primary Checking'], ['Next payment', ap.nextRunDate ? cardDay(ap.nextRunDate, true) : 'Next due date']],
+      });
+    } catch (err) {
+      cardSheetUi.busy = false;
+      showError(err.message);
+      refresh();
+    }
+  }
+}
+
+/* ---------- Redeem cash back ---------- */
+function openCardRedeem() {
+  const data = creditCardState || {};
+  const r = data.rewards;
+  if (!r) return;
+  const ui = openCardSheet({ tag: 'Cash back', title: 'Redeem cash back', icon: 'fa-gift', iconCls: 'bg-emerald-600 text-white' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const showError = cardSheetError(body);
+  const available = Number(r.available) || 0;
+  const minRedeem = Number(r.minRedeem) || 1;
+
+  const hero = cardEl('div', 'text-center bg-emerald-50 rounded-xl py-4');
+  hero.append(cardEl('p', 'text-[10px] font-bold uppercase tracking-wider text-emerald-700', 'Available'), cardEl('p', 'text-2xl font-bold font-mono text-gray-900', ccMoney(available)), cardEl('p', 'text-[10px] text-gray-500 mt-0.5', `${ccMoney(r.earned)} earned in total`));
+  body.appendChild(hero);
+
+  if (available < minRedeem) {
+    body.appendChild(cardEl('p', 'text-xs text-gray-600', `You can redeem once you have at least ${ccMoney(minRedeem)}. You earn 1.5% on every card purchase.`));
+    actions.appendChild(cardSecondaryBtn('Close', () => closeCardSheet()));
+    return;
+  }
+
+  const amtLabel = cardEl('label', 'block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1', 'Amount');
+  amtLabel.htmlFor = 'cardRedeemAmount';
+  const amtInput = cardEl('input', 'w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500');
+  Object.assign(amtInput, { id: 'cardRedeemAmount', type: 'number', step: '0.01', min: String(minRedeem), max: String(available), inputMode: 'decimal', value: available.toFixed(2) });
+  const amtWrap = cardEl('div');
+  amtWrap.append(amtLabel, amtInput);
+  body.appendChild(amtWrap);
+
+  const owed = Math.max(0, Number(data.balance) || 0);
+  const group = cardEl('div', 'space-y-2');
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Where should it go?');
+  group.appendChild(cardOption({ value: 'checking', title: 'Deposit to checking', text: 'Arrives in Primary Checking straight away.', icon: 'fa-building-columns' }));
+  group.appendChild(cardOption({ value: 'statement', title: 'Statement credit', text: owed > 0 ? `Lowers what you owe on your card (${ccMoney(owed)} now).` : "Your card doesn't have a balance to lower.", icon: 'fa-credit-card', disabled: owed <= 0 }));
+  body.appendChild(group);
+
+  let dest = 'checking';
+  const redeemBtn = cardPrimaryBtn('Redeem', () => submit(), 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition text-xs disabled:opacity-50 disabled:cursor-not-allowed');
+  const amountNow = () => Math.round(Number(amtInput.value) * 100) / 100;
+  const refresh = () => {
+    cardSelect(group, dest);
+    const a = amountNow();
+    redeemBtn.textContent = a > 0 ? `Redeem ${ccMoney(a)}` : 'Redeem';
+    redeemBtn.disabled = !(a > 0);
+  };
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('[role="radio"]');
+    if (!b || b.disabled) return;
+    dest = b.getAttribute('data-value');
+    refresh();
+  });
+  amtInput.addEventListener('input', refresh);
+  actions.appendChild(redeemBtn);
+  refresh();
+
+  async function submit() {
+    const amount = amountNow();
+    showError('');
+    if (!(amount >= minRedeem)) { showError(`The smallest amount you can redeem is ${ccMoney(minRedeem)}.`); return; }
+    if (amount > available + 0.001) { showError(`You have ${ccMoney(available)} available.`); return; }
+    if (dest === 'statement' && amount > owed + 0.001) { showError(`Your card balance is ${ccMoney(owed)}. Redeem up to that as a statement credit, or send it to checking.`); return; }
+    cardSheetUi.busy = true;
+    redeemBtn.disabled = true;
+    redeemBtn.textContent = 'Redeeming…';
+    try {
+      const res = await cardApi({ cardAction: 'redeemRewards', amount, destination: dest });
+      cardSheetUi.busy = false;
+      cardSuccess(body, actions, {
+        title: `${ccMoney(res.amount)} redeemed`,
+        lines: [
+          ['Sent to', res.destination === 'checking' ? 'Primary Checking' : `Apex card ••${data.lastFour || ''}`],
+          ['Cash back left', ccMoney(res.rewards ? res.rewards.available : 0)],
+          ['Confirmation', res.transactionId ? `#TXN-${res.transactionId}` : '—'],
+        ],
+      });
+      await loadCreditCardData();
+      if (typeof refreshUIBalances === 'function') refreshUIBalances();
+      if (typeof fetchTransactions === 'function') { try { fetchTransactions(); } catch (err) {} }
+    } catch (err) {
+      cardSheetUi.busy = false;
+      showError(err.message);
+      refresh();
+    }
+  }
+}
+
+/* ---------- Replace card ---------- */
+function openCardReplace() {
+  const data = creditCardState || {};
+  const ui = openCardSheet({ tag: 'Card ••' + (data.lastFour || ''), title: 'Replace your card', icon: 'fa-arrows-rotate', iconCls: 'bg-rose-50 text-rose-600' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  const showError = cardSheetError(body);
+  body.appendChild(cardEl('p', 'text-xs text-gray-600', 'What happened to your card?'));
+  const group = cardEl('div', 'space-y-2');
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Reason');
+  CARD_REPLACE_REASONS.forEach((r) => group.appendChild(cardOption({ value: r.reason, title: r.title, text: r.text, icon: r.icon })));
+  body.appendChild(group);
+  const detail = cardEl('p', 'text-[11px] text-gray-500 leading-snug');
+  body.appendChild(detail);
+
+  let reason = null;
+  const goBtn = cardPrimaryBtn('Choose a reason', () => submit());
+  goBtn.disabled = true;
+  const refresh = () => {
+    cardSelect(group, reason);
+    goBtn.disabled = !reason;
+    if (!reason) { goBtn.textContent = 'Choose a reason'; detail.textContent = ''; return; }
+    if (reason === 'damaged') {
+      goBtn.className = 'w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition text-xs disabled:opacity-50';
+      goBtn.textContent = 'Replace card';
+      detail.textContent = 'Your balance, activity and cash back stay the same.';
+    } else {
+      goBtn.className = 'w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-lg transition text-xs disabled:opacity-50';
+      goBtn.textContent = `Block ••${data.lastFour || ''} and replace`;
+      detail.textContent = `Your card ending ${data.lastFour || ''} will stop working straight away and you'll need to set a new PIN. Your balance, activity and cash back stay the same. If you think someone used it, dispute those charges from your card activity.`;
+    }
+  };
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('[role="radio"]');
+    if (!b) return;
+    reason = b.getAttribute('data-value');
+    refresh();
+  });
+  actions.appendChild(goBtn);
+
+  async function submit() {
+    if (!reason) return;
+    showError('');
+    cardSheetUi.busy = true;
+    goBtn.disabled = true;
+    goBtn.textContent = 'Replacing…';
+    try {
+      const res = await cardApi({ cardAction: 'replaceCard', reason });
+      cardSheetUi.busy = false;
+      const exp = res.expiryMonth && res.expiryYear ? `${String(res.expiryMonth).padStart(2, '0')}/${String(res.expiryYear).slice(-2)}` : '';
+      cardSuccess(body, actions, {
+        title: res.numberChanged ? 'Your new card is ready' : 'Replacement card issued',
+        lines: res.numberChanged
+          ? [['Old card', `••${data.lastFour || ''} (blocked)`], ['New card', `••${res.lastFour}`], ['Valid thru', exp], ['Next step', 'Set a PIN for your new card']]
+          : [['Card number', `••${res.lastFour} (unchanged)`], ['New expiry', exp], ['PIN', 'Unchanged']],
+        done: res.numberChanged ? 'Set my PIN' : 'Done',
+      });
+      if (res.numberChanged) cardSheetUi.onClose = () => { if (typeof openSetCardPinModal === 'function') openSetCardPinModal(); };
+      await loadCreditCardData();
+    } catch (err) {
+      cardSheetUi.busy = false;
+      showError(err.message);
+      refresh();
+    }
+  }
+}
+
+/* ---------- Transaction details ---------- */
+function openCardTxn(t) {
+  const data = creditCardState || {};
+  const isCharge = cardTxnIsCharge(t);
+  const amount = Math.abs(Number(t.amount)) || 0;
+  const label = CARD_TXN_LABELS[t.type] || 'Transaction';
+  const ui = openCardSheet({ tag: label, title: t.description || label, icon: isCharge ? 'fa-bag-shopping' : 'fa-arrow-down', iconCls: isCharge ? 'bg-slate-100 text-slate-700' : 'bg-emerald-50 text-emerald-700' });
+  if (!ui) return;
+  const { body, actions } = ui;
+  if (typeof txnCategoryIconEl === 'function') {
+    const iconBox = document.getElementById('cardSheetIcon');
+    const cat = txnCategoryIconEl(t, 'w-10 h-10');
+    iconBox.className = cat.className;
+    iconBox.replaceChildren(...cat.childNodes);
+  }
+
+  const hero = cardEl('div', 'text-center');
+  hero.append(cardEl('p', `text-3xl font-bold font-mono ${isCharge ? 'text-gray-900' : 'text-emerald-600'}`, `${isCharge ? '' : '+'}${ccMoney(amount)}`));
+  hero.appendChild(cardEl('p', 'text-[11px] text-gray-500 mt-1', new Date(t.created_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })));
+  body.appendChild(hero);
+
+  const box = cardEl('div', 'bg-gray-50 rounded-xl px-4');
+  box.appendChild(cardInfoRow('Status', 'Posted', 'text-emerald-700'));
+  box.appendChild(cardInfoRow('Type', label));
+  if (isCharge) {
+    const cat = typeof ahbSpendCategory === 'function' ? ahbSpendCategory(t) : null;
+    if (cat) box.appendChild(cardInfoRow('Category', cat.name));
+    box.appendChild(cardInfoRow('Card', `Apex card ••${data.lastFour || ''}`));
+    box.appendChild(cardInfoRow('Cash back earned', `${ccMoney(Math.round(amount * CARD_CASH_BACK_RATE * 100) / 100)} (1.5%)`, 'text-emerald-700'));
+  } else if (t.type === 'credit_refund') {
+    box.appendChild(cardInfoRow('Cash back taken back', ccMoney(Math.round(amount * CARD_CASH_BACK_RATE * 100) / 100)));
+  } else if (t.type === 'credit_payment') {
+    box.appendChild(cardInfoRow('From', /autopay/i.test(t.description || '') ? 'Primary Checking (autopay)' : 'Primary Checking'));
+  }
+  box.appendChild(cardInfoRow('Reference', `#TXN-${t.id}`));
+  body.appendChild(box);
+
+  if (isCharge) {
+    body.appendChild(cardEl('p', 'text-[11px] text-gray-500 leading-snug', "Don't recognize this, charged twice or the wrong amount? Dispute it and our team will look into it."));
+    actions.appendChild(cardSecondaryBtn('Dispute this charge', () => {
+      closeCardSheet();
+      if (typeof handleDisputeTransaction === 'function') handleDisputeTransaction(t);
+    }, 'w-full bg-white border border-red-200 hover:bg-red-50 text-red-600 font-bold py-2.5 rounded-lg transition text-xs'));
+  }
+  actions.appendChild(cardPrimaryBtn('Done', () => closeCardSheet()));
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const sheet = document.getElementById('cardSheet');
+  if (sheet && !sheet.classList.contains('hidden')) closeCardSheet();
+});
+
+/* ===================== Shared tiny modal shell (PIN, demo purchase) ===================== */
 function ccBuildModal(id, titleHtml, bodyHtml, submitLabel, onSubmit) {
   let existing = document.getElementById(id);
   if (existing) existing.remove();
@@ -10889,7 +11753,7 @@ function ccBuildModal(id, titleHtml, bodyHtml, submitLabel, onSubmit) {
   wrap.innerHTML = `
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <button data-cc-close class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
+        <button data-cc-close aria-label="Close" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
         <h3 class="text-sm font-bold text-gray-900">${titleHtml}</h3>
         <div class="w-6"></div>
       </div>
@@ -10931,9 +11795,9 @@ function openSetCardPinModal() {
     'ccPinModal',
     isChange ? 'Change PIN' : 'Set PIN',
     `
-      <p class="text-xs text-gray-500">Choose a 4-6 digit PIN. This never gets shown back to you or anyone else — that's by design.</p>
+      <p class="text-xs text-gray-500">Choose a 4-6 digit PIN. We never show it back to you or anyone else, by design.</p>
       <div>
-        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">New PIN</label>
+        <label for="ccPinInput" class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">New PIN</label>
         <input type="password" inputmode="numeric" maxlength="6" id="ccPinInput" placeholder="••••" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-center text-lg font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-emerald-500">
       </div>
     `,
@@ -10945,72 +11809,17 @@ function openSetCardPinModal() {
         return;
       }
       try {
-        const res = await fetch('/api/account-services', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ resource: 'credit-card', cardAction: 'setPin', pin }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          showError(data.error || 'Could not update PIN.');
-          return;
-        }
+        await cardApi({ cardAction: 'setPin', pin });
         modal.remove();
         await loadCreditCardData();
       } catch (err) {
-        showError('Network error. Please try again.');
+        showError(err.message || 'Could not update PIN.');
       }
     }
   );
 }
 
-/* ---------- Make a Payment (checking -> card, real transfer) ---------- */
-function makeCardPayment() {
-  const owed = creditCardState ? Number(creditCardState.balance) : 0;
-  ccBuildModal(
-    'ccPaymentModal',
-    'Make a Payment',
-    `
-      <p class="text-xs text-gray-500">Pays down your card balance from Primary Checking.</p>
-      <div class="bg-slate-50 rounded-lg px-3 py-2 text-xs text-gray-600 flex justify-between">
-        <span>Current card balance</span><span class="font-bold font-mono text-gray-900">${ccMoney(owed)}</span>
-      </div>
-      <div>
-        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Payment Amount</label>
-        <input type="number" step="0.01" min="0.01" id="ccPaymentAmount" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
-      </div>
-    `,
-    'Pay from Checking',
-    async (modal, showError) => {
-      const amount = Number(modal.querySelector('#ccPaymentAmount').value);
-      if (!Number.isFinite(amount) || amount <= 0) {
-        showError('Enter a valid payment amount.');
-        return;
-      }
-      try {
-        const res = await fetch('/api/account-services', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ resource: 'credit-card', cardAction: 'makePayment', amount }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          showError(data.error || 'Could not process payment.');
-          return;
-        }
-        modal.remove();
-        await loadCreditCardData();
-        if (typeof refreshUIBalances === 'function') refreshUIBalances();
-      } catch (err) {
-        showError('Network error. Please try again.');
-      }
-    }
-  );
-}
-
-/* ---------- Make a Purchase (real charge against the card) ---------- */
+/* ---------- Make a Purchase (demo: posts a real charge to this card) ---------- */
 function openSimulatePurchaseModal() {
   const available = creditCardState ? Number(creditCardState.availableCredit) : 0;
   const limit = creditCardState ? Number(creditCardState.velocityLimit) : 0;
@@ -11018,16 +11827,16 @@ function openSimulatePurchaseModal() {
     'ccPurchaseModal',
     'Make a Purchase',
     `
-      <p class="text-xs text-gray-500">Demo-only: Enter a merchant and amount to post a purchase to this card.</p>
+      <p class="text-xs text-gray-500">Demo only: enter a merchant and amount to post a purchase to this card. It earns 1.5% cash back.</p>
       <div class="bg-slate-50 rounded-lg px-3 py-2 text-xs text-gray-600 flex justify-between">
         <span>Available credit</span><span class="font-bold font-mono text-gray-900">${ccMoney(available)}</span>
       </div>
       <div>
-        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Merchant</label>
+        <label for="ccPurchaseMerchant" class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Merchant</label>
         <input type="text" id="ccPurchaseMerchant" placeholder="Merchant name" maxlength="60" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
       </div>
       <div>
-        <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Amount (limit ${ccMoney(limit)})</label>
+        <label for="ccPurchaseAmount" class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Amount (limit ${ccMoney(limit)})</label>
         <input type="number" step="0.01" min="0.01" id="ccPurchaseAmount" placeholder="0.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
       </div>
     `,
@@ -11040,21 +11849,11 @@ function openSimulatePurchaseModal() {
         return;
       }
       try {
-        const res = await fetch('/api/account-services', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ resource: 'credit-card', cardAction: 'charge', amount, merchant: merchant || undefined }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          showError(data.error || 'Could not process this charge.');
-          return;
-        }
+        await cardApi({ cardAction: 'charge', amount, merchant: merchant || undefined });
         modal.remove();
         await loadCreditCardData();
       } catch (err) {
-        showError('Network error. Please try again.');
+        showError(err.message || 'Could not process this charge.');
       }
     }
   );
@@ -11812,7 +12611,7 @@ function toggleBalanceVisibility() {
 
 // ----- Transaction direction + category icons (shared with the ledger) -----
 const TXN_OUT_TYPES = ['p2p_out', 'wire_out', 'transfer_out', 'debit', 'credit_purchase', 'admin_debit'];
-const TXN_IN_TYPES = ['p2p_in', 'transfer_in', 'ach_in', 'credit', 'loan_disbursement', 'interest', 'check_deposit', 'admin_credit', 'credit_payment'];
+const TXN_IN_TYPES = ['p2p_in', 'transfer_in', 'ach_in', 'credit', 'loan_disbursement', 'interest', 'check_deposit', 'admin_credit', 'credit_payment', 'credit_reward', 'credit_refund'];
 
 function txnIsOutgoing(t) {
     if (TXN_OUT_TYPES.includes(t.type)) return true;
@@ -11839,12 +12638,15 @@ const TXN_TYPE_ICONS = {
     transfer_in: { icon: 'fa-arrow-right-arrow-left', tone: 'gray' },
     transfer_out: { icon: 'fa-arrow-right-arrow-left', tone: 'gray' },
     credit_payment: { icon: 'fa-credit-card', tone: 'emerald' },
+    credit_reward: { icon: 'fa-gift', tone: 'emerald' },
+    credit_refund: { icon: 'fa-rotate-left', tone: 'emerald' },
     admin_credit: { icon: 'fa-building-columns', tone: 'emerald' },
     admin_debit: { icon: 'fa-building-columns', tone: 'gray' }
 };
 
 const TXN_KEYWORD_ICONS = [
     { words: ['payroll', 'salary', 'direct deposit', 'paycheck'], icon: 'fa-briefcase', tone: 'emerald' },
+    { words: ['cash back'], icon: 'fa-gift', tone: 'emerald' },
     { words: ['refund'], icon: 'fa-rotate-left', tone: 'emerald' },
     { words: ['grocer', 'whole foods', 'trader joe', 'kroger', 'safeway', 'costco', 'aldi', 'publix', 'supermarket'], icon: 'fa-cart-shopping', tone: 'emerald' },
     { words: ['coffee', 'starbucks', 'cafe', 'café', 'dunkin', 'blue bottle', 'peet'], icon: 'fa-mug-hot', tone: 'amber' },
@@ -11992,7 +12794,10 @@ function updateHomeTotals() {
         if (creditSub) {
             const parts = [];
             if (card.lastFour) parts.push('••' + card.lastFour);
+            const st = card.statement;
             if (card.isFrozen) parts.push('Frozen');
+            else if (st && st.status === 'past_due') parts.push('Payment past due');
+            else if (st && st.status === 'due' && st.remainingMinimum > 0 && typeof cardDay === 'function') parts.push(`${homeMoney(st.remainingMinimum)} due ${cardDay(st.dueDate)}`);
             else if (Number.isFinite(Number(card.availableCredit))) parts.push(`${homeMoney(card.availableCredit)} available`);
             creditSub.textContent = parts.join(' · ') || 'Balance owed';
         }
@@ -14368,7 +15173,8 @@ document.addEventListener('keydown', (e) => {
                 if (body.cardAction === 'makePayment') return { kind: 'cardPayment', amount };
                 if (body.cardAction === 'charge') return { kind: 'cardCharge', amount };
                 if (body.cardAction === 'setPin') return { kind: 'secure' };
-                if (body.cardAction === 'replaceCard' || body.cardAction === 'setVelocityLimit') return { kind: 'save' };
+                if (body.cardAction === 'redeemRewards') return { kind: 'internal', amount };
+                if (body.cardAction === 'replaceCard' || body.cardAction === 'setVelocityLimit' || body.cardAction === 'setAutopay') return { kind: 'save' };
                 return { kind: 'toggle' };
             case 'loans':
                 if (body.loanAction === 'apply') return { kind: 'loanApply', amount };
@@ -14769,8 +15575,16 @@ const HELP_ARTICLES = [
       action: { label: 'Freeze or unfreeze my card', run: 'freeze' } },
     { id: 'lost', icon: 'fa-triangle-exclamation', title: 'Report a lost or stolen card', keywords: 'lost stolen card replace new card missing',
       intro: "We'll switch off your current card and give you a new card number. Your balance and history stay the same.",
-      steps: ['In Help, tap "Card lost or stolen".', 'Confirm, and your old card stops working at once.', 'Set a PIN for the new card from the Cards tab.'],
-      action: { label: 'Report my card', run: 'lostCard' } },
+      steps: ['In Help, tap "Card lost or stolen", or open the Cards tab and tap Replace card.', 'Confirm, and your old card stops working at once.', 'Set a PIN for the new card from the Cards tab.'],
+      note: 'Card damaged instead? Choose Damaged under Replace card: you keep the same number and PIN and get a new expiry date.', action: { label: 'Report my card', run: 'lostCard' } },
+    { id: 'cardpay', icon: 'fa-money-check-dollar', title: 'Pay your card or set up autopay', keywords: 'card payment due date minimum statement balance autopay pay credit card bill late past due',
+      intro: 'Your card statement closes on the 25th, and payment is due on the 20th of the next month.',
+      steps: ['Open the Cards tab to see your statement balance, minimum payment and due date.', 'Tap Make a Payment and pick the minimum, the statement balance, your current balance or another amount.', 'To pay automatically, tap Autopay and choose what to pay each month.'],
+      note: "Autopay pays from checking on the due date. If checking doesn't have enough, nothing is paid and we'll let you know.", action: { label: 'Open Cards', view: 'credit' } },
+    { id: 'cashback', icon: 'fa-gift', title: 'Earn and redeem cash back', keywords: 'cash back cashback rewards points redeem earn statement credit',
+      intro: 'You earn 1.5% cash back on every purchase with your Apex card.',
+      steps: ["Open the Cards tab to see what you've earned.", 'Tap Redeem once you have at least $1.00.', 'Send it to checking, or use it as a statement credit on your card.'],
+      note: 'If a purchase is refunded, the cash back it earned comes back off.', action: { label: 'Open Cards', view: 'credit' } },
     { id: 'dispute', icon: 'fa-scale-balanced', title: "Dispute a charge you don't recognize", keywords: 'dispute fraud unauthorized charge refund wrong amount charged twice scam',
       intro: 'Tell us what went wrong and our team will look into it.',
       steps: ['In Help, tap "Dispute a charge" and pick the transaction, or', 'In Accounts, swipe the transaction left and tap Dispute.', "Choose what went wrong, add details and submit. We'll notify you of the outcome."],
@@ -15230,7 +16044,7 @@ function renderHelpArticle(body, params) {
     const more = hEl('div', 'bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2');
     more.appendChild(hEl('p', 'text-[12px] font-semibold text-gray-700', 'Still need help?'));
     const row = hEl('div', 'grid grid-cols-2 gap-2');
-    const guess = { freeze: 'card', lost: 'card', dispute: 'fraud', send: 'transfer', request: 'transfer', bills: 'transfer', wire: 'transfer', password: 'login', faceid: 'login', devices: 'login' }[a.id] || 'account';
+    const guess = { freeze: 'card', lost: 'card', cardpay: 'card', cashback: 'card', dispute: 'fraud', send: 'transfer', request: 'transfer', bills: 'transfer', wire: 'transfer', password: 'login', faceid: 'login', devices: 'login' }[a.id] || 'account';
     row.append(
         hButton('text-xs font-bold bg-white border border-gray-300 text-gray-800 py-2 rounded-lg', () => helpGo('chat', { ask: a.title }), hIcon('fa-robot', 'mr-1'), 'Ask assistant'),
         hButton('text-xs font-bold bg-white border border-gray-300 text-gray-800 py-2 rounded-lg', () => helpGo('compose', { category: guess, subject: a.title }), hIcon('fa-envelope', 'mr-1'), 'Message us'));

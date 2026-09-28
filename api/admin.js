@@ -915,17 +915,30 @@ module.exports = async function handler(req, res) {
         WHERE id = ${disputeId}
       `;
 
+      let refundedToCard = false;
       if (resolutionAmount) {
-        await sql`UPDATE accounts SET balance = balance + ${resolutionAmount} WHERE id = ${dispute.account_id}`;
-        await sql`
-          INSERT INTO transactions (account_id, type, amount, description, created_at)
-          VALUES (${dispute.account_id}, 'credit', ${resolutionAmount}, ${'Dispute Refund — Case #' + disputeId}, NOW())
-        `;
+        const acctRows = await sql`SELECT account_type FROM accounts WHERE id = ${dispute.account_id} LIMIT 1`;
+        refundedToCard = acctRows.length > 0 && acctRows[0].account_type === 'credit';
+        if (refundedToCard) {
+          // On the credit card the balance is what's owed, so a refund lowers
+          // it (and takes back the cash back the purchase earned).
+          await sql`UPDATE accounts SET balance = balance - ${resolutionAmount} WHERE id = ${dispute.account_id}`;
+          await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${dispute.account_id}, 'credit_refund', ${-resolutionAmount}, ${'Dispute Refund — Case #' + disputeId}, NOW())
+          `;
+        } else {
+          await sql`UPDATE accounts SET balance = balance + ${resolutionAmount} WHERE id = ${dispute.account_id}`;
+          await sql`
+            INSERT INTO transactions (account_id, type, amount, description, created_at)
+            VALUES (${dispute.account_id}, 'credit', ${resolutionAmount}, ${'Dispute Refund — Case #' + disputeId}, NOW())
+          `;
+        }
       }
 
       try {
         const notifMessage = resolutionAmount
-          ? `Your dispute has been resolved in your favor. $${resolutionAmount.toFixed(2)} has been credited to your account.${resolution ? ' ' + resolution : ''}`
+          ? `Your dispute has been resolved in your favor. $${resolutionAmount.toFixed(2)} has been credited to your ${refundedToCard ? 'card' : 'account'}.${resolution ? ' ' + resolution : ''}`
           : (resolution ? `Your dispute has been resolved: ${resolution}` : 'Your dispute has been resolved.');
         await sql`
           INSERT INTO notifications (user_id, title, message, is_read, created_at)

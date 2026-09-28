@@ -11,6 +11,7 @@ const goals = require('../lib/goals');
 const budgets = require('../lib/budgets');
 const support = require('../lib/support');
 const settings = require('../lib/settings');
+const cards = require('../lib/cards');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -406,7 +407,18 @@ module.exports = async function handler(req, res) {
         console.error('Budget check error:', budgetErr);
       }
 
-      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups, budgets: budgetCheck });
+      // Card statements: statement-ready notices, due-date reminders, autopay
+      // and past-due notices (each sent once per statement).
+      let cardCycle = { usersChecked: 0, autopayments: 0, notices: 0, failed: 0 };
+      try {
+        const run = await cards.runAllCardCycles(sql);
+        for (const n of run.notifications) await createNotification(n.userId, n.title, n.message);
+        cardCycle = { usersChecked: run.usersChecked, autopayments: run.autopayments, notices: run.notifications.length, failed: run.failed };
+      } catch (cardErr) {
+        console.error('Card cycle error:', cardErr);
+      }
+
+      return res.status(200).json({ success: true, processed, failed, skipped, interest, roundups, budgets: budgetCheck, cards: cardCycle });
     } catch (err) {
       console.error('Process recurring transfers error:', err);
       return res.status(500).json({ error: 'Failed to process recurring transfers.' });
@@ -1110,6 +1122,26 @@ module.exports = async function handler(req, res) {
       try {
         const { account, details } = await getOrCreateCardAccount(session.userId);
 
+        // Statement notices / autopay that are due run here too, so they
+        // happen even if the daily cron is late. Never blocks the screen.
+        let extras = {};
+        try {
+          await cards.ensureCardsSchema(sql);
+          try {
+            const run = await cards.runCardCycleForUser(sql, { userId: session.userId, account });
+            for (const n of run.notifications) await createNotification(n.userId, n.title, n.message);
+            if (run.autopaid) {
+              const fresh = await sql`SELECT balance FROM accounts WHERE id = ${account.id}`;
+              if (fresh.length) account.balance = fresh[0].balance;
+            }
+          } catch (cycleErr) {
+            console.error('Card cycle (non-fatal):', cycleErr);
+          }
+          extras = await cards.getCardOverview(sql, { userId: session.userId, account, details });
+        } catch (overviewErr) {
+          console.error('Card overview (non-fatal):', overviewErr);
+        }
+
         const balanceOwed = Number(account.balance);
         const creditLimit = Number(details.credit_limit);
 
@@ -1135,6 +1167,7 @@ module.exports = async function handler(req, res) {
           internationalEnabled: details.international_enabled !== false,
           transactions,
           accountRestricted: account.restriction_level === 'full',
+          ...extras,
         });
       } catch (err) {
         console.error('Get credit card error:', err);
@@ -1236,25 +1269,66 @@ module.exports = async function handler(req, res) {
         }
 
         if (cardAction === 'replaceCard') {
-          const newLastFour = String(Math.floor(1000 + Math.random() * 9000));
-          await sql`
-            UPDATE credit_card_details
-            SET last_four = ${newLastFour},
-                is_frozen = FALSE,
-                pin_hash = NULL
-            WHERE account_id = ${account.id}
-          `;
-
-          await createNotification(
-            session.userId,
-            'New Card Issued',
-            `Your previous card ending in ${details.last_four || '****'} was reported lost/stolen. A new card ending in ${newLastFour} has been issued. Set a new PIN when it arrives.`
-          );
-
+          // lost / stolen: new number (the old one stops working); damaged:
+          // same number, new expiry. No reason (Help's quick fix) = lost.
+          const replaced = await cards.replaceCard(sql, { accountId: account.id, details, reason: (req.body || {}).reason });
+          await createNotification(session.userId, replaced.notification.title, replaced.notification.message);
           return res.status(200).json({
             success: true,
-            lastFour: newLastFour,
-            message: 'A replacement card has been issued. Your old card is now inactive.',
+            lastFour: replaced.lastFour,
+            numberChanged: replaced.numberChanged,
+            reason: replaced.reason,
+            expiryMonth: replaced.expiryMonth,
+            expiryYear: replaced.expiryYear,
+            message: replaced.message,
+          });
+        }
+
+        if (cardAction === 'setAutopay') {
+          const mode = String((req.body || {}).mode || '');
+          if (account.restriction_level === 'full' && mode !== 'off') {
+            return restrictedResponse(res);
+          }
+          await cards.ensureCardsSchema(sql);
+          const previous = await cards.getAutopayMode(sql, session.userId);
+          const saved = await cards.setAutopay(sql, session.userId, mode);
+          const overview = await cards.getCardOverview(sql, { userId: session.userId, account, details });
+          if (saved !== previous) {
+            const next = overview.autopay.nextRunDate
+              ? new Date(overview.autopay.nextRunDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+              : null;
+            await createNotification(
+              session.userId,
+              saved === 'off' ? 'Autopay turned off' : 'Autopay turned on',
+              saved === 'off'
+                ? 'Autopay is off. Pay at least the minimum by each due date to stay on track.'
+                : `Autopay will pay your ${overview.autopay.label} from checking on each due date.${next ? ' Next payment: ' + next + '.' : ''}`
+            );
+          }
+          return res.status(200).json({ success: true, autopay: overview.autopay, statement: overview.statement });
+        }
+
+        if (cardAction === 'redeemRewards') {
+          if (account.restriction_level === 'full') {
+            return restrictedResponse(res);
+          }
+          await cards.ensureCardsSchema(sql);
+          const body = req.body || {};
+          const redeemed = await cards.redeemRewards(sql, {
+            userId: session.userId,
+            cardAccountId: account.id,
+            amount: body.amount,
+            destination: body.destination,
+          });
+          await createNotification(session.userId, redeemed.notification.title, redeemed.notification.message);
+          const overview = await cards.getCardOverview(sql, { userId: session.userId, account, details });
+          return res.status(200).json({
+            success: true,
+            amount: redeemed.amount,
+            destination: redeemed.destination,
+            transactionId: redeemed.transactionId,
+            rewards: overview.rewards,
+            statement: overview.statement,
           });
         }
 
@@ -1429,6 +1503,7 @@ module.exports = async function handler(req, res) {
 
         return res.status(400).json({ error: 'Invalid cardAction.' });
       } catch (err) {
+        if (err instanceof cards.CardError) return res.status(err.status).json({ error: err.message });
         console.error('Credit card action error:', err);
         return res.status(500).json({ error: 'Failed to process card action.' });
       }
@@ -2543,11 +2618,21 @@ module.exports = async function handler(req, res) {
               atm: cardRows[0].atm_enabled !== false,
               international: cardRows[0].international_enabled !== false,
             };
+            try {
+              const detailRows = await sql`SELECT * FROM credit_card_details WHERE account_id = ${creditAcct.id} LIMIT 1`;
+              const ov = await cards.getCardOverview(sql, { userId: session.userId, account: creditAcct, details: detailRows[0] });
+              cardInfo.statement = ov.statement;
+              cardInfo.autopay = ov.autopay;
+              cardInfo.rewards = ov.rewards;
+            } catch (ovErr) {
+              console.error('Assistant card overview (non-fatal):', ovErr);
+            }
           }
         }
       } catch (e) {
         console.error('Assistant card lookup (non-fatal):', e);
       }
+      const cardDay = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
       const recentTxns = await sql`
         SELECT t.type, t.amount, t.description, t.created_at, a.account_type
@@ -2589,6 +2674,14 @@ module.exports = async function handler(req, res) {
             `- Available credit: ${money(Math.max(0, cardInfo.creditLimit - cardInfo.balance))}`,
             `- Single-purchase limit: ${money(cardInfo.velocityLimit)}`,
             `- Online: ${cardInfo.online ? 'on' : 'off'}, ATM: ${cardInfo.atm ? 'on' : 'off'}, International: ${cardInfo.international ? 'on' : 'off'}`,
+            ...(cardInfo.statement ? [
+              cardInfo.statement.status === 'none'
+                ? `- Latest statement (${cardDay(cardInfo.statement.statementDate)}): nothing due`
+                : `- Latest statement (${cardDay(cardInfo.statement.statementDate)}): ${money(cardInfo.statement.statementBalance)}, minimum ${money(cardInfo.statement.minimumDue)}, due ${cardDay(cardInfo.statement.dueDate)}; still to pay ${money(cardInfo.statement.remainingStatement)} (minimum left ${money(cardInfo.statement.remainingMinimum)}); status ${cardInfo.statement.status}`,
+              `- Next statement closes ${cardDay(cardInfo.statement.nextStatementDate)}`,
+            ] : []),
+            ...(cardInfo.autopay ? [`- Autopay: ${cardInfo.autopay.mode === 'off' ? 'off' : cardInfo.autopay.label + (cardInfo.autopay.nextRunDate ? ', next ' + cardDay(cardInfo.autopay.nextRunDate) : '')}`] : []),
+            ...(cardInfo.rewards ? [`- Cash back (1.5% on card purchases): ${money(cardInfo.rewards.available)} available to redeem, ${money(cardInfo.rewards.earned)} earned in total`] : []),
           ].join('\n')
         : '(no credit card on file)';
 
@@ -2600,6 +2693,16 @@ module.exports = async function handler(req, res) {
         const text = q.toLowerCase();
         if (/\b(hi|hello|hey|good morning|good afternoon)\b/.test(text)) {
           return `Hi ${customerName}. I'm Apex, your virtual banking assistant. I can help with balances, recent activity, your card, transfers, and how to use features in the app. What would you like to know?`;
+        }
+        if (cardInfo && /cash ?back|reward/.test(text) && cardInfo.rewards) {
+          return `You have ${money(cardInfo.rewards.available)} in cash back ready to redeem (1.5% on every card purchase). Redeem it from the Cards tab, either to checking or as a statement credit.`;
+        }
+        if (cardInfo && cardInfo.statement && /autopay|minimum payment|statement balance|card payment|pay (?:my|the) card|(?:card|payment)\b.*\bdue\b|\bdue\b.*\b(?:card|payment)/.test(text)) {
+          const st = cardInfo.statement;
+          const ap = cardInfo.autopay && cardInfo.autopay.mode !== 'off' ? ` Autopay is on (${cardInfo.autopay.label}).` : ' Autopay is off; you can turn it on in the Cards tab.';
+          if (st.status === 'none') return `Nothing is due on your card right now. Your next statement closes ${cardDay(st.nextStatementDate)}.${ap}`;
+          if (st.status === 'paid') return `Your ${cardDay(st.statementDate)} statement is paid in full. Your next statement closes ${cardDay(st.nextStatementDate)}.${ap}`;
+          return `Your statement balance is ${money(st.remainingStatement)} and the minimum payment ${st.remainingMinimum > 0 ? 'of ' + money(st.remainingMinimum) + ' is' : 'is already paid; the rest is'} due ${cardDay(st.dueDate)}.${st.status === 'past_due' ? ' That payment is past due, so pay as soon as you can.' : ''} Pay from the Cards tab with Make a Payment.${ap}`;
         }
         if (/balance|how much.*(have|left|in)|what.*(?:checking|savings)/.test(text)) {
           const parts = [];
@@ -2690,7 +2793,7 @@ App navigation cheatsheet (bottom tabs: Home, Accounts, Pay, Cards, More):
 - Home: balances, savings goals, budgets, recent activity, Request money
 - Accounts: full transaction list with search, filters and spreadsheet download
 - Pay: To an Apex User (instant), Bill Pay, International / Bank Wire
-- Cards: Freeze Card, single transaction limit, online/ATM/international locks, view CVV/PIN
+- Cards: statement balance and due date, Make a Payment (minimum / statement / current / other), Autopay, cash back (redeem to checking or as a statement credit), spending this statement, Freeze Card, Set/Change PIN, Replace card (lost, stolen or damaged), single transaction limit, online/ATM/international locks, tap a purchase to see details or dispute it
 - More: Deposit check, Direct deposit, Scheduled transfers, Savings, Goals, Budgets, Loans, Statements, Insights, Currency, Offers, Branches, Profile, Settings, Help
 - More > Settings: Notifications, Appearance, Language, Face ID, Login History, Change Password, Linked Devices, Passcode, Transaction Confirmation
 - Help: search how-to articles, quick fixes (freeze card, dispute a charge, report a lost card), Message support, Request a call back`;
