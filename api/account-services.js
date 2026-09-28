@@ -2451,6 +2451,17 @@ module.exports = push.withPush(async function handler(req, res) {
         return res.status(201).json({ success: true, externalAccount: result.account, message: result.notification.message, ...(await linked.listLinked(sql, session.userId)) });
       }
 
+      if (extAction === 'verify') {
+        const result = await linked.verifyLinked(sql, session.userId, body);
+        if (result.notification) await createNotification(session.userId, result.notification.title, result.notification.message);
+        return res.status(200).json({ success: true, verified: !!result.verified || !!result.alreadyVerified, externalAccount: result.account, message: result.message, ...(await linked.listLinked(sql, session.userId)) });
+      }
+
+      if (extAction === 'resendCode') {
+        const result = await linked.resendCode(sql, session.userId, body);
+        return res.status(200).json({ success: true, externalAccount: result.account, message: result.message, ...(await linked.listLinked(sql, session.userId)) });
+      }
+
       if (extAction === 'unlink') {
         const result = await linked.unlinkAccount(sql, session.userId, body.externalAccountId);
         return res.status(200).json({ success: true, message: result.message, ...(await linked.listLinked(sql, session.userId)) });
@@ -2478,10 +2489,16 @@ module.exports = push.withPush(async function handler(req, res) {
         });
       }
 
-      return res.status(400).json({ error: 'Invalid extAction. Use "link", "unlink", "transferIn", or "transferOut".' });
+      return res.status(400).json({ error: 'Invalid extAction. Use "link", "verify", "resendCode", "unlink", "transferIn", or "transferOut".' });
     } catch (err) {
       if (err instanceof linked.LinkError) {
-        return res.status(err.status).json({ error: err.message, ...(err.accountRestricted ? { accountRestricted: true } : {}) });
+        const extra = {};
+        if (err.accountRestricted) extra.accountRestricted = true;
+        if (err.requirements) extra.requirements = err.requirements;
+        if (err.verificationRequired) extra.verificationRequired = true;
+        if (err.linkStatus) extra.linkStatus = err.linkStatus;
+        if (typeof err.attemptsLeft === 'number') extra.attemptsLeft = err.attemptsLeft;
+        return res.status(err.status).json({ error: err.message, ...extra });
       }
       console.error('Linked accounts error:', err);
       return res.status(500).json({ error: 'Something went wrong with linked accounts. Please try again.' });

@@ -3,6 +3,7 @@ const { getQuery } = require('../lib/query');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const { withPush } = require('../lib/push');
+const linked = require('../lib/linkedAccounts');
 const { creditSavingsInterest } = require('../lib/interest');
 const goals = require('../lib/goals');
 const support = require('../lib/support');
@@ -434,6 +435,27 @@ module.exports = withPush(async function handler(req, res) {
         ORDER BY k.created_at ASC
       `;
       return res.status(200).json({ kycRequests });
+    }
+
+    // ---------- Linked accounts waiting for verification ----------
+    if (action === 'listLinkedReview') {
+      return res.status(200).json({ links: await linked.adminList(sql) });
+    }
+    if (action === 'verifyLinked' || action === 'rejectLinked') {
+      try {
+        const approve = action === 'verifyLinked';
+        const result = await linked.adminDecide(sql, (req.body || {}).externalAccountId, { approve, reason: (req.body || {}).reason });
+        try {
+          await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at) VALUES (${result.userId}, ${result.notification.title}, ${result.notification.message}, FALSE, NOW())`;
+        } catch (notifyErr) { console.error('Linked review notification error (non-fatal):', notifyErr); }
+        try {
+          await sql`INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at) VALUES (${action}, NULL, NULL, ${`Link #${result.account.id} (${result.account.name} ${result.account.display}) ${approve ? 'verified' : 'rejected'}`}, NOW())`;
+        } catch (auditErr) { console.error('Audit log error (non-fatal):', auditErr); }
+        return res.status(200).json({ success: true, message: `${result.account.name} ${result.account.display} ${approve ? 'verified' : 'rejected'}.` });
+      } catch (err) {
+        if (err instanceof linked.LinkError) return res.status(err.status).json({ error: err.message });
+        throw err;
+      }
     }
 
     // ---------- listPendingChecks (mobile check deposit review queue) ----------

@@ -168,6 +168,29 @@
     <p id="pendingKycEmpty" class="text-slate-400 text-sm py-4 hidden">No pending verification requests.</p>
   </div>
 
+  <!-- Linked accounts waiting for verification -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-link text-sky-600 mr-1"></i>Linked Accounts Awaiting Verification</h2>
+      <button onclick="loadLinkedReview()" class="text-sm text-indigo-600 hover:text-indigo-700"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+    </div>
+    <p class="text-xs text-slate-500 mb-3">Customers can't finish these on their own: the code or deposits come from the other service. Verify only after checking the account really belongs to the customer.</p>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2 pr-2">Customer</th>
+          <th class="py-2 pr-2">Account</th>
+          <th class="py-2 pr-2">Name on account</th>
+          <th class="py-2 pr-2">Status</th>
+          <th class="py-2 pr-2">Linked</th>
+          <th class="py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="linkedReviewBody"></tbody>
+    </table>
+    <p id="linkedReviewEmpty" class="text-slate-400 text-sm py-4 hidden">No linked accounts waiting for verification.</p>
+  </div>
+
   <!-- Mobile check deposits -->
   <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
     <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
@@ -413,6 +436,7 @@ async function unlock() {
     loadPendingLoans();
     loadPendingAccounts();
     loadPendingKyc();
+    loadLinkedReview();
     loadPendingChecks();
     loadDisputes();
     loadSupportTickets();
@@ -761,6 +785,56 @@ async function rejectKycAdmin(kycId) {
     const data = await api('rejectKyc', { method: 'POST', body: { kycId, reason } });
     showToast(data.message, false);
     loadPendingKyc();
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+// ===== Linked accounts awaiting verification =====
+async function loadLinkedReview() {
+  try {
+    const links = (await api('listLinkedReview')).links || [];
+    const body = document.getElementById('linkedReviewBody');
+    const empty = document.getElementById('linkedReviewEmpty');
+    body.innerHTML = '';
+    empty.classList.toggle('hidden', links.length > 0);
+    const statusLabel = { pending_verification: 'Waiting for customer', failed: 'Locked: 3 wrong tries', expired: 'Timed out' };
+    links.forEach((l) => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b last:border-0 align-top';
+      const extra = [l.contact ? `Contact: ${escAdmin(l.contact)}` : '', l.routingNumber ? `Routing ${escAdmin(l.routingNumber)}` : ''].filter(Boolean).join('<br>');
+      tr.innerHTML = `
+        <td class="py-2 pr-2">${escAdmin(l.userFullName || '—')}<br><span class="text-slate-400 text-xs">${escAdmin(l.userEmail)}</span></td>
+        <td class="py-2 pr-2">${escAdmin(l.name)}<br><span class="text-slate-500 text-xs font-mono">${escAdmin(l.display)}</span>${extra ? `<br><span class="text-slate-400 text-xs">${extra}</span>` : ''}</td>
+        <td class="py-2 pr-2">${escAdmin(l.holderName)}<br><span class="text-xs ${l.nameMatches ? 'text-emerald-600' : 'text-red-600'}">${l.nameMatches ? 'Matches profile' : 'Does not match profile'}</span></td>
+        <td class="py-2 pr-2">${escAdmin(statusLabel[l.status] || l.status)}<br><span class="text-slate-400 text-xs">${l.attempts} wrong ${l.attempts === 1 ? 'try' : 'tries'}</span></td>
+        <td class="py-2 pr-2">${when(l.createdAt)}</td>
+        <td class="py-2">
+          <div class="flex gap-1">
+            <button onclick="decideLinked(${Number(l.id)}, true)" class="bg-emerald-600 text-white rounded px-3 py-1 text-xs hover:bg-emerald-700">Verify</button>
+            <button onclick="decideLinked(${Number(l.id)}, false)" class="bg-red-600 text-white rounded px-3 py-1 text-xs hover:bg-red-700">Reject</button>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function decideLinked(id, approve) {
+  let reason = '';
+  if (approve) {
+    if (!confirm('Verify this linked account? The customer will be able to move money to and from it straight away.')) return;
+  } else {
+    reason = prompt('Reason for rejecting (shown to the customer):', '') || '';
+    if (!confirm('Reject this linked account?')) return;
+  }
+  try {
+    const data = await api(approve ? 'verifyLinked' : 'rejectLinked', { method: 'POST', body: { externalAccountId: id, reason } });
+    showToast(data.message, false);
+    loadLinkedReview();
   } catch (e) {
     showToast(e.message, true);
   }
