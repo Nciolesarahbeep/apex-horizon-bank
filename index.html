@@ -3163,7 +3163,7 @@ async function submitCreateRecurringTransfer(event) {
                             <button type="button" onclick="triggerViewSwitch('settings-appearance')" class="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-gray-50 transition text-left">
                                 <div class="flex items-center space-x-3 min-w-0">
                                     <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 shrink-0"><i class="fa-solid fa-circle-half-stroke"></i></div>
-                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900" data-i18n="settings.appearance">Appearance</span><span class="block text-[10px] text-gray-500">Theme, realistic loading, reduce motion</span></span>
+                                    <span class="min-w-0"><span class="block text-sm font-medium text-gray-900" data-i18n="settings.appearance">Appearance</span><span class="block text-[10px] text-gray-500">Theme and reduce motion</span></span>
                                 </div>
                                 <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
                             </button>
@@ -3286,13 +3286,6 @@ async function submitCreateRecurringTransfer(event) {
                             </div>
                             <i class="fa-solid fa-circle-check text-emerald-500 appearanceCheck hidden"></i>
                         </button>
-                    </div>
-                    <div class="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                            <p id="realisticTimingLabel" class="text-sm font-semibold text-gray-900">Realistic loading</p>
-                            <p class="text-[11px] text-gray-500">Screens and payments take a moment, like a real banking app. Turn off to make everything instant.</p>
-                        </div>
-                        <button type="button" id="realisticTimingSwitch" role="switch" aria-checked="true" aria-labelledby="realisticTimingLabel" onclick="toggleRealisticTiming()" class="ahb-switch shrink-0"><span></span></button>
                     </div>
                     <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-2.5">
                         <div>
@@ -13585,7 +13578,8 @@ document.addEventListener('keydown', (e) => {
 //   and how much money or data it moves, with status steps on the loading screens.
 // - Motion: press depth, sheet slide time and balance count-ups scale with size
 //   or distance, the way physical things do.
-// Settings > Appearance > "Realistic loading" turns the waits off.
+// The timing is always on. (Automated tests switch it off with the
+// localStorage key ahbDisableTiming = '1'; there's no setting for it in the app.)
 (function () {
     // Reduce motion follows Settings > Appearance (classes on <html>), or the device when set to "Match device".
     const systemReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -13595,9 +13589,11 @@ document.addEventListener('keydown', (e) => {
         if (root.classList.contains('ahb-allow-motion')) return false;
         return !!(systemReduce && systemReduce.matches);
     }
-    const STORE_KEY = 'ahbRealisticTiming';
     let enabled = true;
-    try { enabled = localStorage.getItem(STORE_KEY) !== 'off'; } catch (e) {}
+    try {
+        enabled = localStorage.getItem('ahbDisableTiming') !== '1';
+        localStorage.removeItem('ahbRealisticTiming'); // the old on/off setting, now removed
+    } catch (e) {}
 
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -14127,18 +14123,6 @@ document.addEventListener('keydown', (e) => {
         return Math.round(clamp(350 + 110 * Math.log10(1 + change), 350, 1100));
     }
 
-    // ----- Settings > Appearance > Realistic loading -----
-    function syncSwitch() {
-        const sw = document.getElementById('realisticTimingSwitch');
-        if (sw) sw.setAttribute('aria-checked', enabled ? 'true' : 'false');
-    }
-    window.toggleRealisticTiming = function () {
-        enabled = !enabled;
-        try { localStorage.setItem(STORE_KEY, enabled ? 'on' : 'off'); } catch (e) {}
-        syncSwitch();
-    };
-    syncSwitch();
-
     // Signing out drops any screen change still loading.
     const previousShowLogin = window.showLoginScreen;
     if (typeof previousShowLogin === 'function') {
@@ -14241,11 +14225,7 @@ const HELP_ARTICLES = [
     { id: 'loans', icon: 'fa-hand-holding-dollar', title: 'Apply for a personal loan', keywords: 'loan borrow apply personal loan payment',
       intro: 'See your rate and apply in a few minutes.',
       steps: ['Tap More, then Loans.', 'Use the calculator to pick an amount and term.', 'Apply. You can make payments from the same screen.'],
-      action: { label: 'Open Loans', view: 'loans' } },
-    { id: 'speed', icon: 'fa-gauge-high', title: 'Make the app feel faster', keywords: 'slow loading fast speed delay realistic waiting',
-      intro: 'Screens and payments take a realistic moment by default, like a real banking app.',
-      steps: ['Tap More, then Settings, then Appearance.', 'Turn off Realistic loading.'],
-      action: { label: 'Open Appearance', view: 'settings-appearance' } }
+      action: { label: 'Open Loans', view: 'loans' } }
 ];
 const HELP_POPULAR = ['freeze', 'dispute', 'send', 'direct', 'find', 'password'];
 const HELP_CATEGORIES = [
