@@ -1042,9 +1042,8 @@ async function submitCreateRecurringTransfer(event) {
 
                 <section id="ahbLoginOffers" class="bg-slate-900 border-b border-slate-800 px-4 pt-3 pb-2" role="region" aria-roledescription="carousel" aria-label="Offers from Apex Horizon">
                     <div id="ahbOfferSlides"></div>
-                    <div class="flex items-center justify-center gap-2 mt-1.5">
+                    <div class="flex items-center justify-center mt-1.5">
                         <div id="ahbOfferDots" class="flex items-center gap-1"></div>
-                        <button type="button" id="ahbOfferPause" onclick="toggleOfferRotation()" aria-label="Pause offers" class="w-6 h-6 rounded-full text-slate-400 hover:text-white flex items-center justify-center"><i class="fa-solid fa-pause text-[8px]" aria-hidden="true"></i></button>
                     </div>
                 </section>
 
@@ -11120,7 +11119,7 @@ function openSimulatePurchaseModal() {
 // Rates must match lib/rates.js (a test checks AHB_PUBLIC_RATES against it).
 const AHB_PUBLIC_RATES = { savingsApy: 0.045 };
 
-const loginUi = { offer: 0, timer: null, paused: false, userPaused: false, intent: null, pendingRemember: null, lockTimer: null, lockUntil: 0, located: null, locFilter: 'all', touchX: null };
+const loginUi = { offer: 0, timer: null, paused: false, intent: null, pendingRemember: null, lockTimer: null, lockUntil: 0, located: null, locFilter: 'all', touchX: null };
 const REMEMBER_KEY = 'ahbRememberedUser';
 
 function loginEl(tag, className, text) {
@@ -11243,22 +11242,13 @@ function offerRotationAllowed() {
     const auth = document.getElementById('authScreen');
     const reduce = document.documentElement.classList.contains('ahb-reduce-motion')
         || (!document.documentElement.classList.contains('ahb-allow-motion') && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    return !loginUi.userPaused && !loginUi.paused && !reduce && !document.hidden && auth && !auth.classList.contains('hidden') && !loginInfoOpen();
+    return !loginUi.paused && !reduce && !document.hidden && auth && !auth.classList.contains('hidden') && !loginInfoOpen();
 }
 
 function restartOfferTimer() {
     if (loginUi.timer) clearInterval(loginUi.timer);
     // Each offer shows for 6 seconds; rotation stops while you interact or read one.
     loginUi.timer = setInterval(() => { if (offerRotationAllowed()) showOffer(loginUi.offer + 1); }, 6000);
-}
-
-function toggleOfferRotation() {
-    loginUi.userPaused = !loginUi.userPaused;
-    const b = document.getElementById('ahbOfferPause');
-    if (b) {
-        b.setAttribute('aria-label', loginUi.userPaused ? 'Play offers' : 'Pause offers');
-        b.replaceChildren(loginIcon(loginUi.userPaused ? 'fa-play' : 'fa-pause', 'text-[8px]'));
-    }
 }
 
 function openLoginOffer(id) {
