@@ -695,10 +695,19 @@ async function loadPendingAccounts() {
     empty.classList.toggle('hidden', accounts.length > 0);
     accounts.forEach(a => {
       const tr = document.createElement('tr');
-      tr.className = 'border-b last:border-0';
+      tr.className = 'border-b last:border-0 align-top';
+      const facts = [
+        a.age != null ? `Age ${a.age}` : null,
+        a.phoneLast4 ? `Mobile ••${escAdmin(a.phoneLast4)}` : null,
+        a.address ? escAdmin(a.address) + (a.yearsAtAddress ? ` (${escAdmin(a.yearsAtAddress)})` : '') : null,
+        a.idSummary ? escAdmin(a.idSummary) : null,
+        a.employment ? `${escAdmin(a.employment)}${a.occupation ? ' · ' + escAdmin(a.occupation) : ''}${a.income ? ' · ' + escAdmin(a.income) : ''}` : null,
+        a.sourceOfFunds ? `Money from: ${escAdmin(a.sourceOfFunds)}${a.monthlyDeposits ? ' · deposits ' + escAdmin(a.monthlyDeposits) + '/mo' : ''}` : null,
+        a.purposes && a.purposes.length ? `For: ${a.purposes.map(escAdmin).join(', ')}` : null,
+      ].filter(Boolean).map((t) => `<div>${t}</div>`).join('');
       tr.innerHTML = `
-        <td class="py-2 pr-2">${a.full_name || '—'}</td>
-        <td class="py-2 pr-2">${a.email}</td>
+        <td class="py-2 pr-2">${escAdmin(a.full_name || '—')}${a.reference ? `<br><span class="text-slate-400 text-xs font-mono">${escAdmin(a.reference)}</span>` : ''}${a.pep ? '<br><span class="text-xs font-semibold text-amber-700">Holds or held public office</span>' : ''}<div class="text-xs text-slate-500 mt-1 space-y-0.5">${facts}</div></td>
+        <td class="py-2 pr-2">${escAdmin(a.email)}<br><span class="text-xs ${a.emailVerified ? 'text-emerald-600' : 'text-amber-600'}">${a.emailVerified ? 'Email confirmed' : 'Email not confirmed'}</span></td>
         <td class="py-2 pr-2">${when(a.created_at)}</td>
         <td class="py-2">
           <div class="flex gap-1">

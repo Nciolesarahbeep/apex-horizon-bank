@@ -1165,10 +1165,6 @@ async function submitCreateRecurringTransfer(event) {
                     </div>
                     <h2 class="text-lg font-bold text-white tracking-tight relative z-10">APEX HORIZON BANK</h2>
                     <p class="text-[10px] text-emerald-400 font-mono uppercase tracking-widest mt-0.5 relative z-10">Encrypted Mobile Access</p>
-                    <div class="flex items-center justify-center gap-3 mt-2 relative z-10">
-                        <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500" aria-hidden="true"></i>256-bit TLS</span>
-                        <span class="text-[8px] text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-fingerprint text-emerald-500" aria-hidden="true"></i>Biometric login</span>
-                    </div>
                 </div>
 
                 <section id="ahbLoginOffers" class="bg-slate-900 border-b border-slate-800 px-4 pt-3 pb-2" role="region" aria-roledescription="carousel" aria-label="Offers from Apex Horizon">
@@ -1188,6 +1184,7 @@ async function submitCreateRecurringTransfer(event) {
                             <i class="fa-solid fa-wifi" aria-hidden="true"></i><span>You're offline. Connect to the internet to sign in.</span>
                         </div>
                         <div id="loginErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2" role="alert"></div>
+                        <p id="loginFormNotice" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium rounded-lg px-3 py-2" role="status"></p>
                         <div id="loginRememberedUser" class="hidden items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
                             <span id="loginRememberedAvatar" class="w-10 h-10 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shrink-0" aria-hidden="true"></span>
                             <div class="flex-1 min-w-0">
@@ -1231,169 +1228,7 @@ async function submitCreateRecurringTransfer(event) {
                 </div>
 
                 <div id="signupFormWrapper" class="hidden">
-                    <div class="px-5 pt-4 flex items-center space-x-1.5">
-                        <div id="signupStepDot1" class="h-1 flex-1 rounded-full bg-emerald-500"></div>
-                        <div id="signupStepDot2" class="h-1 flex-1 rounded-full bg-gray-200"></div>
-                        <div id="signupStepDot3" class="h-1 flex-1 rounded-full bg-gray-200"></div>
-                        <div id="signupStepDot4" class="h-1 flex-1 rounded-full bg-gray-200"></div>
-                    </div>
-
-                    <div id="signupStep1" class="p-5 space-y-4">
-                        <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Let's get started</h3>
-                            <p class="text-[11px] text-gray-500 mt-1">Tell us a bit about yourself.</p>
-                        </div>
-                        <div id="signupStep1ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Full Legal Name</label>
-                            <input type="text" id="signupFullNameInput" autocomplete="name" placeholder="Jane Doe" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Date of Birth</label>
-                            <input type="date" id="signupDobInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Phone Number</label>
-                            <input type="tel" id="signupPhoneInput" autocomplete="tel" placeholder="(555) 123-4567" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <button type="button" onclick="handleSignupNext(1)" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs mt-2">
-                            <span>Continue</span>
-                        </button>
-                        <p class="text-center text-[11px] text-gray-500 pt-1">
-                            Already have an account? <button type="button" onclick="toggleAuthMode()" class="text-emerald-600 font-bold hover:underline">Sign in</button>
-                        </p>
-                    </div>
-
-                    <div id="signupStep2" class="hidden p-5 space-y-4">
-                        <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Home Address</h3>
-                            <p class="text-[11px] text-gray-500 mt-1">Where should we send your account documents?</p>
-                        </div>
-                        <div id="signupStep2ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Street Address</label>
-                            <input type="text" id="signupStreetInput" autocomplete="street-address" placeholder="123 Main St" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">City</label>
-                            <input type="text" id="signupCityInput" autocomplete="address-level2" placeholder="Springfield" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">State</label>
-                                <input type="text" id="signupStateInput" autocomplete="address-level1" placeholder="IL" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">ZIP Code</label>
-                                <input type="text" id="signupZipInput" autocomplete="postal-code" inputmode="numeric" placeholder="62704" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            </div>
-                        </div>
-                        <div class="flex gap-2 mt-2">
-                            <button type="button" onclick="handleSignupBack(2)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
-                                Back
-                            </button>
-                            <button type="button" onclick="handleSignupNext(2)" class="flex-1 bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs">
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="signupStep3" class="hidden p-5 space-y-4">
-                        <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Account & Identity</h3>
-                            <p class="text-[11px] text-gray-500 mt-1">Set your login and verify your identity.</p>
-                        </div>
-                        <div id="signupStep3ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Email Address</label>
-                            <input type="email" id="signupEmailInput" autocomplete="email" placeholder="Enter your email address" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
-
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Password</label>
-                            <input type="password" id="signupPasswordInput" autocomplete="new-password" placeholder="At least 8 characters" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500" minlength="8">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Confirm Password</label>
-                            <input type="password" id="signupConfirmPasswordInput" autocomplete="new-password" placeholder="Re-enter password" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500" minlength="8">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">ID Type</label>
-                            <select id="signupIdTypeInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                                <option value="drivers_license">Driver's License</option>
-                                <option value="passport">Passport</option>
-                                <option value="state_id">State ID</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">ID Number</label>
-                            <input type="text" id="signupIdNumberInput" placeholder="ID number" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">SSN (last 4 digits)</label>
-                            <input type="text" id="signupSsnLast4Input" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-                        <div class="flex gap-2 mt-2">
-                            <button type="button" onclick="handleSignupBack(3)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
-                                Back
-                            </button>
-                            <button type="button" onclick="handleSignupNext(3)" class="flex-1 bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs">
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="signupStep4" class="hidden p-5 space-y-4">
-                        <div class="text-center mb-1">
-                            <h3 class="text-sm font-bold text-gray-900">Almost there</h3>
-                            <p class="text-[11px] text-gray-500 mt-1">Set a security question and review your details.</p>
-                        </div>
-                        <div id="signupStep4ErrorBanner" class="hidden bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2"></div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Security Question</label>
-                            <select id="signupSecurityQInput" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                                <option value="">Select a question</option>
-                                <option value="First pet's name?">First pet's name?</option>
-                                <option value="City you were born in?">City you were born in?</option>
-                                <option value="Mother's maiden name?">Mother's maiden name?</option>
-                                <option value="Name of your first school?">Name of your first school?</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Your Answer</label>
-                            <input type="text" id="signupSecurityAInput" placeholder="Answer" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                        </div>
-
-                        <div id="signupReviewSummary" class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-[11px] text-gray-600 space-y-1"></div>
-
-                        <label class="flex items-start space-x-2 pt-1">
-                            <input type="checkbox" id="signupTermsCheckbox" class="mt-0.5">
-                            <span class="text-[10px] text-gray-500 leading-relaxed">I agree to the Apex Horizon Bank Terms of Service, Privacy Policy, and E-Sign Consent Disclosure, and confirm the information provided is accurate.</span>
-                        </label>
-
-                        <div class="flex gap-2 mt-2">
-                            <button type="button" onclick="handleSignupBack(4)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg text-xs transition">
-                                Back
-                            </button>
-                            <button type="button" id="signupSubmitBtn" onclick="handleSignupFinalSubmit()" class="flex-1 bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2 text-xs">
-                                <i class="fa-solid fa-user-plus text-emerald-400"></i>
-                                <span>Create Account</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="signupStep5Pending" class="hidden p-6 space-y-4 text-center">
-                        <div class="mx-auto w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
-                            <i class="fa-solid fa-clock text-emerald-600 text-2xl"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-900">Application submitted</h3>
-                            <p id="signupPendingMessage" class="text-[11px] text-gray-500 mt-1.5 leading-relaxed">Your account is under review. We'll email you as soon as a decision is made — this usually takes less than 24 hours.</p>
-                        </div>
-                        <button type="button" onclick="toggleAuthMode()" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs mt-2">
-                            Back to Sign In
-                        </button>
-                    </div>
+                    <div id="oaRoot" class="p-5"></div>
                 </div>
 
                 <div id="ahbLoginFooter" class="bg-gray-50 border-t border-gray-100">
@@ -7013,21 +6848,20 @@ fetchAndApplyProfilePhoto();
             setTimeout(() => { btn.innerHTML = original; }, 1500);
         }
 
+        // Switch between signing in and opening an account (the account-opening
+        // screens are built by the "Open an account" script near the end).
         function toggleAuthMode() {
-            document.getElementById('loginFormWrapper').classList.toggle('hidden');
-            document.getElementById('signupFormWrapper').classList.toggle('hidden');
-            goToSignupStep(1);
-        }
-
-        function goToSignupStep(step) {
-            [1, 2, 3, 4].forEach(n => {
-                const stepEl = document.getElementById(`signupStep${n}`);
-                if (stepEl) stepEl.classList.toggle('hidden', n !== step);
-                const dot = document.getElementById(`signupStepDot${n}`);
-                if (dot) dot.className = `h-1 flex-1 rounded-full ${n <= step ? 'bg-emerald-500' : 'bg-gray-200'}`;
-            });
-            const pendingEl = document.getElementById('signupStep5Pending');
-            if (pendingEl) pendingEl.classList.toggle('hidden', step !== 5);
+            const login = document.getElementById('loginFormWrapper');
+            const signup = document.getElementById('signupFormWrapper');
+            const toSignup = !login.classList.contains('hidden');
+            login.classList.toggle('hidden', toSignup);
+            signup.classList.toggle('hidden', !toSignup);
+            const offers = document.getElementById('ahbLoginOffers');
+            if (offers) offers.classList.toggle('hidden', toSignup);
+            const note = document.getElementById('loginFormNotice');
+            if (note && toSignup) note.classList.add('hidden');
+            if (toSignup && typeof oaStart === 'function') oaStart();
+            try { window.scrollTo(0, 0); } catch (e) {}
         }
 
         function showAuthError(bannerId, message) {
@@ -7039,166 +6873,6 @@ fetchAndApplyProfilePhoto();
         function hideAuthError(bannerId) {
             document.getElementById(bannerId).classList.add('hidden');
         }
-
-        function hideAllSignupErrors() {
-            ['signupStep1ErrorBanner', 'signupStep2ErrorBanner', 'signupStep3ErrorBanner', 'signupStep4ErrorBanner'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
-            });
-        }
-
-        function validateSignupStep(step) {
-            const val = id => (document.getElementById(id)?.value || '').trim();
-
-            if (step === 1) {
-                if (!val('signupFullNameInput') || !val('signupDobInput') || !val('signupPhoneInput')) {
-                    showAuthError('signupStep1ErrorBanner', 'Please fill in your name, date of birth, and phone number.');
-                    return false;
-                }
-            }
-
-            if (step === 2) {
-                if (!val('signupStreetInput') || !val('signupCityInput') || !val('signupStateInput') || !val('signupZipInput')) {
-                    showAuthError('signupStep2ErrorBanner', 'Please complete your full address.');
-                    return false;
-                }
-            }
-
-            if (step === 3) {
-                const email = val('signupEmailInput');
-                const password = val('signupPasswordInput');
-                const confirmPassword = val('signupConfirmPasswordInput');
-                const idNumber = val('signupIdNumberInput');
-                const ssnLast4 = val('signupSsnLast4Input');
-
-                if (!email || !email.includes('@') || !email.includes('.')) {
-                    showAuthError('signupStep3ErrorBanner', 'Please enter a valid email address.');
-                    return false;
-                }
-                if (password.length < 8) {
-                    showAuthError('signupStep3ErrorBanner', 'Password must be at least 8 characters.');
-                    return false;
-                }
-                if (password !== confirmPassword) {
-                    showAuthError('signupStep3ErrorBanner', 'Passwords do not match.');
-                    return false;
-                }
-                if (!idNumber) {
-                    showAuthError('signupStep3ErrorBanner', 'Please enter your ID number.');
-                    return false;
-                }
-                if (!/^\d{4}$/.test(ssnLast4)) {
-                    showAuthError('signupStep3ErrorBanner', 'Enter exactly 4 digits for the last 4 of your SSN.');
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        function buildSignupReviewSummary() {
-            const val = id => (document.getElementById(id)?.value || '').trim();
-            const idTypeSelect = document.getElementById('signupIdTypeInput');
-            const idTypeLabel = idTypeSelect ? idTypeSelect.selectedOptions[0].text : '';
-
-            document.getElementById('signupReviewSummary').innerHTML = `
-                <p><strong>Name:</strong> ${val('signupFullNameInput')}</p>
-                <p><strong>Email:</strong> ${val('signupEmailInput')}</p>
-                <p><strong>Phone:</strong> ${val('signupPhoneInput')}</p>
-                <p><strong>Address:</strong> ${val('signupStreetInput')}, ${val('signupCityInput')}, ${val('signupStateInput')} ${val('signupZipInput')}</p>
-                <p><strong>ID:</strong> ${idTypeLabel} ending in ${val('signupIdNumberInput').slice(-4)}</p>
-            `;
-        }
-
-        function handleSignupNext(fromStep) {
-            hideAllSignupErrors();
-            if (!validateSignupStep(fromStep)) return;
-            const nextStep = fromStep + 1;
-            goToSignupStep(nextStep);
-            if (nextStep === 4) buildSignupReviewSummary();
-        }
-
-        function handleSignupBack(fromStep) {
-            hideAllSignupErrors();
-            goToSignupStep(fromStep - 1);
-        }
-
-        async function handleSignupFinalSubmit() {
-            hideAllSignupErrors();
-
-            const val = id => (document.getElementById(id)?.value || '').trim();
-            const securityQ = val('signupSecurityQInput');
-            const securityA = val('signupSecurityAInput');
-            const agreeTerms = document.getElementById('signupTermsCheckbox').checked;
-
-            if (!securityQ) {
-                showAuthError('signupStep4ErrorBanner', 'Please select a security question.');
-                return;
-            }
-            if (!securityA) {
-                showAuthError('signupStep4ErrorBanner', 'Please provide an answer to your security question.');
-                return;
-            }
-            if (!agreeTerms) {
-                showAuthError('signupStep4ErrorBanner', 'Please agree to the Terms of Service to continue.');
-                return;
-            }
-
-            const submitBtn = document.getElementById('signupSubmitBtn');
-            const originalContent = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
-            submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Creating account...</span>';
-
-            const payload = {
-                action: 'create-account',
-                fullName: val('signupFullNameInput'),
-                dob: val('signupDobInput'),
-                phone: val('signupPhoneInput'),
-                street: val('signupStreetInput'),
-                city: val('signupCityInput'),
-                state: val('signupStateInput'),
-                zip: val('signupZipInput'),
-                email: val('signupEmailInput'),
-                password: val('signupPasswordInput'),
-                idType: document.getElementById('signupIdTypeInput').value,
-                idNumber: val('signupIdNumberInput'),
-                ssnLast4: val('signupSsnLast4Input'),
-                securityQuestion: securityQ,
-                securityAnswer: securityA,
-            };
-
-            try {
-                const res = await fetch('/api/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                submitBtn.innerHTML = originalContent;
-
-                if (!res.ok) {
-                    showAuthError('signupStep4ErrorBanner', data.error || 'Signup failed. Please try again.');
-                    return;
-                }
-
-                if (data.message) {
-                    const msgEl = document.getElementById('signupPendingMessage');
-                    if (msgEl) msgEl.innerText = data.message;
-                }
-                goToSignupStep(5);
-            } catch (err) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                submitBtn.innerHTML = originalContent;
-                showAuthError('signupStep4ErrorBanner', 'Network error. Please check your connection and try again.');
-            }
-        }
-
 
         async function handleSignIn(event) {
             event.preventDefault();
@@ -19275,5 +18949,1181 @@ document.addEventListener('DOMContentLoaded', () => {
             return previousLogin.apply(this, arguments);
         };
     }
+});
+</script>
+<script>
+// ===== Open an account =====
+// A bank-style application: choose the account, what you'll need, then seven
+// steps (about you, contact + email code, home address, identity, finances,
+// sign-in details, review and agree), then "Application received" with a
+// reference number and what happens next. Anyone can check an application's
+// status with their email and reference.
+// Server side: api/signup.js + lib/accountOpening.js (the same rules again,
+// so nothing here is trusted on its own).
+// Progress is saved on this device after each step, but never the SSN, ID
+// number, password, security answer or email check.
+
+const OA_STATES = [['AL', 'Alabama'], ['AK', 'Alaska'], ['AZ', 'Arizona'], ['AR', 'Arkansas'], ['CA', 'California'], ['CO', 'Colorado'], ['CT', 'Connecticut'], ['DE', 'Delaware'], ['DC', 'District of Columbia'], ['FL', 'Florida'], ['GA', 'Georgia'], ['HI', 'Hawaii'], ['ID', 'Idaho'], ['IL', 'Illinois'], ['IN', 'Indiana'], ['IA', 'Iowa'], ['KS', 'Kansas'], ['KY', 'Kentucky'], ['LA', 'Louisiana'], ['ME', 'Maine'], ['MD', 'Maryland'], ['MA', 'Massachusetts'], ['MI', 'Michigan'], ['MN', 'Minnesota'], ['MS', 'Mississippi'], ['MO', 'Missouri'], ['MT', 'Montana'], ['NE', 'Nebraska'], ['NV', 'Nevada'], ['NH', 'New Hampshire'], ['NJ', 'New Jersey'], ['NM', 'New Mexico'], ['NY', 'New York'], ['NC', 'North Carolina'], ['ND', 'North Dakota'], ['OH', 'Ohio'], ['OK', 'Oklahoma'], ['OR', 'Oregon'], ['PA', 'Pennsylvania'], ['RI', 'Rhode Island'], ['SC', 'South Carolina'], ['SD', 'South Dakota'], ['TN', 'Tennessee'], ['TX', 'Texas'], ['UT', 'Utah'], ['VT', 'Vermont'], ['VA', 'Virginia'], ['WA', 'Washington'], ['WV', 'West Virginia'], ['WI', 'Wisconsin'], ['WY', 'Wyoming']];
+const OA_CHOICES = {
+    yearsAtAddress: [['under_1', 'Less than 1 year'], ['1_2', '1-2 years'], ['3_5', '3-5 years'], ['over_5', 'More than 5 years']],
+    idType: [['drivers_license', "Driver's license"], ['state_id', 'State ID'], ['passport', 'U.S. passport']],
+    employment: [['employed', 'Employed'], ['self_employed', 'Self-employed'], ['student', 'Student'], ['retired', 'Retired'], ['not_employed', 'Not employed']],
+    income: [['under_25k', 'Under $25,000'], ['25k_50k', '$25,000 - $49,999'], ['50k_100k', '$50,000 - $99,999'], ['100k_250k', '$100,000 - $249,999'], ['over_250k', '$250,000 or more']],
+    sourceOfFunds: [['salary', 'Salary or wages'], ['savings', 'Savings'], ['investments', 'Investments'], ['family', 'Family or gifts'], ['benefits', 'Benefits or pension'], ['other', 'Other']],
+    purposes: [['everyday', 'Everyday spending'], ['saving', 'Saving'], ['direct_deposit', 'Getting paid'], ['bills', 'Paying bills'], ['transfers', 'Sending money']],
+    monthlyDeposits: [['under_1k', 'Under $1,000'], ['1k_5k', '$1,000 - $4,999'], ['5k_10k', '$5,000 - $9,999'], ['over_10k', '$10,000 or more']],
+    securityQuestion: [["First pet's name?", "First pet's name?"], ['City you were born in?', 'City you were born in?'], ["Mother's maiden name?", "Mother's maiden name?"], ['Name of your first school?', 'Name of your first school?'], ['Street you grew up on?', 'Street you grew up on?'], ['Your childhood best friend?', 'Your childhood best friend?']],
+};
+const OA_STEPS = [
+    { id: 'about', title: 'About you' },
+    { id: 'contact', title: 'Contact details' },
+    { id: 'address', title: 'Home address' },
+    { id: 'identity', title: 'Verify your identity' },
+    { id: 'finances', title: 'About your finances' },
+    { id: 'security', title: 'Sign-in details' },
+    { id: 'review', title: 'Review and submit' },
+];
+const OA_FIELD_STEP = {
+    firstName: 'about', middleName: 'about', lastName: 'about', dob: 'about',
+    email: 'contact', phone: 'contact', code: 'contact',
+    street: 'address', unit: 'address', city: 'address', state: 'address', zip: 'address', yearsAtAddress: 'address',
+    ssnLast4: 'identity', idType: 'identity', idNumber: 'identity', idState: 'identity', idExpiry: 'identity',
+    employment: 'finances', occupation: 'finances', income: 'finances', sourceOfFunds: 'finances', purposes: 'finances', monthlyDeposits: 'finances', pep: 'finances',
+    password: 'security', confirmPassword: 'security', securityQuestion: 'security', securityAnswer: 'security',
+    agreeTerms: 'review', agreeEsign: 'review',
+};
+const OA_DRAFT_KEY = 'ahbOpenAccountDraft';
+const OA_LAST_APP_KEY = 'ahbLastApplication';
+const OA_SAFE_FIELDS = ['firstName', 'middleName', 'lastName', 'dob', 'email', 'phone', 'street', 'unit', 'city', 'state', 'zip', 'yearsAtAddress', 'idType', 'idState', 'employment', 'occupation', 'income', 'sourceOfFunds', 'purposes', 'monthlyDeposits', 'pep', 'securityQuestion'];
+const OA_NAME_RE = /^[\p{L}][\p{L}' .-]{0,48}$/u;
+// Same list as lib/accountOpening.js.
+const OA_COMMON_PASSWORDS = ['password', 'password1', 'password12', 'password123', '12345678', '123456789', '1234567890', 'qwerty123', 'qwertyuiop', 'iloveyou1', 'letmein123', 'welcome1', 'welcome123', 'abc12345', 'admin123', 'passw0rd'];
+
+const oa = { screen: 'start', data: { idType: 'drivers_license', purposes: [] }, emailToken: null, emailVerifiedFor: null, emailSkippedFor: null, codeSentTo: null, codeSent: null, resendAt: 0, returnToReview: false, result: null, timer: null };
+
+function oaEl(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+}
+function oaIcon(name, cls) {
+    const i = document.createElement('i');
+    i.className = `fa-solid ${name}${cls ? ' ' + cls : ''}`;
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+}
+const OA_INPUT = 'w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';
+const OA_LABEL = 'block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1';
+const OA_PRIMARY = 'w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition shadow-md text-xs disabled:opacity-60 flex items-center justify-center gap-2';
+const OA_SECONDARY = 'w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 font-semibold py-2.5 rounded-lg transition text-xs';
+const OA_LINK = 'text-emerald-700 font-bold hover:underline';
+
+function oaApi(body) {
+    return fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) })
+        .then(async (res) => {
+            let data = {};
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) throw Object.assign(new Error(data.error || 'Something went wrong. Please try again.'), { field: data.field, status: res.status });
+            return data;
+        }, () => { throw new Error('Network error. Check your connection and try again.'); });
+}
+function oaMoneyApy() {
+    const apy = typeof AHB_PUBLIC_RATES !== 'undefined' ? AHB_PUBLIC_RATES.savingsApy : 0.045;
+    return `${(apy * 100).toFixed(2)}%`;
+}
+function oaMaskEmail(e) {
+    const [u, d] = String(e || '').split('@');
+    if (!d) return e;
+    const shown = u.length <= 2 ? u.slice(0, 1) : u.slice(0, 2);
+    return `${shown}${'•'.repeat(Math.max(1, Math.min(4, u.length - shown.length)))}@${d}`;
+}
+function oaFormatPhone(v) {
+    let d = String(v || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') d = d.slice(1);
+    d = d.slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+function oaAge(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    if (!m) return null;
+    const now = new Date();
+    let age = now.getFullYear() - Number(m[1]);
+    if (now.getMonth() + 1 < Number(m[2]) || (now.getMonth() + 1 === Number(m[2]) && now.getDate() < Number(m[3]))) age--;
+    return age;
+}
+function oaIsoDaysFromNow(days) {
+    const d = new Date(Date.now() + days * 864e5);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function oaLabel(list, v) {
+    const hit = (OA_CHOICES[list] || []).find(([k]) => k === v);
+    return hit ? hit[1] : (v || '—');
+}
+function oaStateName(code) {
+    const hit = OA_STATES.find(([c]) => c === code);
+    return hit ? hit[1] : code;
+}
+function oaPrettyDate(iso, opts) {
+    if (!iso) return '—';
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T12:00:00`) : new Date(iso);
+    return d.toLocaleDateString('en-US', opts || { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+// ----- Saved progress (this device only, nothing sensitive) -----
+// `next` is the step to pick up from.
+function oaSaveDraft(next) {
+    try {
+        const data = {};
+        OA_SAFE_FIELDS.forEach((k) => { const v = oa.data[k]; if (v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) data[k] = v; });
+        if (!data.firstName && !data.lastName && !data.email) return;
+        localStorage.setItem(OA_DRAFT_KEY, JSON.stringify({ next, data, savedAt: Date.now() }));
+    } catch (e) {}
+}
+function oaReadDraft() {
+    try {
+        const d = JSON.parse(localStorage.getItem(OA_DRAFT_KEY) || 'null');
+        if (!d || !d.data || !OA_STEPS.some((s) => s.id === d.next) || Date.now() - Number(d.savedAt || 0) > 30 * 864e5) return null;
+        return d;
+    } catch (e) { return null; }
+}
+// Picking a saved application back up. The email check, SSN, ID number and
+// password are never saved, so if any of those is missing (say, after the
+// page was reloaded) it starts at the first step that needs them again.
+function oaResume(draft) {
+    const sameApplicant = oa.data.email && draft.data.email && oa.data.email === draft.data.email;
+    oa.data = Object.assign({ idType: 'drivers_license', purposes: [] }, sameApplicant ? oa.data : {}, draft.data);
+    oa.returnToReview = false;
+    const d = oa.data;
+    const email = String(d.email || '').toLowerCase();
+    const emailDone = !!email && (oa.emailVerifiedFor === email || oa.emailSkippedFor === email);
+    const nextIdx = OA_STEPS.findIndex((s) => s.id === draft.next);
+    const needs = [
+        ['contact', !emailDone, 'Welcome back. Confirm your email again to carry on. Everything else you entered is filled in.'],
+        ['identity', !d.ssnLast4 || !d.idNumber || !d.idExpiry, "Welcome back. For your security we don't save your SSN or ID details, so please enter them again."],
+        ['security', !d.password || !d.securityAnswer, "Welcome back. For your security we don't save passwords, so please create yours again."],
+    ].filter(([id, missing]) => missing && OA_STEPS.findIndex((s) => s.id === id) < nextIdx);
+    if (needs.length) {
+        oaShow(needs[0][0]);
+        oaBanner(needs[0][2], 'ok');
+    } else {
+        oaShow(draft.next);
+    }
+}
+function oaClearDraft() { try { localStorage.removeItem(OA_DRAFT_KEY); } catch (e) {} }
+
+// ----- Building blocks -----
+function oaErrorSlot(id) {
+    const p = oaEl('p', 'hidden text-[11px] font-medium text-red-600 mt-1');
+    p.id = `oaErr-${id}`;
+    p.setAttribute('role', 'alert');
+    return p;
+}
+function oaField(opts) {
+    const wrap = oaEl('div');
+    const label = oaEl('label', OA_LABEL, opts.label);
+    label.htmlFor = `oa-${opts.id}`;
+    if (opts.optional) label.appendChild(oaEl('span', 'normal-case font-medium text-gray-400 tracking-normal', ' (optional)'));
+    const row = oaEl('div', 'relative');
+    const input = oaEl('input', `${OA_INPUT}${opts.prefix ? ' pl-[4.75rem]' : ''}${opts.toggle ? ' pr-16' : ''}${opts.mono ? ' font-mono' : ''}`);
+    input.id = `oa-${opts.id}`;
+    input.name = opts.id;
+    input.type = opts.type || 'text';
+    if (opts.autocomplete) input.autocomplete = opts.autocomplete;
+    if (opts.inputMode) input.inputMode = opts.inputMode;
+    if (opts.maxLength) input.maxLength = opts.maxLength;
+    if (opts.placeholder) input.placeholder = opts.placeholder;
+    if (opts.min) input.min = opts.min;
+    if (opts.max) input.max = opts.max;
+    if (opts.autocapitalize) input.setAttribute('autocapitalize', opts.autocapitalize);
+    input.spellcheck = false;
+    const v = opts.value !== undefined ? opts.value : oa.data[opts.id];
+    if (v !== undefined && v !== null) input.value = v;
+    input.setAttribute('aria-describedby', `oaErr-${opts.id}${opts.hint ? ` oaHint-${opts.id}` : ''}`);
+    if (opts.prefix) {
+        const pre = oaEl('span', 'absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 font-mono', opts.prefix);
+        pre.setAttribute('aria-hidden', 'true');
+        row.appendChild(pre);
+    }
+    row.appendChild(input);
+    if (opts.toggle) {
+        const t = oaEl('button', 'absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-700 px-2 py-1', 'Show');
+        t.type = 'button';
+        t.setAttribute('aria-controls', input.id);
+        t.addEventListener('click', () => { const hidden = input.type === 'password'; input.type = hidden ? 'text' : 'password'; t.textContent = hidden ? 'Hide' : 'Show'; });
+        row.appendChild(t);
+    }
+    wrap.append(label, row);
+    if (opts.hint) { const h = oaEl('p', 'text-[10px] text-gray-500 mt-1 leading-snug', opts.hint); h.id = `oaHint-${opts.id}`; wrap.appendChild(h); }
+    wrap.appendChild(oaErrorSlot(opts.id));
+    input.addEventListener('input', () => { if (opts.format) { const pos = input.value; input.value = opts.format(pos); } oa.data[opts.id] = input.value; oaFieldError(opts.id, null); });
+    return { wrap, input };
+}
+function oaSelect(opts) {
+    const wrap = oaEl('div');
+    const label = oaEl('label', OA_LABEL, opts.label);
+    label.htmlFor = `oa-${opts.id}`;
+    const sel = oaEl('select', OA_INPUT);
+    sel.id = `oa-${opts.id}`;
+    sel.name = opts.id;
+    if (opts.autocomplete) sel.autocomplete = opts.autocomplete;
+    const first = oaEl('option', '', opts.placeholder || 'Choose one');
+    first.value = '';
+    sel.appendChild(first);
+    opts.options.forEach(([v, t]) => { const o = oaEl('option', '', t); o.value = v; sel.appendChild(o); });
+    sel.value = oa.data[opts.id] || '';
+    sel.setAttribute('aria-describedby', `oaErr-${opts.id}`);
+    sel.addEventListener('change', () => { oa.data[opts.id] = sel.value; oaFieldError(opts.id, null); if (opts.onChange) opts.onChange(sel.value); });
+    wrap.append(label, sel);
+    if (opts.hint) wrap.appendChild(oaEl('p', 'text-[10px] text-gray-500 mt-1 leading-snug', opts.hint));
+    wrap.appendChild(oaErrorSlot(opts.id));
+    return { wrap, input: sel };
+}
+function oaRadios(opts) {
+    const wrap = oaEl('div');
+    const legend = oaEl('p', OA_LABEL, opts.label);
+    legend.id = `oaLbl-${opts.id}`;
+    const group = oaEl('div', { 2: 'grid grid-cols-2 gap-2', 3: 'grid grid-cols-3 gap-2' }[opts.columns] || 'space-y-2');
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-labelledby', legend.id);
+    group.id = `oa-${opts.id}`;
+    const paint = () => group.querySelectorAll('[role="radio"]').forEach((b) => {
+        const on = b.dataset.value === oa.data[opts.id];
+        b.setAttribute('aria-checked', on ? 'true' : 'false');
+        b.className = `text-left rounded-lg border px-3 py-2.5 text-xs font-semibold transition ${on ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`;
+    });
+    opts.options.forEach(([v, t]) => {
+        const b = oaEl('button', '', t);
+        b.type = 'button';
+        b.setAttribute('role', 'radio');
+        b.dataset.value = v;
+        b.addEventListener('click', () => { oa.data[opts.id] = v; paint(); oaFieldError(opts.id, null); if (opts.onChange) opts.onChange(v); });
+        group.appendChild(b);
+    });
+    paint();
+    wrap.append(legend);
+    if (opts.hint) wrap.appendChild(oaEl('p', 'text-[10px] text-gray-500 -mt-0.5 mb-1.5 leading-snug', opts.hint));
+    wrap.append(group, oaErrorSlot(opts.id));
+    return { wrap, input: group };
+}
+function oaChips(opts) {
+    const wrap = oaEl('div');
+    const legend = oaEl('p', OA_LABEL, opts.label);
+    const group = oaEl('div', 'flex flex-wrap gap-2');
+    group.id = `oa-${opts.id}`;
+    group.setAttribute('role', 'group');
+    const chosen = () => (Array.isArray(oa.data[opts.id]) ? oa.data[opts.id] : []);
+    opts.options.forEach(([v, t]) => {
+        const b = oaEl('button', '', t);
+        b.type = 'button';
+        b.dataset.value = v;
+        const paint = () => {
+            const on = chosen().includes(v);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            b.className = `rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${on ? 'border-emerald-500 bg-emerald-50 text-emerald-900' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`;
+        };
+        b.addEventListener('click', () => {
+            const cur = chosen();
+            oa.data[opts.id] = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
+            paint();
+            oaFieldError(opts.id, null);
+        });
+        paint();
+        group.appendChild(b);
+    });
+    wrap.append(legend);
+    if (opts.hint) wrap.appendChild(oaEl('p', 'text-[10px] text-gray-500 -mt-0.5 mb-1.5', opts.hint));
+    wrap.append(group, oaErrorSlot(opts.id));
+    return { wrap, input: group };
+}
+function oaFieldError(field, message) {
+    const slot = document.getElementById(`oaErr-${field}`);
+    const input = document.getElementById(`oa-${field}`);
+    if (slot) { slot.textContent = message || ''; slot.classList.toggle('hidden', !message); }
+    if (input) {
+        input.setAttribute('aria-invalid', message ? 'true' : 'false');
+        if (input.tagName !== 'DIV') input.classList.toggle('border-red-400', !!message);
+    }
+    return !message;
+}
+function oaBanner(message, kind) {
+    const b = document.getElementById('oaBanner');
+    if (!b) return;
+    if (!message) { b.classList.add('hidden'); return; }
+    b.textContent = message;
+    b.className = `text-[11px] font-medium rounded-lg px-3 py-2 ${kind === 'ok' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : kind === 'warn' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-red-50 border border-red-200 text-red-700'}`;
+}
+function oaFocusFirstError() {
+    const bad = document.querySelector('#oaRoot [aria-invalid="true"]');
+    if (bad) { try { bad.focus({ preventScroll: false }); bad.scrollIntoView({ block: 'center' }); } catch (e) {} }
+}
+
+// ----- Screens -----
+function oaRoot() {
+    const root = document.getElementById('oaRoot');
+    if (root) root.replaceChildren();
+    return root;
+}
+function oaStepHeader(root, stepId) {
+    const idx = OA_STEPS.findIndex((s) => s.id === stepId);
+    const top = oaEl('div', 'flex items-center gap-2 mb-2');
+    const back = oaEl('button', 'w-8 h-8 rounded-full hover:bg-gray-100 text-gray-600 flex items-center justify-center shrink-0');
+    back.type = 'button';
+    back.setAttribute('aria-label', 'Back');
+    back.appendChild(oaIcon('fa-arrow-left', 'text-sm'));
+    back.addEventListener('click', () => { if (idx === 0) oaShow('start'); else oaShow(OA_STEPS[idx - 1].id); });
+    const mid = oaEl('div', 'flex-1 min-w-0 text-center');
+    const stepLine = oaEl('p', 'text-[10px] font-bold uppercase tracking-wider text-emerald-700', `Step ${idx + 1} of ${OA_STEPS.length}`);
+    stepLine.id = 'oaStepLabel';
+    const title = oaEl('h3', 'text-sm font-bold text-gray-900', OA_STEPS[idx].title);
+    title.id = 'oaStepTitle';
+    title.tabIndex = -1;
+    mid.append(stepLine, title);
+    const exit = oaEl('button', 'w-8 h-8 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center shrink-0');
+    exit.type = 'button';
+    exit.setAttribute('aria-label', 'Save and exit');
+    exit.title = 'Save and exit';
+    exit.appendChild(oaIcon('fa-xmark', 'text-sm'));
+    exit.addEventListener('click', () => oaSaveAndExit(stepId));
+    top.append(back, mid, exit);
+    root.appendChild(top);
+    const bar = oaEl('div', 'h-1 bg-gray-200 rounded-full overflow-hidden mb-4');
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', String(OA_STEPS.length));
+    bar.setAttribute('aria-valuenow', String(idx + 1));
+    const fill = oaEl('div', 'h-full bg-emerald-500 rounded-full transition-all duration-300');
+    fill.style.width = `${Math.round(((idx + 1) / OA_STEPS.length) * 100)}%`;
+    bar.appendChild(fill);
+    root.appendChild(bar);
+    const banner = oaEl('div', 'hidden');
+    banner.id = 'oaBanner';
+    banner.setAttribute('role', 'alert');
+    root.appendChild(banner);
+}
+function oaContinueRow(root, onNext, label) {
+    const btn = oaEl('button', `${OA_PRIMARY} mt-2`);
+    btn.type = 'button';
+    btn.id = 'oaNext';
+    btn.append(oaEl('span', '', label || (oa.returnToReview ? 'Save and review' : 'Continue')));
+    btn.addEventListener('click', onNext);
+    root.appendChild(btn);
+    return btn;
+}
+function oaNextFrom(stepId) {
+    const idx = OA_STEPS.findIndex((s) => s.id === stepId);
+    const next = oa.returnToReview && stepId !== 'review' ? 'review' : OA_STEPS[idx + 1].id;
+    oaSaveDraft(next);
+    oaShow(next);
+}
+function oaSaveAndExit(stepId) {
+    if (stepId) oaSaveDraft(oa.returnToReview ? 'review' : stepId);
+    const saved = !!oaReadDraft();
+    if (typeof toggleAuthMode === 'function') toggleAuthMode();
+    const note = document.getElementById('loginFormNotice');
+    if (note && saved) { note.textContent = 'Your application is saved on this device. Pick up where you left off from "Open an account".'; note.classList.remove('hidden'); }
+}
+
+function oaShow(screen) {
+    clearInterval(oa.timer);
+    oa.screen = screen;
+    const render = {
+        start: oaScreenStart, about: oaScreenAbout, contact: oaScreenContact, address: oaScreenAddress, identity: oaScreenIdentity,
+        finances: oaScreenFinances, security: oaScreenSecurity, review: oaScreenReview, done: oaScreenDone, status: oaScreenStatus,
+    }[screen];
+    if (!render) return;
+    render();
+    const card = document.getElementById('signupFormWrapper');
+    try { if (card && card.getBoundingClientRect().top < 0) card.scrollIntoView({ block: 'start' }); } catch (e) {}
+    const title = document.getElementById('oaStepTitle');
+    if (title && screen !== 'start') { try { title.focus({ preventScroll: true }); } catch (e) {} }
+}
+
+function oaReset() {
+    oaClearDraft();
+    clearInterval(oa.timer);
+    Object.assign(oa, { data: { idType: 'drivers_license', purposes: [] }, emailToken: null, emailVerifiedFor: null, emailSkippedFor: null, codeSentTo: null, codeSent: null, resendAt: 0, returnToReview: false, result: null });
+}
+function oaStart() {
+    oa.returnToReview = false;
+    oaShow('start');
+}
+
+function oaScreenStart() {
+    const root = oaRoot();
+    const head = oaEl('div', 'text-center mb-4');
+    const h = oaEl('h3', 'text-base font-bold text-gray-900', 'Open your Apex accounts');
+    h.id = 'oaStartTitle';
+    head.append(h, oaEl('p', 'text-[11px] text-gray-500 mt-1', 'Checking and High-Yield Savings, opened together in about 5 minutes.'));
+    root.appendChild(head);
+
+    const draft = oaReadDraft();
+    if (draft) {
+        const idx = OA_STEPS.findIndex((s) => s.id === draft.next);
+        const box = oaEl('div', 'bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4');
+        box.id = 'oaResume';
+        box.append(oaEl('p', 'text-xs font-bold text-emerald-900', 'Pick up where you left off'), oaEl('p', 'text-[11px] text-emerald-800 mt-0.5', `${draft.data.firstName ? draft.data.firstName + ', your' : 'Your'} application is saved on this device at step ${idx + 1} of ${OA_STEPS.length}: ${OA_STEPS[idx].title.toLowerCase()}.`));
+        const row = oaEl('div', 'flex gap-2 mt-2.5');
+        const go = oaEl('button', 'flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs', 'Continue');
+        go.type = 'button';
+        go.id = 'oaResumeBtn';
+        go.addEventListener('click', () => oaResume(draft));
+        const over = oaEl('button', 'flex-1 bg-white border border-emerald-300 text-emerald-800 font-semibold py-2 rounded-lg text-xs', 'Start over');
+        over.type = 'button';
+        over.addEventListener('click', () => { oaReset(); oaShow('start'); });
+        row.append(go, over);
+        box.appendChild(row);
+        root.appendChild(box);
+    }
+
+    const product = oaEl('div', 'rounded-xl border-2 border-emerald-500 p-4 relative');
+    product.appendChild(oaEl('span', 'absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full', 'Apex Everyday'));
+    product.append(oaEl('p', 'text-sm font-bold text-gray-900 mt-1', 'Checking + High-Yield Savings'));
+    const list = oaEl('ul', 'mt-2.5 space-y-1.5');
+    [
+        ['fa-circle-check', 'No monthly fees and nothing to open'],
+        ['fa-circle-check', `${oaMoneyApy()} APY on savings, paid daily`],
+        ['fa-circle-check', 'An Apex credit card with 1.5% cash back'],
+        ['fa-circle-check', 'Instant transfers, check deposit and bill pay'],
+    ].forEach(([icon, text]) => {
+        const li = oaEl('li', 'flex items-start gap-2 text-[12px] text-gray-700');
+        li.append(oaIcon(icon, 'text-emerald-600 text-[11px] mt-0.5 shrink-0'), oaEl('span', '', text));
+        list.appendChild(li);
+    });
+    product.appendChild(list);
+    root.appendChild(product);
+
+    const need = oaEl('div', 'bg-gray-50 border border-gray-200 rounded-xl p-3.5 mt-4');
+    need.appendChild(oaEl('p', 'text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2', "What you'll need"));
+    const needList = oaEl('ul', 'space-y-2');
+    [
+        ['fa-id-card', "A driver's license, state ID or U.S. passport"],
+        ['fa-hashtag', 'The last 4 digits of your Social Security number'],
+        ['fa-house', 'A U.S. home address and mobile number'],
+        ['fa-cake-candles', 'To be 18 or older'],
+    ].forEach(([icon, text]) => {
+        const li = oaEl('li', 'flex items-start gap-2.5 text-[12px] text-gray-700');
+        li.append(oaIcon(icon, 'text-gray-500 text-[11px] w-4 text-center mt-0.5 shrink-0'), oaEl('span', '', text));
+        needList.appendChild(li);
+    });
+    need.appendChild(needList);
+    root.appendChild(need);
+
+    const start = oaEl('button', `${OA_PRIMARY} mt-4`);
+    start.type = 'button';
+    start.id = 'oaStartBtn';
+    start.append(oaEl('span', '', draft ? 'Start a new application' : 'Start application'));
+    start.addEventListener('click', () => { oaReset(); oaShow('about'); });
+    root.appendChild(start);
+    root.appendChild(oaEl('p', 'text-[10px] text-gray-500 text-center mt-2', "Applying doesn't involve a credit check."));
+
+    const links = oaEl('div', 'mt-4 pt-3 border-t border-gray-100 space-y-2 text-center text-[11px] text-gray-500');
+    const status = oaEl('button', OA_LINK, 'Check the status of an application');
+    status.type = 'button';
+    status.id = 'oaStatusLink';
+    status.addEventListener('click', () => oaShow('status'));
+    const p1 = oaEl('p');
+    p1.appendChild(status);
+    const p2 = oaEl('p', '', 'Already have an account? ');
+    const signIn = oaEl('button', OA_LINK, 'Sign in');
+    signIn.type = 'button';
+    signIn.addEventListener('click', () => toggleAuthMode());
+    p2.appendChild(signIn);
+    links.append(p1, p2);
+    root.appendChild(links);
+}
+
+function oaScreenAbout() {
+    const root = oaRoot();
+    oaStepHeader(root, 'about');
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', 'Enter your name exactly as it appears on your ID.'));
+    const box = oaEl('div', 'space-y-3.5');
+    const first = oaField({ id: 'firstName', label: 'Legal first name', autocomplete: 'given-name', autocapitalize: 'words', maxLength: 50 });
+    const middle = oaField({ id: 'middleName', label: 'Middle name', optional: true, autocomplete: 'additional-name', autocapitalize: 'words', maxLength: 50 });
+    const last = oaField({ id: 'lastName', label: 'Legal last name', autocomplete: 'family-name', autocapitalize: 'words', maxLength: 50 });
+    const dob = oaField({ id: 'dob', label: 'Date of birth', type: 'date', autocomplete: 'bday', max: oaIsoDaysFromNow(-18 * 365.25), hint: 'You need to be 18 or older.' });
+    box.append(first.wrap, middle.wrap, last.wrap, dob.wrap);
+    root.appendChild(box);
+    oaContinueRow(root, () => {
+        const d = oa.data;
+        let ok = true;
+        ok = oaFieldError('firstName', OA_NAME_RE.test((d.firstName || '').trim()) ? null : 'Enter your legal first name.') && ok;
+        ok = oaFieldError('middleName', !d.middleName || OA_NAME_RE.test(d.middleName.trim()) ? null : "That middle name doesn't look right.") && ok;
+        ok = oaFieldError('lastName', OA_NAME_RE.test((d.lastName || '').trim()) ? null : 'Enter your legal last name.') && ok;
+        const age = oaAge(d.dob);
+        ok = oaFieldError('dob', age === null ? 'Enter your date of birth.' : age < 18 ? 'You need to be 18 or older to open an account online.' : age > 120 ? 'Check your date of birth.' : null) && ok;
+        if (!ok) return oaFocusFirstError();
+        ['firstName', 'middleName', 'lastName'].forEach((k) => { oa.data[k] = String(oa.data[k] || '').trim().replace(/\s+/g, ' '); });
+        oaNextFrom('about');
+    });
+    setTimeout(() => { try { if (!oa.data.firstName) first.input.focus({ preventScroll: true }); } catch (e) {} }, 60);
+}
+
+function oaScreenContact() {
+    const root = oaRoot();
+    oaStepHeader(root, 'contact');
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', "We'll send your account documents and important alerts here."));
+    const box = oaEl('div', 'space-y-3.5');
+    const email = oaField({ id: 'email', label: 'Email address', type: 'email', inputMode: 'email', autocomplete: 'email', autocapitalize: 'none', maxLength: 254 });
+    const phone = oaField({ id: 'phone', label: 'Mobile number', type: 'tel', inputMode: 'tel', autocomplete: 'tel-national', maxLength: 16, placeholder: '(555) 123-4567', format: oaFormatPhone, hint: 'U.S. numbers only.' });
+    box.append(email.wrap, phone.wrap);
+    root.appendChild(box);
+
+    const verify = oaEl('div', 'hidden mt-4');
+    verify.id = 'oaVerify';
+    root.appendChild(verify);
+    const next = oaContinueRow(root, () => submitContact());
+
+    const emailNow = () => String(oa.data.email || '').trim().toLowerCase();
+    const alreadyDone = () => (oa.emailVerifiedFor && oa.emailVerifiedFor === emailNow()) || (oa.emailSkippedFor && oa.emailSkippedFor === emailNow());
+    if (alreadyDone()) {
+        const ok = oaEl('p', 'text-[11px] font-semibold text-emerald-700 mt-2 flex items-center gap-1.5');
+        ok.id = 'oaEmailConfirmed';
+        ok.append(oaIcon('fa-circle-check'), oaEl('span', '', oa.emailVerifiedFor === emailNow() ? 'Email confirmed' : "We'll confirm this email during review"));
+        email.wrap.appendChild(ok);
+        email.input.addEventListener('input', () => ok.remove());
+    }
+
+    function validateContact() {
+        let ok = true;
+        ok = oaFieldError('email', /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailNow()) ? null : 'Enter a valid email address.') && ok;
+        const digits = String(oa.data.phone || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+        ok = oaFieldError('phone', /^[2-9]\d{2}[2-9]\d{6}$/.test(digits) ? null : 'Enter a 10-digit U.S. mobile number.') && ok;
+        return ok;
+    }
+    async function submitContact() {
+        oaBanner(null);
+        if (!validateContact()) return oaFocusFirstError();
+        oa.data.email = emailNow();
+        if (alreadyDone()) { oaNextFrom('contact'); return; }
+        await sendCode(false);
+    }
+    async function sendCode(isResend) {
+        next.disabled = true;
+        next.firstChild.textContent = isResend ? 'Sending…' : 'Sending code…';
+        try {
+            const r = await oaApi({ action: 'send-email-code', email: emailNow() });
+            oa.codeSentTo = emailNow();
+            oa.codeSent = r.sent;
+            oa.resendAt = Date.now() + (r.resendAfterSeconds || 30) * 1000;
+            showVerify(r);
+        } catch (err) {
+            if (err.field === 'email' && err.status !== 429) {
+                oaFieldError('email', err.message);
+                if (err.status === 409) {
+                    const slot = document.getElementById('oaErr-email');
+                    const link = oaEl('button', `${OA_LINK} ml-1`, 'Sign in');
+                    link.type = 'button';
+                    link.addEventListener('click', () => toggleAuthMode());
+                    slot.appendChild(link);
+                }
+                oaFocusFirstError();
+            } else if (document.getElementById('oaCodeErr')) {
+                const e = document.getElementById('oaCodeErr');
+                e.textContent = err.message;
+                e.classList.remove('hidden');
+            } else oaBanner(err.message);
+        } finally {
+            next.disabled = false;
+            next.firstChild.textContent = 'Continue';
+        }
+    }
+    function showVerify(r) {
+        verify.replaceChildren();
+        verify.classList.remove('hidden');
+        next.classList.add('hidden');
+        email.input.disabled = true;
+        phone.input.disabled = true;
+        const card = oaEl('div', 'bg-gray-50 border border-gray-200 rounded-xl p-4');
+        if (!r.sent) {
+            card.append(
+                oaEl('p', 'text-sm font-bold text-gray-900', "We couldn't send a code"),
+                oaEl('p', 'text-[11px] text-gray-600 mt-1 leading-relaxed', `We weren't able to email a code to ${r.destination} just now. You can carry on, and our team will confirm your email when they review your application.`)
+            );
+            const go = oaEl('button', `${OA_PRIMARY} mt-3`);
+            go.type = 'button';
+            go.id = 'oaSkipEmail';
+            go.append(oaEl('span', '', 'Continue without a code'));
+            go.addEventListener('click', () => { oa.emailSkippedFor = emailNow(); oa.emailToken = null; oaNextFrom('contact'); });
+            const change = oaEl('button', `${OA_SECONDARY} mt-2`, 'Use a different email');
+            change.type = 'button';
+            change.addEventListener('click', () => resetVerify());
+            card.append(go, change);
+            verify.appendChild(card);
+            return;
+        }
+        card.append(oaEl('p', 'text-sm font-bold text-gray-900', 'Check your email'), oaEl('p', 'text-[11px] text-gray-600 mt-1', `Enter the 6-digit code we sent to ${r.destination}. It expires in 10 minutes.`));
+        const label = oaEl('label', `${OA_LABEL} mt-3`, 'Verification code');
+        label.htmlFor = 'oa-code';
+        const input = oaEl('input', `${OA_INPUT} text-center font-mono text-lg tracking-[0.4em] bg-white`);
+        Object.assign(input, { id: 'oa-code', type: 'text', inputMode: 'numeric', maxLength: 6, autocomplete: 'one-time-code', placeholder: '••••••' });
+        const err = oaEl('p', 'hidden text-[11px] font-medium text-red-600 mt-1');
+        err.id = 'oaCodeErr';
+        err.setAttribute('role', 'alert');
+        const btn = oaEl('button', `${OA_PRIMARY} mt-3`);
+        btn.type = 'button';
+        btn.id = 'oaVerifyBtn';
+        btn.append(oaEl('span', '', 'Verify email'));
+        const row = oaEl('div', 'flex items-center justify-between mt-3 text-[11px]');
+        const resend = oaEl('button', 'font-bold text-emerald-700 disabled:text-gray-400', 'Resend code');
+        resend.type = 'button';
+        resend.id = 'oaResend';
+        const change = oaEl('button', 'font-bold text-gray-600 hover:underline', 'Change email');
+        change.type = 'button';
+        row.append(resend, change);
+        card.append(label, input, err, btn, row);
+        verify.appendChild(card);
+        setTimeout(() => { try { input.focus({ preventScroll: true }); } catch (e) {} }, 60);
+        const tick = () => {
+            const left = Math.ceil((oa.resendAt - Date.now()) / 1000);
+            resend.disabled = left > 0;
+            resend.textContent = left > 0 ? `Resend in ${left}s` : 'Resend code';
+        };
+        tick();
+        clearInterval(oa.timer);
+        oa.timer = setInterval(tick, 1000);
+        resend.addEventListener('click', () => { err.classList.add('hidden'); sendCode(true); });
+        change.addEventListener('click', () => resetVerify());
+        const submitCode = async () => {
+            const code = input.value.replace(/\D/g, '');
+            err.classList.add('hidden');
+            if (code.length !== 6) { err.textContent = 'Enter the 6-digit code.'; err.classList.remove('hidden'); return; }
+            btn.disabled = true;
+            btn.firstChild.textContent = 'Checking…';
+            try {
+                const res = await oaApi({ action: 'verify-email-code', email: emailNow(), code });
+                oa.emailToken = res.emailToken;
+                oa.emailVerifiedFor = emailNow();
+                oa.emailSkippedFor = null;
+                clearInterval(oa.timer);
+                oaNextFrom('contact');
+            } catch (e2) {
+                err.textContent = e2.message;
+                err.classList.remove('hidden');
+                input.value = '';
+                input.focus();
+                btn.disabled = false;
+                btn.firstChild.textContent = 'Verify email';
+            }
+        };
+        btn.addEventListener('click', submitCode);
+        input.addEventListener('input', () => { input.value = input.value.replace(/\D/g, '').slice(0, 6); if (input.value.length === 6) submitCode(); });
+    }
+    function resetVerify() {
+        clearInterval(oa.timer);
+        verify.replaceChildren();
+        verify.classList.add('hidden');
+        next.classList.remove('hidden');
+        email.input.disabled = false;
+        phone.input.disabled = false;
+        email.input.focus();
+    }
+}
+
+function oaScreenAddress() {
+    const root = oaRoot();
+    oaStepHeader(root, 'address');
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', 'Where you live now. It needs to match your ID or a recent bill.'));
+    const box = oaEl('div', 'space-y-3.5');
+    const street = oaField({ id: 'street', label: 'Street address', autocomplete: 'address-line1', maxLength: 100, placeholder: '123 Main St', hint: "P.O. boxes can't be used as a home address." });
+    const unit = oaField({ id: 'unit', label: 'Apt, suite or unit', optional: true, autocomplete: 'address-line2', maxLength: 20 });
+    const city = oaField({ id: 'city', label: 'City', autocomplete: 'address-level2', maxLength: 50 });
+    const grid = oaEl('div', 'grid grid-cols-5 gap-2');
+    const state = oaSelect({ id: 'state', label: 'State', options: OA_STATES.map(([c, n]) => [c, n]), placeholder: 'Choose', autocomplete: 'address-level1' });
+    state.wrap.className = 'col-span-3';
+    const zip = oaField({ id: 'zip', label: 'ZIP code', inputMode: 'numeric', autocomplete: 'postal-code', mono: true, format: (v) => String(v).replace(/\D/g, '').slice(0, 5) });
+    zip.wrap.className = 'col-span-2';
+    grid.append(state.wrap, zip.wrap);
+    const years = oaSelect({ id: 'yearsAtAddress', label: 'How long have you lived here?', options: OA_CHOICES.yearsAtAddress });
+    box.append(street.wrap, unit.wrap, city.wrap, grid, years.wrap);
+    root.appendChild(box);
+    oaContinueRow(root, () => {
+        const d = oa.data;
+        const st = String(d.street || '').trim();
+        let ok = true;
+        ok = oaFieldError('street', !st ? 'Enter your street address.' : /\bp\.?\s*o\.?\s*box\b|\bpost\s+office\s+box\b/i.test(`${st} ${d.unit || ''}`) ? "Use the address where you live. A P.O. box can't be a home address." : !(/\d/.test(st) && /[A-Za-z]/.test(st) && st.length >= 5) ? 'Include your house or building number.' : null) && ok;
+        ok = oaFieldError('city', /^[A-Za-z][A-Za-z .'-]{1,49}$/.test(String(d.city || '').trim()) ? null : 'Enter your city.') && ok;
+        ok = oaFieldError('state', d.state ? null : 'Choose your state.') && ok;
+        ok = oaFieldError('zip', /^\d{5}$/.test(d.zip || '') ? null : 'Enter a 5-digit ZIP code.') && ok;
+        ok = oaFieldError('yearsAtAddress', d.yearsAtAddress ? null : 'Choose how long you have lived here.') && ok;
+        if (!ok) return oaFocusFirstError();
+        oaNextFrom('address');
+    });
+}
+
+function oaScreenIdentity() {
+    const root = oaRoot();
+    oaStepHeader(root, 'identity');
+    const intro = oaEl('div', 'flex items-start gap-2.5 bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3.5');
+    intro.append(oaIcon('fa-shield-halved', 'text-emerald-600 text-sm mt-0.5'), oaEl('p', 'text-[11px] text-gray-600 leading-snug', 'Banks confirm who you are before opening an account. We check these details against your ID, and only ask for the last 4 digits of your SSN.'));
+    root.appendChild(intro);
+    const box = oaEl('div', 'space-y-3.5');
+    const ssn = oaField({ id: 'ssnLast4', label: 'Last 4 of your Social Security number', type: 'password', inputMode: 'numeric', autocomplete: 'off', maxLength: 4, prefix: '•••-••-', toggle: true, mono: true, format: (v) => String(v).replace(/\D/g, '').slice(0, 4) });
+    const type = oaRadios({ id: 'idType', label: 'Type of ID', options: OA_CHOICES.idType, columns: 3, onChange: (v) => { stateWrap.classList.toggle('hidden', v === 'passport'); idNum.input.placeholder = v === 'passport' ? '9 characters, e.g. 123456789' : 'As shown on your ID'; } });
+    const idNum = oaField({ id: 'idNumber', label: 'ID number', autocomplete: 'off', autocapitalize: 'characters', maxLength: 20, mono: true, format: (v) => String(v).toUpperCase(), placeholder: oa.data.idType === 'passport' ? '9 characters, e.g. 123456789' : 'As shown on your ID' });
+    const st = oaSelect({ id: 'idState', label: 'Issuing state', options: OA_STATES });
+    const stateWrap = st.wrap;
+    stateWrap.classList.toggle('hidden', oa.data.idType === 'passport');
+    const exp = oaField({ id: 'idExpiry', label: 'Expiration date', type: 'date', min: oaIsoDaysFromNow(1), hint: 'Your ID must not be expired.' });
+    box.append(ssn.wrap, type.wrap, idNum.wrap, stateWrap, exp.wrap);
+    root.appendChild(box);
+    oaContinueRow(root, () => {
+        const d = oa.data;
+        let ok = true;
+        const s4 = String(d.ssnLast4 || '');
+        ok = oaFieldError('ssnLast4', /^\d{4}$/.test(s4) && s4 !== '0000' ? null : 'Enter the last 4 digits of your Social Security number.') && ok;
+        ok = oaFieldError('idType', d.idType ? null : 'Choose the type of ID you have.') && ok;
+        const num = String(d.idNumber || '').trim().toUpperCase().replace(/\s+/g, '');
+        ok = oaFieldError('idNumber', d.idType === 'passport' ? (/^[A-Z0-9]{6,9}$/.test(num) ? null : 'A U.S. passport number is 6-9 letters and numbers.') : (/^[A-Z0-9-]{4,20}$/.test(num) ? null : 'Enter the number on your ID.')) && ok;
+        ok = oaFieldError('idState', d.idType === 'passport' || d.idState ? null : 'Choose the state that issued your ID.') && ok;
+        ok = oaFieldError('idExpiry', !d.idExpiry ? 'Enter the expiration date on your ID.' : d.idExpiry <= oaIsoDaysFromNow(0) ? 'That ID has expired. Use an ID that is still valid.' : null) && ok;
+        if (!ok) return oaFocusFirstError();
+        oa.data.idNumber = num;
+        oaNextFrom('identity');
+    });
+}
+
+function oaScreenFinances() {
+    const root = oaRoot();
+    oaStepHeader(root, 'finances');
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', 'A few questions every bank asks. They help us protect your account and spot fraud.'));
+    const box = oaEl('div', 'space-y-3.5');
+    const occ = oaField({ id: 'occupation', label: 'Occupation', maxLength: 60, autocomplete: 'organization-title', placeholder: 'e.g. Teacher' });
+    const showOcc = (v) => occ.wrap.classList.toggle('hidden', !['employed', 'self_employed'].includes(v));
+    const emp = oaSelect({ id: 'employment', label: 'Employment status', options: OA_CHOICES.employment, onChange: showOcc });
+    showOcc(oa.data.employment);
+    const income = oaSelect({ id: 'income', label: 'Yearly income before tax', options: OA_CHOICES.income });
+    const source = oaSelect({ id: 'sourceOfFunds', label: 'Where will the money in this account come from?', options: OA_CHOICES.sourceOfFunds });
+    const uses = oaChips({ id: 'purposes', label: 'How will you use the account?', hint: 'Choose all that apply.', options: OA_CHOICES.purposes });
+    const deposits = oaSelect({ id: 'monthlyDeposits', label: 'About how much will you deposit each month?', options: OA_CHOICES.monthlyDeposits });
+    const pep = oaRadios({ id: 'pep', label: 'Public office', hint: 'Do you, or a close family member, hold or have held a senior government, military or judicial position?', options: [['no', 'No'], ['yes', 'Yes']], columns: 2 });
+    box.append(emp.wrap, occ.wrap, income.wrap, source.wrap, uses.wrap, deposits.wrap, pep.wrap);
+    root.appendChild(box);
+    oaContinueRow(root, () => {
+        const d = oa.data;
+        let ok = true;
+        ok = oaFieldError('employment', d.employment ? null : 'Tell us about your employment.') && ok;
+        ok = oaFieldError('occupation', !['employed', 'self_employed'].includes(d.employment) || String(d.occupation || '').trim().length >= 2 ? null : 'Tell us your occupation.') && ok;
+        ok = oaFieldError('income', d.income ? null : 'Choose your yearly income.') && ok;
+        ok = oaFieldError('sourceOfFunds', d.sourceOfFunds ? null : 'Tell us where the money will come from.') && ok;
+        ok = oaFieldError('purposes', Array.isArray(d.purposes) && d.purposes.length ? null : 'Choose at least one.') && ok;
+        ok = oaFieldError('monthlyDeposits', d.monthlyDeposits ? null : 'Choose roughly how much you will deposit.') && ok;
+        ok = oaFieldError('pep', d.pep ? null : 'Please answer this question.') && ok;
+        if (!ok) return oaFocusFirstError();
+        oaNextFrom('finances');
+    });
+}
+
+function oaPasswordChecks(pw) {
+    const d = oa.data;
+    const lower = String(pw || '').toLowerCase();
+    const local = String(d.email || '').split('@')[0].toLowerCase();
+    const personal = (local.length >= 4 && lower.includes(local)) || [d.firstName, d.lastName].some((n) => n && n.length >= 3 && lower.includes(n.toLowerCase()));
+    return [
+        ['len', '8 to 64 characters', pw.length >= 8 && pw.length <= 64],
+        ['letter', 'At least one letter', /[A-Za-z]/.test(pw)],
+        ['number', 'At least one number', /\d/.test(pw)],
+        ['space', 'No spaces', pw.length > 0 && !/\s/.test(pw)],
+        ['personal', "Doesn't include your name or email", pw.length > 0 && !personal],
+        ['common', 'Not a commonly used password', pw.length > 0 && !OA_COMMON_PASSWORDS.includes(lower)],
+    ];
+}
+function oaScreenSecurity() {
+    const root = oaRoot();
+    oaStepHeader(root, 'security');
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', "You'll sign in with your email and this password. You can turn on Face ID once your account is open."));
+    const box = oaEl('div', 'space-y-3.5');
+    const pw = oaField({ id: 'password', label: 'Create a password', type: 'password', autocomplete: 'new-password', maxLength: 64, toggle: true, value: oa.data.password || '' });
+    const meter = oaEl('div', 'mt-2');
+    const bar = oaEl('div', 'h-1.5 bg-gray-200 rounded-full overflow-hidden');
+    const fill = oaEl('div', 'h-full rounded-full transition-all duration-300');
+    fill.style.width = '0%';
+    bar.appendChild(fill);
+    const strength = oaEl('p', 'text-[10px] font-semibold text-gray-500 mt-1');
+    strength.id = 'oaStrength';
+    const checklist = oaEl('ul', 'mt-2 grid grid-cols-1 gap-1');
+    checklist.id = 'oaPwChecks';
+    meter.append(bar, strength, checklist);
+    pw.wrap.insertBefore(meter, pw.wrap.lastChild);
+    const confirm = oaField({ id: 'confirmPassword', label: 'Confirm password', type: 'password', autocomplete: 'new-password', maxLength: 64, toggle: true, value: oa.data.confirmPassword || '' });
+    const q = oaSelect({ id: 'securityQuestion', label: 'Security question', options: OA_CHOICES.securityQuestion, hint: 'We may ask this if you ever call us or reset your password.' });
+    const a = oaField({ id: 'securityAnswer', label: 'Your answer', autocomplete: 'off', maxLength: 60, value: oa.data.securityAnswer || '' });
+    box.append(pw.wrap, confirm.wrap, q.wrap, a.wrap);
+    root.appendChild(box);
+    const paint = () => {
+        const val = pw.input.value;
+        const checks = oaPasswordChecks(val);
+        checklist.replaceChildren();
+        checks.forEach(([key, text, ok]) => {
+            const li = oaEl('li', `flex items-center gap-1.5 text-[11px] ${ok ? 'text-emerald-700' : 'text-gray-500'}`);
+            li.dataset.check = key;
+            li.dataset.ok = ok ? 'true' : 'false';
+            li.append(oaIcon(ok ? 'fa-circle-check' : 'fa-circle', ok ? 'text-[10px]' : 'text-[6px] w-2.5 text-center'), oaEl('span', '', text));
+            checklist.appendChild(li);
+        });
+        const passed = checks.every((c) => c[2]);
+        let score = 0;
+        if (val.length >= 8) score++;
+        if (val.length >= 12) score++;
+        if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+        const level = !val ? null : !passed ? ['Too weak', 'bg-red-500', 20] : score <= 2 ? ['Fair', 'bg-amber-500', 55] : score === 3 ? ['Good', 'bg-emerald-500', 80] : ['Strong', 'bg-emerald-600', 100];
+        fill.className = `h-full rounded-full transition-all duration-300 ${level ? level[1] : ''}`;
+        fill.style.width = level ? `${level[2]}%` : '0%';
+        strength.textContent = level ? `Password strength: ${level[0]}` : '';
+    };
+    pw.input.addEventListener('input', paint);
+    paint();
+    oaContinueRow(root, () => {
+        const d = oa.data;
+        let ok = true;
+        const val = String(d.password || '');
+        const failed = oaPasswordChecks(val).filter((c) => !c[2]).map((c) => c[1].toLowerCase());
+        ok = oaFieldError('password', failed.length ? `Your password needs: ${failed.join(', ')}.` : null) && ok;
+        ok = oaFieldError('confirmPassword', val && d.confirmPassword === val ? null : "The passwords don't match.") && ok;
+        ok = oaFieldError('securityQuestion', d.securityQuestion ? null : 'Choose a security question.') && ok;
+        ok = oaFieldError('securityAnswer', String(d.securityAnswer || '').trim().length >= 2 ? null : 'Answer your security question.') && ok;
+        if (!ok) return oaFocusFirstError();
+        oaNextFrom('security');
+    });
+}
+
+// Plain-language documents, opened from the review step.
+const OA_DOCS = {
+    agreement: { title: 'Deposit Account Agreement', icon: 'fa-file-contract', sections: [
+        ['What this covers', 'Your Apex Everyday Checking and High-Yield Savings accounts, opened together.'],
+        ['Fees', 'No monthly fee, no minimum balance and nothing to open. See the Fee Schedule.'],
+        ['Interest', () => `Savings earns a variable Annual Percentage Yield, currently ${oaMoneyApy()}, worked out and paid every day. Checking doesn't earn interest. The rate can change at any time.`],
+        ['Keeping your account safe', "Keep your password, passcode and codes private. We'll never ask for them. Tell us straight away if you think someone else has used your account."],
+        ["If something's wrong", "If you see a charge you don't recognize, dispute it in the app. We'll look into it and tell you what we find."],
+        ['Closing your account', 'You can close your accounts at any time. We may close an account used for fraud or that breaks these terms.'],
+        ['About Apex Horizon', "Apex Horizon Bank is a demonstration app. It isn't a chartered bank, accounts aren't FDIC-insured, and balances aren't real money."],
+    ] },
+    fees: { title: 'Fee Schedule', icon: 'fa-receipt', rows: [
+        ['Monthly maintenance fee', '$0'], ['Minimum deposit to open', '$0'], ['Minimum balance', '$0'], ['Sending money to other Apex customers', '$0'],
+        ['Transfers to and from linked accounts', '$0'], ['Mobile check deposit', '$0'], ['Paper or PDF statements', '$0'],
+        ['Overdrafts', "We don't allow them: a payment that would overdraw your account is declined, with no fee"], ['Apex credit card annual fee', '$0'],
+    ] },
+    privacy: { title: 'Privacy Notice', icon: 'fa-user-shield', sections: [
+        ['What we collect', 'Your name, date of birth, contact details, home address, ID details, the last 4 digits of your SSN, how you use your accounts, and the devices you sign in from.'],
+        ['Why', 'To open and run your accounts, confirm who you are, protect you from fraud, and send you notices about your account.'],
+        ['Sharing', "We don't sell your information, and we don't share it with other companies for their marketing."],
+        ['How we protect it', 'Your password and security answer are stored only as one-way hashes, and every connection to Apex is encrypted.'],
+        ['Your choices', 'You can download a copy of your data from Settings at any time.'],
+    ] },
+    esign: { title: 'E-Sign Consent', icon: 'fa-envelope-open-text', sections: [
+        ['Documents electronically', 'You agree we can give you statements, notices, agreements and other disclosures electronically: in the app and by email.'],
+        ['What you need', 'A device with a modern web browser and an email address. You can download any statement as a PDF from the app.'],
+        ['Changing your mind', "You can withdraw this consent by contacting us. If we can't serve your accounts electronically, we may need to close them."],
+    ] },
+};
+function oaOpenDoc(key) {
+    const doc = OA_DOCS[key];
+    if (!doc || typeof setLoginInfoHeader !== 'function') return;
+    setLoginInfoHeader(doc.icon, 'bg-emerald-100 text-emerald-700', 'Account documents', doc.title);
+    const body = document.getElementById('loginInfoBody');
+    body.replaceChildren();
+    if (doc.rows) {
+        const table = oaEl('div', 'bg-gray-50 border border-gray-200 rounded-xl divide-y divide-gray-200');
+        doc.rows.forEach(([k, v]) => {
+            const row = oaEl('div', 'flex items-start justify-between gap-3 px-3.5 py-2.5');
+            row.append(oaEl('span', 'text-[12px] text-gray-700', k), oaEl('span', 'text-[12px] font-bold text-gray-900 text-right max-w-[55%]', v));
+            table.appendChild(row);
+        });
+        body.appendChild(table);
+    } else {
+        doc.sections.forEach(([h, t]) => {
+            const sec = oaEl('section', 'space-y-1');
+            sec.append(oaEl('h4', 'text-[12px] font-bold text-gray-900', h), oaEl('p', 'text-[12px] text-gray-600 leading-relaxed', typeof t === 'function' ? t() : t));
+            body.appendChild(sec);
+        });
+    }
+    setLoginInfoActions([{ label: 'Done', primary: true, onClick: () => closeLoginInfo() }]);
+    openLoginSheet();
+}
+
+function oaScreenReview() {
+    oa.returnToReview = true;
+    const root = oaRoot();
+    oaStepHeader(root, 'review');
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', 'Check everything is right before you submit.'));
+    const d = oa.data;
+    const emailOk = oa.emailVerifiedFor === String(d.email || '').toLowerCase();
+    const section = (title, step, rows) => {
+        const box = oaEl('section', 'bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 mb-2.5');
+        box.dataset.section = step;
+        const head = oaEl('div', 'flex items-center justify-between mb-1');
+        head.appendChild(oaEl('h4', 'text-[11px] font-bold uppercase tracking-wider text-gray-500', title));
+        const edit = oaEl('button', 'text-[11px] font-bold text-emerald-700 hover:underline', 'Edit');
+        edit.type = 'button';
+        edit.setAttribute('aria-label', `Edit ${title}`);
+        edit.addEventListener('click', () => oaShow(step));
+        head.appendChild(edit);
+        box.appendChild(head);
+        rows.forEach(([k, v]) => {
+            const r = oaEl('div', 'flex items-start justify-between gap-3 py-1');
+            r.append(oaEl('span', 'text-[11px] text-gray-500 shrink-0', k), oaEl('span', 'text-[12px] font-semibold text-gray-900 text-right break-words min-w-0', v));
+            box.appendChild(r);
+        });
+        root.appendChild(box);
+    };
+    section('About you', 'about', [['Legal name', [d.firstName, d.middleName, d.lastName].filter(Boolean).join(' ')], ['Date of birth', oaPrettyDate(d.dob)]]);
+    section('Contact', 'contact', [['Email', `${d.email}${emailOk ? '  ✓ Confirmed' : ''}`], ['Mobile', oaFormatPhone(d.phone)]]);
+    section('Home address', 'address', [['Address', [d.street, d.unit].filter(Boolean).join(', ')], ['', `${d.city}, ${d.state} ${d.zip}`], ['Lived here', oaLabel('yearsAtAddress', d.yearsAtAddress)]]);
+    section('Identity', 'identity', [['SSN', `•••-••-${d.ssnLast4 || ''}`], ['ID', `${oaLabel('idType', d.idType)} ending ${String(d.idNumber || '').slice(-4)}`], ...(d.idType === 'passport' ? [] : [['Issued by', oaStateName(d.idState)]]), ['Expires', oaPrettyDate(d.idExpiry)]]);
+    section('Finances', 'finances', [
+        ['Employment', `${oaLabel('employment', d.employment)}${['employed', 'self_employed'].includes(d.employment) && d.occupation ? ' · ' + d.occupation : ''}`],
+        ['Yearly income', oaLabel('income', d.income)], ['Money from', oaLabel('sourceOfFunds', d.sourceOfFunds)],
+        ['Using it for', (d.purposes || []).map((p) => oaLabel('purposes', p)).join(', ')], ['Monthly deposits', oaLabel('monthlyDeposits', d.monthlyDeposits)],
+        ['Public office', d.pep === 'yes' ? 'Yes' : 'No'],
+    ]);
+    section('Sign-in', 'security', [['Password', '••••••••'], ['Security question', d.securityQuestion || '—']]);
+
+    const agree = oaEl('div', 'mt-4 space-y-3');
+    const docLink = (label, key) => { const b = oaEl('button', 'font-bold text-emerald-700 underline underline-offset-2', label); b.type = 'button'; b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); oaOpenDoc(key); }); return b; };
+    const box1 = oaEl('div', 'flex items-start gap-2.5');
+    const c1 = oaEl('input', 'mt-0.5 w-4 h-4 accent-emerald-600 shrink-0');
+    c1.type = 'checkbox';
+    c1.id = 'oa-agreeTerms';
+    c1.checked = !!d.agreeTerms;
+    c1.addEventListener('change', () => { oa.data.agreeTerms = c1.checked; oaFieldError('agreeTerms', null); });
+    const t1 = oaEl('label', 'text-[11px] text-gray-600 leading-relaxed');
+    t1.htmlFor = 'oa-agreeTerms';
+    t1.append("I've read and agree to the ", docLink('Deposit Account Agreement', 'agreement'), ', ', docLink('Fee Schedule', 'fees'), ' and ', docLink('Privacy Notice', 'privacy'), '.');
+    box1.append(c1, t1);
+    const box2 = oaEl('div', 'flex items-start gap-2.5');
+    const c2 = oaEl('input', 'mt-0.5 w-4 h-4 accent-emerald-600 shrink-0');
+    c2.type = 'checkbox';
+    c2.id = 'oa-agreeEsign';
+    c2.checked = !!d.agreeEsign;
+    c2.addEventListener('change', () => { oa.data.agreeEsign = c2.checked; oaFieldError('agreeEsign', null); });
+    const t2 = oaEl('label', 'text-[11px] text-gray-600 leading-relaxed');
+    t2.htmlFor = 'oa-agreeEsign';
+    t2.append('I agree to get my statements and notices electronically (', docLink('E-Sign Consent', 'esign'), ').');
+    box2.append(c2, t2);
+    agree.append(box1, oaErrorSlot('agreeTerms'), box2, oaErrorSlot('agreeEsign'));
+    agree.appendChild(oaEl('p', 'text-[10px] text-gray-500 leading-relaxed', 'By submitting, you confirm the information above is true and complete, and that the accounts are for you.'));
+    root.appendChild(agree);
+
+    const btn = oaContinueRow(root, () => oaSubmit(btn), 'Submit application');
+    btn.id = 'oaSubmit';
+    btn.insertBefore(oaIcon('fa-lock', 'text-[11px]'), btn.firstChild);
+}
+
+async function oaSubmit(btn) {
+    oaBanner(null);
+    const d = oa.data;
+    let ok = true;
+    ok = oaFieldError('agreeTerms', d.agreeTerms ? null : 'Please agree to the account documents to continue.') && ok;
+    ok = oaFieldError('agreeEsign', d.agreeEsign ? null : 'Please agree to get your documents electronically.') && ok;
+    if (!ok) return oaFocusFirstError();
+    const label = btn.querySelector('span');
+    btn.disabled = true;
+    const spinner = oaEl('span', 'w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin');
+    btn.replaceChildren(spinner, oaEl('span', '', 'Submitting your application…'));
+    try {
+        const payload = {
+            action: 'create-account',
+            firstName: d.firstName, middleName: d.middleName || '', lastName: d.lastName, dob: d.dob,
+            email: d.email, phone: d.phone, street: d.street, unit: d.unit || '', city: d.city, state: d.state, zip: d.zip, yearsAtAddress: d.yearsAtAddress,
+            ssnLast4: d.ssnLast4, idType: d.idType, idNumber: d.idNumber, idState: d.idType === 'passport' ? '' : d.idState, idExpiry: d.idExpiry,
+            employment: d.employment, occupation: ['employed', 'self_employed'].includes(d.employment) ? d.occupation : '', income: d.income, sourceOfFunds: d.sourceOfFunds,
+            purposes: d.purposes, monthlyDeposits: d.monthlyDeposits, pep: d.pep,
+            password: d.password, securityQuestion: d.securityQuestion, securityAnswer: d.securityAnswer,
+            agreeTerms: true, agreeEsign: true,
+        };
+        if (oa.emailToken && oa.emailVerifiedFor === d.email) payload.emailToken = oa.emailToken;
+        const res = await oaApi(payload);
+        oa.result = res;
+        try { localStorage.setItem(OA_LAST_APP_KEY, JSON.stringify({ reference: res.reference, email: d.email })); } catch (e) {}
+        oaClearDraft();
+        ['password', 'confirmPassword', 'securityAnswer', 'ssnLast4', 'idNumber'].forEach((k) => { delete oa.data[k]; });
+        oa.emailToken = null;
+        oaShow('done');
+    } catch (err) {
+        btn.disabled = false;
+        btn.replaceChildren(oaIcon('fa-lock', 'text-[11px]'), oaEl('span', '', 'Submit application'));
+        const step = err.field && OA_FIELD_STEP[err.field];
+        if (step && step !== 'review') {
+            if (err.field === 'email' && /Confirm your email|expired/.test(err.message)) { oa.emailVerifiedFor = null; oa.emailSkippedFor = null; }
+            oaShow(step);
+            oaFieldError(err.field, err.message);
+            oaBanner('Please fix this before submitting.');
+            oaFocusFirstError();
+        } else if (err.field) {
+            oaFieldError(err.field, err.message);
+        } else {
+            oaBanner(err.message);
+        }
+        if (label) label.textContent = 'Submit application';
+    }
+}
+
+function oaTimeline(items) {
+    const ol = oaEl('ol', 'relative mt-1');
+    items.forEach(([state, title, sub], i) => {
+        const li = oaEl('li', 'flex gap-3 pb-4 last:pb-0 relative');
+        li.dataset.state = state;
+        if (i < items.length - 1) li.appendChild(oaEl('span', `absolute left-[11px] top-6 bottom-0 w-0.5 ${state === 'done' ? 'bg-emerald-400' : 'bg-gray-200'}`));
+        const dot = oaEl('span', `w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 ${state === 'done' ? 'bg-emerald-500 text-white' : state === 'now' ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-300' : state === 'fail' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'}`);
+        dot.appendChild(oaIcon(state === 'done' ? 'fa-check' : state === 'now' ? 'fa-hourglass-half' : state === 'fail' ? 'fa-xmark' : 'fa-circle', state === 'todo' ? 'text-[6px]' : 'text-[10px]'));
+        const txt = oaEl('div', 'min-w-0 pt-0.5');
+        txt.append(oaEl('p', 'text-[12px] font-bold text-gray-900', title), oaEl('p', 'text-[11px] text-gray-500 leading-snug', sub));
+        li.append(dot, txt);
+        ol.appendChild(li);
+    });
+    return ol;
+}
+
+function oaScreenDone() {
+    const r = oa.result || {};
+    const root = oaRoot();
+    const top = oaEl('div', 'text-center');
+    const tick = oaEl('span', 'w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center');
+    tick.appendChild(oaIcon('fa-check', 'text-2xl'));
+    const h = oaEl('h3', 'text-base font-bold text-gray-900 mt-3', 'Application received');
+    h.id = 'oaDoneTitle';
+    top.append(tick, h, oaEl('p', 'text-[12px] text-gray-600 mt-1', `Thanks, ${r.firstName || 'there'}. We're reviewing your application now.`));
+    root.appendChild(top);
+
+    const refBox = oaEl('div', 'bg-gray-50 border border-gray-200 rounded-xl p-3.5 mt-4 flex items-center justify-between gap-3');
+    const refText = oaEl('div');
+    const refVal = oaEl('p', 'text-lg font-bold font-mono tracking-wider text-gray-900', r.reference || '—');
+    refVal.id = 'oaReference';
+    refText.append(oaEl('p', 'text-[10px] font-bold uppercase tracking-wider text-gray-500', 'Application reference'), refVal);
+    const copy = oaEl('button', 'text-[11px] font-bold text-emerald-700 bg-white border border-emerald-200 rounded-lg px-2.5 py-1.5 shrink-0', 'Copy');
+    copy.type = 'button';
+    copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(r.reference); copy.textContent = 'Copied'; } catch (e) { copy.textContent = 'Copy failed'; } setTimeout(() => { copy.textContent = 'Copy'; }, 1500); });
+    refBox.append(refText, copy);
+    root.appendChild(refBox);
+    root.appendChild(oaEl('p', 'text-[10px] text-gray-500 mt-1.5', r.confirmationSent ? "Keep this to check your status. We've emailed it to you too." : 'Keep this to check your status. Take a screenshot or copy it now.'));
+
+    const when = r.submittedAt ? new Date(r.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Just now';
+    const tl = oaEl('div', 'mt-4');
+    tl.appendChild(oaEl('p', 'text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2', 'What happens next'));
+    tl.appendChild(oaTimeline([
+        ['done', 'Application submitted', when],
+        ['now', 'We review your details', 'Usually within one business day'],
+        ['todo', 'You get a decision by email', `Sent to ${r.email || 'your email'}`],
+        ['todo', 'Sign in and add money', 'Your checking and savings account numbers will be ready'],
+    ]));
+    root.appendChild(tl);
+    if (r.emailVerified === false) {
+        const warn = oaEl('div', 'mt-3 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] rounded-lg px-3 py-2');
+        warn.textContent = "We couldn't confirm your email, so our team will check it during review.";
+        root.appendChild(warn);
+    }
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mt-3', "You won't be able to sign in until your account is approved."));
+    const back = oaEl('button', `${OA_PRIMARY} mt-4`);
+    back.type = 'button';
+    back.append(oaEl('span', '', 'Back to sign in'));
+    back.addEventListener('click', () => toggleAuthMode());
+    const status = oaEl('button', `${OA_SECONDARY} mt-2`, 'Check status');
+    status.type = 'button';
+    status.addEventListener('click', () => oaShow('status'));
+    root.append(back, status);
+}
+
+function oaScreenStatus() {
+    const root = oaRoot();
+    const top = oaEl('div', 'flex items-center gap-2 mb-3');
+    const back = oaEl('button', 'w-8 h-8 rounded-full hover:bg-gray-100 text-gray-600 flex items-center justify-center shrink-0');
+    back.type = 'button';
+    back.setAttribute('aria-label', 'Back');
+    back.appendChild(oaIcon('fa-arrow-left', 'text-sm'));
+    back.addEventListener('click', () => oaShow('start'));
+    const title = oaEl('h3', 'text-sm font-bold text-gray-900', 'Check your application');
+    title.id = 'oaStepTitle';
+    title.tabIndex = -1;
+    top.append(back, title);
+    root.appendChild(top);
+    root.appendChild(oaEl('p', 'text-[11px] text-gray-500 mb-3', 'Enter the email you applied with and your reference number. You\'ll find the reference in the email we sent you.'));
+    let last = {};
+    try { last = JSON.parse(localStorage.getItem(OA_LAST_APP_KEY) || '{}') || {}; } catch (e) {}
+    const box = oaEl('div', 'space-y-3.5');
+    const email = oaField({ id: 'statusEmail', label: 'Email', type: 'email', inputMode: 'email', autocomplete: 'email', autocapitalize: 'none', value: last.email || '' });
+    const ref = oaField({ id: 'statusRef', label: 'Application reference', autocapitalize: 'characters', mono: true, maxLength: 12, placeholder: 'AH-1234-5678', value: last.reference || '', format: (v) => {
+        let t = String(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (t.startsWith('AH')) t = t.slice(2);
+        t = t.replace(/\D/g, '').slice(0, 8);
+        return t.length ? `AH-${t.slice(0, 4)}${t.length > 4 ? '-' + t.slice(4) : ''}` : '';
+    } });
+    box.append(email.wrap, ref.wrap);
+    root.appendChild(box);
+    const result = oaEl('div', 'mt-4');
+    result.id = 'oaStatusResult';
+    const btn = oaContinueRow(root, async () => {
+        result.replaceChildren();
+        const e = email.input.value.trim();
+        const rf = ref.input.value.trim();
+        let ok = true;
+        ok = oaFieldError('statusEmail', /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) ? null : 'Enter the email you applied with.') && ok;
+        ok = oaFieldError('statusRef', /^AH-\d{4}-\d{4}$/.test(rf) ? null : 'Enter your reference, like AH-1234-5678.') && ok;
+        if (!ok) return oaFocusFirstError();
+        btn.disabled = true;
+        btn.firstChild.textContent = 'Checking…';
+        try {
+            const r = await oaApi({ action: 'application-status', email: e, reference: rf });
+            const submitted = oaPrettyDate(r.submittedAt, { month: 'short', day: 'numeric' });
+            const decided = r.decidedAt ? oaPrettyDate(r.decidedAt, { month: 'short', day: 'numeric' }) : '';
+            const card = oaEl('div', 'border rounded-xl p-4');
+            card.dataset.status = r.status;
+            if (r.status === 'approved') {
+                card.classList.add('border-emerald-200', 'bg-emerald-50');
+                card.append(oaEl('p', 'text-sm font-bold text-emerald-900', 'Approved: your accounts are open'), oaEl('p', 'text-[11px] text-emerald-800 mt-1', `Welcome, ${r.firstName}. Sign in with the email and password you chose.`));
+                const go = oaEl('button', `${OA_PRIMARY} mt-3`);
+                go.type = 'button';
+                go.append(oaEl('span', '', 'Sign in'));
+                go.addEventListener('click', () => { toggleAuthMode(); const inp = document.getElementById('loginEmailInput'); if (inp) { inp.value = e; } });
+                card.appendChild(go);
+                card.appendChild(oaTimeline([['done', 'Application submitted', submitted], ['done', 'Reviewed', decided], ['done', 'Accounts open', 'Sign in to add money']]));
+            } else if (r.status === 'rejected') {
+                card.classList.add('border-red-200', 'bg-red-50');
+                card.append(oaEl('p', 'text-sm font-bold text-red-800', "We couldn't open an account"), oaEl('p', 'text-[11px] text-red-700 mt-1', r.reason ? `Reason: ${r.reason}` : 'Contact us if you think this is a mistake.'));
+                const help = oaEl('button', `${OA_SECONDARY} mt-3`, 'Contact support');
+                help.type = 'button';
+                help.addEventListener('click', () => { if (typeof openLoginInfo === 'function') openLoginInfo('support'); });
+                card.appendChild(help);
+            } else {
+                card.classList.add('border-amber-200', 'bg-amber-50');
+                card.append(oaEl('p', 'text-sm font-bold text-amber-900', 'In review'), oaEl('p', 'text-[11px] text-amber-800 mt-1', `Hi ${r.firstName}, we're reviewing the application you sent on ${submitted}. We'll email you a decision, usually within one business day.`));
+                card.appendChild(oaTimeline([['done', 'Application submitted', submitted], ['now', 'We review your details', 'In progress'], ['todo', 'Decision by email', 'Usually within one business day']]));
+            }
+            result.appendChild(card);
+        } catch (err) {
+            const box2 = oaEl('div', 'bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium rounded-lg px-3 py-2', err.message);
+            box2.setAttribute('role', 'alert');
+            result.appendChild(box2);
+        } finally {
+            btn.disabled = false;
+            btn.firstChild.textContent = 'Check status';
+        }
+    }, 'Check status');
+    root.appendChild(result);
+}
+
+// Deep links: /?start=open-account (the old /signup page sends people here).
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const params = new URLSearchParams(location.search);
+        const start = params.get('start');
+        if (start === 'open-account' || start === 'application-status') {
+            params.delete('start');
+            const q = params.toString();
+            history.replaceState(null, '', location.pathname + (q ? `?${q}` : '') + location.hash);
+            const go = () => {
+                const signup = document.getElementById('signupFormWrapper');
+                if (signup && signup.classList.contains('hidden')) toggleAuthMode();
+                if (start === 'application-status') oaShow('status');
+            };
+            const wait = setInterval(() => {
+                const auth = document.getElementById('authScreen');
+                if (auth && !auth.classList.contains('hidden')) { clearInterval(wait); go(); }
+            }, 150);
+            setTimeout(() => clearInterval(wait), 15000);
+        }
+    } catch (e) {}
 });
 </script>

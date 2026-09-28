@@ -4,6 +4,8 @@ const { getQuery } = require('../lib/query');
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 const { withPush } = require('../lib/push');
 const linked = require('../lib/linkedAccounts');
+const opening = require('../lib/accountOpening');
+const { sendEmail } = require('../lib/email');
 const { creditSavingsInterest } = require('../lib/interest');
 const goals = require('../lib/goals');
 const support = require('../lib/support');
@@ -414,12 +416,40 @@ module.exports = withPush(async function handler(req, res) {
 
     // ---------- listPendingAccounts (new signup approval queue) ----------
     if (action === 'listPendingAccounts') {
-      const accounts = await sql`
-        SELECT id, email, full_name, created_at
+      await opening.ensureOpeningSchema(sql);
+      const rows = await sql`
+        SELECT id, email, full_name, created_at, phone, date_of_birth, address_street, address_unit, address_city, address_state, address_zip,
+               id_type, id_state, id_expiry, id_number, email_verified, application_ref, application
         FROM users
         WHERE approval_status = 'pending'
         ORDER BY created_at ASC
       `;
+      const label = (map, v) => (v && map[v]) || v || null;
+      const accounts = rows.map((r) => {
+        const app = typeof r.application === 'string' ? (() => { try { return JSON.parse(r.application); } catch (e) { return {}; } })() : (r.application || {});
+        const dob = r.date_of_birth ? new Date(r.date_of_birth) : null;
+        const age = dob && !isNaN(dob) ? Math.floor((Date.now() - dob.getTime()) / (365.25 * 864e5)) : null;
+        return {
+          id: r.id,
+          email: r.email,
+          full_name: r.full_name,
+          created_at: r.created_at,
+          reference: r.application_ref || null,
+          emailVerified: r.email_verified === true || r.email_verified === 't',
+          age,
+          phoneLast4: r.phone ? String(r.phone).replace(/\D/g, '').slice(-4) : null,
+          address: [r.address_street, r.address_unit, r.address_city, r.address_state, r.address_zip].filter(Boolean).join(', ') || null,
+          idSummary: r.id_type ? `${label(opening.ID_TYPES, r.id_type)}${r.id_state ? ' (' + r.id_state + ')' : ''} ending ${String(r.id_number || '').slice(-4)}${r.id_expiry ? ', expires ' + new Date(r.id_expiry).toISOString().slice(0, 10) : ''}` : null,
+          employment: label(opening.CHOICES.employment, app.employment),
+          occupation: app.occupation || null,
+          income: label(opening.CHOICES.income, app.income),
+          sourceOfFunds: label(opening.CHOICES.sourceOfFunds, app.sourceOfFunds),
+          monthlyDeposits: label(opening.CHOICES.monthlyDeposits, app.monthlyDeposits),
+          purposes: (app.purposes || []).map((p) => label(opening.CHOICES.purposes, p)),
+          yearsAtAddress: label(opening.CHOICES.yearsAtAddress, app.yearsAtAddress),
+          pep: app.pep === true,
+        };
+      });
       return res.status(200).json({ accounts });
     }
 
@@ -811,6 +841,13 @@ module.exports = withPush(async function handler(req, res) {
       } catch (notifyErr) {
         console.error('Approve account notification error (non-fatal):', notifyErr);
       }
+      try {
+        const info = await sql`SELECT u.full_name, a.account_number FROM users u LEFT JOIN accounts a ON a.user_id = u.id AND a.account_type = 'checking' WHERE u.id = ${userId} LIMIT 1`;
+        const firstName = String((info[0] && info[0].full_name) || '').split(' ')[0] || 'there';
+        await sendEmail({ to: user.email, subject: 'Your Apex Horizon accounts are open', html: opening.decisionEmailHtml({ firstName, approved: true, checkingLast4: info[0] && info[0].account_number ? String(info[0].account_number).slice(-4) : null }) });
+      } catch (mailErr) {
+        console.error('Approval email error (non-fatal):', mailErr);
+      }
 
       return res.status(200).json({ success: true, message: `Account for ${user.email} approved.` });
     }
@@ -841,6 +878,13 @@ module.exports = withPush(async function handler(req, res) {
         INSERT INTO admin_audit_log (admin_action, target_email, amount, details, created_at)
         VALUES ('rejectAccount', ${user.email}, NULL, ${reason || 'Account application rejected'}, NOW())
       `;
+      try {
+        const info = await sql`SELECT full_name FROM users WHERE id = ${userId} LIMIT 1`;
+        const firstName = String((info[0] && info[0].full_name) || '').split(' ')[0] || 'there';
+        await sendEmail({ to: user.email, subject: 'An update on your Apex Horizon application', html: opening.decisionEmailHtml({ firstName, approved: false, reason: reason || null }) });
+      } catch (mailErr) {
+        console.error('Rejection email error (non-fatal):', mailErr);
+      }
 
       return res.status(200).json({ success: true, message: `Account for ${user.email} rejected.` });
     }
