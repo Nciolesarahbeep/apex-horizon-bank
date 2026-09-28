@@ -96,7 +96,7 @@
         }
         /* The floating Help button steps aside while a bottom sheet is open or a
            payment is processing, so it never covers buttons or looks tappable mid-payment. */
-        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden), #cardSheet:not(.hidden), #loadingOverlay:not(.hidden), #preQualLoader:not(.hidden), #helpSheet:not(.hidden)) #ahb-help-widget {
+        body:has(#moreSheet:not(.hidden), #requestMoneySheet:not(.hidden), #ledgerFiltersSheet:not(.hidden), #budgetEditorSheet:not(.hidden), #stepUpSheet:not(.hidden), #notifDetailSheet:not(.hidden), #goalDetailSheet:not(.hidden), #goalMoneySheet:not(.hidden), #goalEditorSheet:not(.hidden), #cardSheet:not(.hidden), #receiptModal:not(.hidden), #disputeModal:not(.hidden), #loadingOverlay:not(.hidden), #preQualLoader:not(.hidden), #helpSheet:not(.hidden)) #ahb-help-widget {
             display: none !important;
         }
         /* Savings goals: progress rings, on/off switch, account choice cards. */
@@ -160,6 +160,30 @@
            between the header and the tab bar, so you can still switch tabs while it loads. */
         .ahb-fixed-overlay { position: fixed !important; inset: 0 auto 0 50% !important; translate: -50% 0; width: min(100%, 28rem); }
         #bubbleLoader.ahb-content-overlay { position: fixed !important; inset: var(--ahb-top, 0px) auto var(--ahb-bottom, 0px) 50% !important; translate: -50% 0; width: min(100%, 28rem); z-index: 45 !important; }
+        /* Pop-ups are pinned to the screen (not the page), so they open where you're
+           looking however far you've scrolled, and never taller than the screen. */
+        .ahb-modal-fit > div { max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; }
+        /* Receipt: full screen on phones (a full-height column when the phone is on
+           its side), a centred card on screens that are big both ways. */
+        .ahb-receipt-card { height: 100vh; height: 100dvh; max-width: 28rem; }
+        .ahb-receipt-head { padding-top: calc(0.75rem + env(safe-area-inset-top, 0px)); }
+        .ahb-receipt-foot { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+        .ahb-receipt-body p { overflow-wrap: anywhere; }
+        @media (min-width: 640px) and (min-height: 600px) {
+            #receiptModal.ahb-receipt-overlay { align-items: center; padding: 1rem; }
+            .ahb-receipt-card { height: auto; max-height: min(90vh, 860px); max-height: min(90dvh, 860px); border-radius: 1rem; }
+            .ahb-receipt-head { padding-top: 0.75rem; }
+            .ahb-receipt-foot { padding-bottom: 1rem; }
+        }
+        html.ahb-receipt-open, html.ahb-receipt-open body { overflow: hidden; }
+        @media print {
+            html.ahb-receipt-open body * { visibility: hidden !important; }
+            html.ahb-receipt-open #receiptModal, html.ahb-receipt-open #receiptModal * { visibility: visible !important; }
+            html.ahb-receipt-open #receiptModal { position: absolute !important; inset: 0 !important; background: #fff !important; backdrop-filter: none !important; display: block !important; }
+            html.ahb-receipt-open .ahb-receipt-card { height: auto !important; max-height: none !important; box-shadow: none !important; margin: 0 auto; }
+            html.ahb-receipt-open .ahb-receipt-body { overflow: visible !important; }
+            html.ahb-receipt-open .ahb-receipt-foot, html.ahb-receipt-open #receiptCloseBtn { display: none !important; }
+        }
         .checkingBalanceLabel,
 #hysBalanceLabel,
 #creditPortfolioBalanceLabel,
@@ -361,7 +385,7 @@
             <p data-ahb-status class="text-white text-xs font-semibold tracking-wide text-center px-6 animate-pulse" role="status" aria-live="polite">Reviewing your application…</p>
         </div>
 
-        <div id="accountNumberModal" class="hidden absolute inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div id="accountNumberModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
             <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
                 <div class="bg-slate-950 p-6 text-center border-b border-gray-800">
                     <div class="mx-auto w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mb-3 shadow-md">
@@ -385,15 +409,15 @@
             </div>
         </div>
 
-        <div id="receiptModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-                    <button onclick="closeReceiptModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-sm font-bold text-gray-900">Confirmation</h3>
-                    <div class="w-6"></div>
+        <div id="receiptModal" class="ahb-receipt-overlay hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] items-stretch justify-center" role="dialog" aria-modal="true" aria-labelledby="receiptModalTitle">
+            <div id="receiptCard" tabindex="-1" class="ahb-receipt-card bg-white w-full shadow-2xl overflow-hidden flex flex-col animate-fade-in outline-none">
+                <div class="ahb-receipt-head flex items-center justify-between px-4 pb-3 border-b border-gray-100 shrink-0">
+                    <button type="button" id="receiptCloseBtn" onclick="closeReceiptModal()" aria-label="Close receipt" class="text-emerald-600 text-lg w-8 h-8 -ml-1 rounded-full hover:bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                    <h3 id="receiptModalTitle" class="text-sm font-bold text-gray-900">Receipt</h3>
+                    <div class="w-8"></div>
                 </div>
 
-                <div class="overflow-y-auto">
+                <div id="receiptScroll" class="ahb-receipt-body flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
                     <div class="text-center px-5 pt-6 pb-4">
                         <div class="mx-auto w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mb-3 shadow-md">
                             <i class="fa-solid fa-check text-white text-2xl"></i>
@@ -453,7 +477,7 @@
                     </div>
                 </div>
 
-                <div class="p-4 border-t border-gray-100 shrink-0 space-y-2">
+                <div class="ahb-receipt-foot px-4 pt-4 border-t border-gray-100 shrink-0 space-y-2">
                     <button onclick="handleModalPrimaryAction()" id="modalPrimaryActionBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm transition">
                         Send Another Transfer
                     </button>
@@ -774,7 +798,7 @@ async function submitCreateRecurringTransfer(event) {
 }
 </script>
 
-<div id="kycModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+<div id="kycModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
             <button onclick="closeKycModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
@@ -830,7 +854,7 @@ async function submitCreateRecurringTransfer(event) {
         </div>
     </div>
 </div>
-<div id="disputeModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+<div id="disputeModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <button onclick="closeDisputeModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
@@ -872,7 +896,7 @@ async function submitCreateRecurringTransfer(event) {
         </div>
     </div>
 </div>
-<div id="forgotPasswordModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+<div id="forgotPasswordModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <button onclick="closeForgotPasswordModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
@@ -919,7 +943,7 @@ async function submitCreateRecurringTransfer(event) {
     </div>
 </div>
 
-<div id="loginOtpModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+<div id="loginOtpModal" class="ahb-modal-fit hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
     <div class="bg-white max-w-sm w-full rounded-2xl shadow-2xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <button onclick="closeLoginOtpModal()" class="text-emerald-600 text-lg w-6"><i class="fa-solid fa-xmark"></i></button>
@@ -959,7 +983,7 @@ async function submitCreateRecurringTransfer(event) {
             <p data-ahb-status class="text-white text-xs font-semibold tracking-wide text-center px-6 animate-pulse" role="status" aria-live="polite">Processing…</p>
         </div>
 
-        <div id="loginSequenceLoader" class="hidden absolute inset-0 bg-slate-950 z-[9999] flex flex-col items-center justify-center px-8">
+        <div id="loginSequenceLoader" class="hidden fixed inset-0 bg-slate-950 z-[9999] flex flex-col items-center justify-center px-8">
             <div class="w-full max-w-xs space-y-6">
 
                 <div class="flex flex-col items-center space-y-3">
@@ -5420,7 +5444,40 @@ if (activeLoanBalanceEl) {
                 primaryBtn.innerText = isCredit ? 'Done' : 'Send Another Transfer';
             }
 
-            document.getElementById('receiptModal').classList.remove('hidden');
+            showReceiptModal();
+        }
+
+        // If the page has been pinch-zoomed, pop-ups pinned to the screen can
+        // land off to one side. Briefly capping the zoom snaps it back to
+        // normal size first (the same trick the dashboard refresh uses);
+        // zooming works again straight after.
+        function resetPageZoomForPopup() {
+            const vv = window.visualViewport;
+            if (!vv || (vv.scale <= 1.01 && Math.abs(vv.offsetLeft) < 1 && Math.abs(vv.offsetTop) < 1)) return;
+            const meta = document.querySelector('meta[name="viewport"]');
+            if (!meta) return;
+            const original = meta.getAttribute('content');
+            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            setTimeout(() => { if (original) meta.setAttribute('content', original); }, 300);
+        }
+
+        // The receipt opens pinned to the screen: full screen on a phone, a
+        // centred card on a bigger screen, always from the top, with the page
+        // behind it held still.
+        function showReceiptModal() {
+            const modal = document.getElementById('receiptModal');
+            if (!modal) return;
+            resetPageZoomForPopup();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.documentElement.classList.add('ahb-receipt-open');
+            const scroller = document.getElementById('receiptScroll');
+            if (scroller) scroller.scrollTop = 0;
+            // Move focus into the receipt (for screen readers and keyboards) without a focus ring.
+            requestAnimationFrame(() => {
+                const card = document.getElementById('receiptCard');
+                if (card) { try { card.focus({ preventScroll: true }); } catch (e) {} }
+            });
         }
 
         function handleModalPrimaryAction() {
@@ -5431,8 +5488,26 @@ if (activeLoanBalanceEl) {
         }
 
         function closeReceiptModal() {
-            document.getElementById('receiptModal').classList.add('hidden');
+            const modal = document.getElementById('receiptModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.documentElement.classList.remove('ahb-receipt-open');
         }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const modal = document.getElementById('receiptModal');
+            if (modal && !modal.classList.contains('hidden')) closeReceiptModal();
+        });
+        // However the receipt gets hidden (signing out, another screen), let the page scroll again.
+        (function keepReceiptScrollLockInStep() {
+            const modal = document.getElementById('receiptModal');
+            if (!modal || typeof MutationObserver !== 'function') return;
+            new MutationObserver(() => {
+                if (modal.classList.contains('hidden')) document.documentElement.classList.remove('ahb-receipt-open');
+            }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+        })();
 
         let p2pPendingRecipient = null;
 
