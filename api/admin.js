@@ -427,8 +427,15 @@ module.exports = withPush(async function handler(req, res) {
       const label = (map, v) => (v && map[v]) || v || null;
       const accounts = rows.map((r) => {
         const app = typeof r.application === 'string' ? (() => { try { return JSON.parse(r.application); } catch (e) { return {}; } })() : (r.application || {});
-        const dob = r.date_of_birth ? new Date(r.date_of_birth) : null;
-        const age = dob && !isNaN(dob) ? Math.floor((Date.now() - dob.getTime()) / (365.25 * 864e5)) : null;
+        // Age by the calendar (dividing by 365.25 days is a year short on some birthdays).
+        const dobText = r.date_of_birth instanceof Date ? r.date_of_birth.toISOString().slice(0, 10) : String(r.date_of_birth || '').slice(0, 10);
+        const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dobText);
+        let age = null;
+        if (dm) {
+          const now = new Date();
+          age = now.getUTCFullYear() - Number(dm[1]);
+          if (now.getUTCMonth() + 1 < Number(dm[2]) || (now.getUTCMonth() + 1 === Number(dm[2]) && now.getUTCDate() < Number(dm[3]))) age--;
+        }
         return {
           id: r.id,
           email: r.email,

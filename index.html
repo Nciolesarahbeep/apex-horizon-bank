@@ -395,6 +395,80 @@ html.ahb-reduce-motion .ahb-intro-wait { animation: ahbIntroWord 0.01s 1.5s forw
 html.ahb-reduce-motion .ahb-intro-wait span { animation: none !important; opacity: 0.6; }
 html.ahb-reduce-motion .ahb-intro-glow, html.ahb-reduce-motion .ahb-intro-peak, html.ahb-reduce-motion .ahb-intro-horizon,
 html.ahb-reduce-motion .ahb-intro-sun, html.ahb-reduce-motion .ahb-intro-word { animation: none !important; opacity: 1; transform: none; stroke-dashoffset: 0; }
+
+/* ===== Face ID unlock (same navy as the intro, so launch flows straight into it) ===== */
+.ahb-unlock { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 24px;
+  background: linear-gradient(180deg, #15263f 0%, #060a13 100%); color: #ffffff; overflow-y: auto;
+  padding: calc(26px + env(safe-area-inset-top, 0px)) 24px calc(22px + env(safe-area-inset-bottom, 0px));
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+.ahb-unlock.hidden { display: none; }
+.ahb-unlock button { font-family: inherit; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+.ahb-unlock button:focus-visible { outline: 2px solid #34d399; outline-offset: 3px; }
+.ahb-unlock-top { display: flex; align-items: center; gap: 10px; flex: none; }
+.ahb-unlock-logo { width: 30px; height: 30px; overflow: visible; }
+.ahb-unlock-brand { font: 700 13px/1 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.16em; }
+.ahb-unlock-main, .ahb-unlock-pad { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; max-width: 360px; }
+.ahb-unlock-main.hidden, .ahb-unlock-pad.hidden { display: none; }
+.ahb-unlock-reason { margin: 0 0 16px; font-size: 12px; font-weight: 600; color: #fcd34d; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.28); padding: 6px 12px; border-radius: 999px; }
+.ahb-unlock-reason.hidden { display: none; }
+.ahb-unlock-title { margin: 0; font: 700 26px/1.15 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.01em; }
+.ahb-unlock-email { margin: 6px 0 30px; min-height: 16px; font: 500 13px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; color: #94a3b8; }
+.ahb-unlock-glyph { width: 136px; height: 136px; border-radius: 38px; border: 0; padding: 0; display: grid; place-items: center; color: #34d399;
+  background: rgba(52, 211, 153, 0.08); box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.28); transition: background 0.2s, box-shadow 0.2s, color 0.2s; }
+.ahb-unlock-glyph svg { width: 78px; height: 78px; overflow: visible; }
+.ahb-unlock-glyph .fu-corners, .ahb-unlock-glyph .fu-face { fill: none; stroke: currentColor; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; transform-origin: 32px 32px; transition: opacity 0.15s; }
+.ahb-unlock-glyph .fu-check { fill: none; stroke: currentColor; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+.ahb-unlock-glyph .fu-scan { fill: currentColor; opacity: 0; }
+.ahb-unlock-glyph[data-state="scanning"] .fu-corners { animation: fuPulse 1.1s ease-in-out infinite; }
+.ahb-unlock-glyph[data-state="scanning"] .fu-scan { opacity: 0.55; animation: fuScan 1.5s ease-in-out infinite; }
+.ahb-unlock-glyph[data-state="success"] { color: #6ee7b7; background: rgba(52, 211, 153, 0.18); box-shadow: inset 0 0 0 2px #34d399; }
+.ahb-unlock-glyph[data-state="success"] .fu-face { opacity: 0; }
+.ahb-unlock-glyph[data-state="success"] .fu-corners { animation: fuClose 0.35s ease-out forwards; }
+.ahb-unlock-glyph[data-state="success"] .fu-check { opacity: 1; animation: fuDraw 0.35s 0.08s ease-out forwards; }
+.ahb-unlock-glyph[data-state="error"] { color: #fca5a5; background: rgba(248, 113, 113, 0.1); box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.45); animation: fuShake 0.42s; }
+.ahb-unlock-status { margin: 20px 0 0; min-height: 40px; max-width: 300px; font-size: 14px; line-height: 1.4; color: #cbd5e1; }
+.ahb-unlock-actions { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 10px; flex: none; }
+.ahb-unlock-primary { width: 100%; height: 54px; border: 0; border-radius: 15px; background: #10b981; color: #052e1c; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.ahb-unlock-primary svg { width: 22px; height: 22px; }
+.ahb-unlock-primary:disabled { opacity: 0.55; cursor: default; }
+.ahb-unlock-primary.hidden { display: none; }
+.ahb-unlock-alt { display: flex; align-items: center; gap: 8px; color: #475569; font-size: 14px; }
+.ahb-unlock-alt button { background: none; border: 0; padding: 10px 6px; color: #a7f3d0; font-size: 14px; font-weight: 600; }
+.ahb-unlock-alt .hidden { display: none; }
+.ahb-unlock-padtitle { margin: 0; font: 700 22px/1.2 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; }
+.ahb-unlock-dots { display: flex; gap: 16px; margin: 20px 0 6px; }
+.ahb-unlock-dots span { width: 13px; height: 13px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #64748b; transition: background 0.12s, box-shadow 0.12s; }
+.ahb-unlock-dots span.on { background: #34d399; box-shadow: none; }
+.ahb-unlock-dots.shake { animation: fuShake 0.42s; }
+.ahb-unlock-padmsg { margin: 6px 0 12px; min-height: 36px; max-width: 290px; font-size: 13px; line-height: 1.4; color: #fca5a5; }
+.ahb-unlock-keys { display: grid; grid-template-columns: repeat(3, 74px); gap: 14px 24px; justify-content: center; }
+.ahb-unlock-keys button { width: 74px; height: 74px; border-radius: 50%; border: 0; padding: 0; background: rgba(148, 163, 184, 0.14); color: #ffffff; font-size: 29px; font-weight: 500; line-height: 1; transition: background 0.1s; }
+.ahb-unlock-keys button:active { background: rgba(148, 163, 184, 0.34); }
+.ahb-unlock-keys button.fu-key-text { background: none; font-size: 15px; font-weight: 600; color: #a7f3d0; }
+.ahb-unlock-keys button.fu-key-text:disabled { color: #475569; cursor: default; }
+.ahb-unlock-keys button.fu-key-text svg { width: 26px; height: 26px; }
+.ahb-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+@media (max-height: 700px) {
+  .ahb-unlock { gap: 14px; }
+  .ahb-unlock-email { margin-bottom: 18px; }
+  .ahb-unlock-glyph { width: 116px; height: 116px; border-radius: 32px; }
+  .ahb-unlock-keys { grid-template-columns: repeat(3, 62px); gap: 10px 22px; }
+  .ahb-unlock-keys button { width: 62px; height: 62px; font-size: 25px; }
+  .ahb-unlock-dots { margin-top: 12px; }
+}
+@keyframes fuPulse { 50% { transform: scale(0.9); } }
+@keyframes fuScan { 0%, 100% { transform: translateY(8px); } 50% { transform: translateY(54px); } }
+@keyframes fuDraw { to { stroke-dashoffset: 0; } }
+@keyframes fuClose { to { transform: scale(0.84); opacity: 0.3; } }
+@keyframes fuShake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) {
+  html:not(.ahb-allow-motion) .ahb-unlock * { animation: none !important; transition: none !important; }
+  html:not(.ahb-allow-motion) .ahb-unlock-glyph[data-state="success"] .fu-check { stroke-dashoffset: 0; }
+  html:not(.ahb-allow-motion) .ahb-unlock-glyph[data-state="scanning"] .fu-scan { opacity: 0; }
+}
+html.ahb-reduce-motion .ahb-unlock * { animation: none !important; transition: none !important; }
+html.ahb-reduce-motion .ahb-unlock-glyph[data-state="success"] .fu-check { stroke-dashoffset: 0; }
+html.ahb-reduce-motion .ahb-unlock-glyph[data-state="scanning"] .fu-scan { opacity: 0; }
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0b0f1a">
@@ -1147,6 +1221,64 @@ async function submitCreateRecurringTransfer(event) {
             <div class="ahb-intro-wait" aria-hidden="true"><span></span><span></span><span></span></div>
         </div>
         <script>window.__ahbIntroStart = (window.performance && performance.now) ? performance.now() : 0;</script>
+
+        <!-- Face ID unlock: shown instead of the sign-in form when the app is opened from the Home Screen,
+             or after auto-lock, on a phone with Face ID set up. Face ID is checked by the phone. -->
+        <div id="faceUnlock" class="ahb-unlock hidden" role="dialog" aria-modal="true" aria-labelledby="faceUnlockTitle">
+            <div class="ahb-unlock-top">
+                <svg class="ahb-unlock-logo" viewBox="0 0 1024 1024" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="ahbUnlockSun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+                        <linearGradient id="ahbUnlockPeak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a7f3d0"/><stop offset="0.45" stop-color="#34d399"/><stop offset="1" stop-color="#059669"/></linearGradient>
+                        <clipPath id="ahbUnlockAbove"><rect x="-200" y="-200" width="1424" height="942"/></clipPath>
+                    </defs>
+                    <g clip-path="url(#ahbUnlockAbove)"><circle cx="512" cy="742" r="138" fill="url(#ahbUnlockSun)"/></g>
+                    <path d="M244 800 L512 300 L780 800" fill="none" stroke="url(#ahbUnlockPeak)" stroke-width="118" stroke-linejoin="round" clip-path="url(#ahbUnlockAbove)"/>
+                    <rect x="176" y="722" width="672" height="40" rx="20" fill="#ffffff"/>
+                </svg>
+                <span class="ahb-unlock-brand">APEX HORIZON</span>
+            </div>
+
+            <div class="ahb-unlock-main" id="faceUnlockMain">
+                <p id="faceUnlockReason" class="ahb-unlock-reason hidden"></p>
+                <h2 id="faceUnlockTitle" class="ahb-unlock-title">Welcome back</h2>
+                <p id="faceUnlockEmail" class="ahb-unlock-email"></p>
+                <button type="button" id="faceUnlockGlyph" class="ahb-unlock-glyph" data-state="idle" aria-label="Unlock with Face ID" onclick="faceUnlockWithFaceId(false)">
+                    <svg viewBox="0 0 64 64" aria-hidden="true">
+                        <g class="fu-corners">
+                            <path d="M5 19V13a8 8 0 0 1 8-8h6"/><path d="M45 5h6a8 8 0 0 1 8 8v6"/>
+                            <path d="M59 45v6a8 8 0 0 1-8 8h-6"/><path d="M19 59h-6a8 8 0 0 1-8-8v-6"/>
+                        </g>
+                        <g class="fu-face">
+                            <path d="M22 23v6"/><path d="M42 23v6"/><path d="M32 23v13h-3"/><path d="M23 43c5 4.5 13 4.5 18 0"/>
+                        </g>
+                        <rect class="fu-scan" x="10" y="0" width="44" height="2.6" rx="1.3"/>
+                        <path class="fu-check" pathLength="1" d="M19 33l9 9 17-18"/>
+                    </svg>
+                </button>
+                <p id="faceUnlockStatus" class="ahb-unlock-status" role="status" aria-live="polite">Tap to unlock with Face ID</p>
+            </div>
+
+            <div class="ahb-unlock-pad hidden" id="faceUnlockPad">
+                <p class="ahb-unlock-padtitle" id="faceUnlockPadTitle">Enter your passcode</p>
+                <div class="ahb-unlock-dots" id="faceUnlockDots" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                <p id="faceUnlockPadCount" class="ahb-sr-only" aria-live="polite"></p>
+                <p id="faceUnlockPadMsg" class="ahb-unlock-padmsg" role="alert"></p>
+                <div class="ahb-unlock-keys" id="faceUnlockKeys" role="group" aria-labelledby="faceUnlockPadTitle"></div>
+            </div>
+
+            <div class="ahb-unlock-actions">
+                <button type="button" id="faceUnlockBtn" class="ahb-unlock-primary" onclick="faceUnlockWithFaceId(false)">
+                    <svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V13a8 8 0 0 1 8-8h6"/><path d="M45 5h6a8 8 0 0 1 8 8v6"/><path d="M59 45v6a8 8 0 0 1-8 8h-6"/><path d="M19 59h-6a8 8 0 0 1-8-8v-6"/><path d="M22 23v6"/><path d="M42 23v6"/><path d="M32 23v13h-3"/><path d="M23 43c5 4.5 13 4.5 18 0"/></g></svg>
+                    <span>Unlock with Face ID</span>
+                </button>
+                <div class="ahb-unlock-alt">
+                    <button type="button" id="faceUnlockModeBtn" onclick="faceUnlockToggleMode()">Use passcode</button>
+                    <span id="faceUnlockAltDot" aria-hidden="true">·</span>
+                    <button type="button" id="faceUnlockPasswordBtn" onclick="faceUnlockUsePassword()">Use password</button>
+                </div>
+            </div>
+        </div>
 
         <div id="logoutSequenceLoader" class="hidden fixed inset-0 z-[10000] bg-slate-950 flex flex-col items-center justify-center px-8 text-center">
             <div class="relative w-14 h-14 flex items-center justify-center mb-4">
@@ -4481,6 +4613,7 @@ if (activeLoanBalanceEl) {
         }
 
         function showDashboardScreen() {
+    if (typeof hideFaceUnlock === 'function') hideFaceUnlock();
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('dashboardApp').classList.remove('hidden');
     const helpWidget = document.getElementById('ahb-help-widget');
@@ -4527,9 +4660,13 @@ if (activeLoanBalanceEl) {
         sessionStorage.removeItem('ahb_active_session');
     }
 
-    // Fresh app open (or expired session) — always show login, like a real bank
+    // Fresh app open (or expired session) — always show login, like a real bank.
+    // Opened from the Home Screen on a phone with Face ID set up, it's the
+    // Face ID unlock screen instead, which asks for Face ID once the intro ends.
     showLoginScreen();
-    hideLaunchSplash();
+    const unlocking = isStandaloneApp() && faceUnlockAvailable() && showFaceUnlock('launch');
+    const introDone = hideLaunchSplash();
+    if (unlocking) Promise.resolve(introDone).then(() => setTimeout(faceUnlockAuto, 250));
 }
 
 // The launch intro: the logo draws itself (peak, horizon, then the sun rising)
@@ -7301,6 +7438,7 @@ fetchAndApplyProfilePhoto();
 
             document.getElementById('signinMethodLine').textContent = ctx.method === 'faceid'
                 ? 'Signed in securely with Face ID'
+                : ctx.method === 'passcode' ? 'Signed in securely with your passcode'
                 : ctx.method === 'password' ? 'Signed in securely with your password' : 'Signed in securely';
 
             const lastRow = document.getElementById('signinLastRow');
@@ -7448,6 +7586,8 @@ fetchAndApplyProfilePhoto();
             loader.classList.add('hidden');
             clearActiveBrowserSession();
             showLoginScreen();
+            // Auto-lock on a phone with Face ID: the unlock screen, not the sign-in form.
+            if (isIdleTimeout === true && typeof faceUnlockAvailable === 'function' && faceUnlockAvailable()) showFaceUnlock('locked');
             viewHistory = ['summary']; 
             if (typeof resetOffersForSignOut === 'function') resetOffersForSignOut();
         }
@@ -8674,14 +8814,14 @@ fetchAndApplyProfilePhoto();
                     const date = new Date(r.created_at).toLocaleString('en-US', {
                         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
                     });
-                    const method = r.method === 'webauthn' ? 'Face ID / Passkey' : 'Password';
+                    const method = r.method === 'webauthn' ? 'Face ID' : r.method === 'passcode' ? 'Passcode' : 'Password';
                     const location = [r.city, r.region, r.country].filter(Boolean).join(', ') || 'Unknown location';
                     const ip = r.ip_address ? ` • ${r.ip_address}` : '';
 
                     return `
                         <div class="p-3.5 flex items-start gap-3">
                             <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                                <i class="fa-solid ${r.method === 'webauthn' ? 'fa-face-viewfinder' : 'fa-key'} text-slate-600 text-xs"></i>
+                                <i class="fa-solid ${r.method === 'webauthn' ? 'fa-face-viewfinder' : r.method === 'passcode' ? 'fa-table-cells' : 'fa-key'} text-slate-600 text-xs"></i>
                             </div>
                             <div class="min-w-0 flex-1">
                                 <p class="text-xs font-semibold text-gray-900">${method}</p>
@@ -8994,6 +9134,26 @@ function rememberLocalFaceId(credentialId) {
 function forgetLocalFaceId(credentialId) {
     const list = getLocalFaceIdIds().filter(id => id !== credentialId);
     try { localStorage.setItem(FACE_ID_LOCAL_KEY, JSON.stringify(list)); } catch (err) {}
+    if (!list.length) forgetFaceIdOwner();
+}
+
+// Whose Face ID this phone holds (email and first name only), so the unlock
+// screen can greet them and offer their passcode. Cleared when Face ID is
+// turned off on this phone.
+const FACE_ID_OWNER_KEY = 'ahb-faceid-owner';
+function rememberFaceIdOwner(user) {
+    if (!user || !user.email) return;
+    const firstName = String(user.fullName || user.full_name || '').trim().split(/\s+/)[0] || '';
+    try { localStorage.setItem(FACE_ID_OWNER_KEY, JSON.stringify({ email: user.email, firstName })); } catch (err) {}
+}
+function readFaceIdOwner() {
+    try {
+        const v = JSON.parse(localStorage.getItem(FACE_ID_OWNER_KEY) || 'null');
+        return v && typeof v.email === 'string' && /@/.test(v.email) ? v : null;
+    } catch (err) { return null; }
+}
+function forgetFaceIdOwner() {
+    try { localStorage.removeItem(FACE_ID_OWNER_KEY); } catch (err) {}
 }
 
 function friendlyDeviceName() {
@@ -9141,9 +9301,10 @@ async function enrollFaceId() {
         }
 
         rememberLocalFaceId(verifyData.credentialId || attestationResponse.id);
+        rememberFaceIdOwner({ email: currentUserEmail, fullName: currentUserFullName });
         await refreshFaceIdStatus();
         renderBiometricDevices();
-        alert('Face ID is on. You can now sign in and approve large transfers with Face ID on this device.');
+        alert('Face ID is on. You can now sign in, unlock the app and approve large transfers with Face ID on this device.');
     } catch (err) {
         if (err.name === 'NotAllowedError') return; // user cancelled
         if (err.name === 'InvalidStateError') {
@@ -9202,48 +9363,59 @@ function renderBiometricDevices() {
     });
 }
 
+// One Face ID sign-in, used by the login screen's button and the unlock
+// screen. With no email it asks the phone for the Face ID keys saved on
+// this device, so iOS goes straight to the Face ID scan for that account.
+// Throws the browser's NotAllowedError when Face ID is cancelled or fails,
+// or an Error with .serverMessage when Apex refuses the sign-in.
+async function faceIdAuthenticate(email) {
+    const body = { action: 'options' };
+    if (email) body.email = email;
+    else {
+        const ids = getLocalFaceIdIds();
+        if (ids.length) body.credentialIds = ids;
+    }
+    const optionsRes = await fetch('/api/webauthn-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+    });
+    const options = await optionsRes.json().catch(() => ({}));
+    if (!optionsRes.ok) throw Object.assign(new Error(options.error || 'Face ID sign-in is not available for this account yet.'), { serverMessage: true });
+
+    const assertionResponse = await window.SimpleWebAuthnBrowser.startAuthentication(options);
+
+    const verifyRes = await fetch('/api/webauthn-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'verify', assertionResponse })
+    });
+    const data = await verifyRes.json().catch(() => ({}));
+    if (!verifyRes.ok) throw Object.assign(new Error(data.error || 'Face ID sign-in failed.'), { serverMessage: true });
+    rememberLocalFaceId(assertionResponse.id);
+    rememberFaceIdOwner(data.user);
+    return data;
+}
+
 async function handleFaceIdLogin() {
     if (!isWebAuthnSupported()) {
         alert('Face ID / biometric login is not supported on this browser or device.');
         return;
     }
 
-    // Email is optional: without it, the phone offers the Face ID key it has
+    // Email is optional: without it, the phone uses the Face ID key it has
     // saved for Apex and the server works out which account it belongs to.
     const email = (document.getElementById('loginEmailInput').value || '').trim();
     let faceIdSignIn = null;
 
     try {
-        const optionsRes = await fetch('/api/webauthn-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(email ? { action: 'options', email } : { action: 'options' })
-        });
-        const options = await optionsRes.json();
-        if (!optionsRes.ok) {
-            alert(options.error || 'Face ID sign-in is not available for this account yet.');
-            return;
-        }
-
-        const assertionResponse = await window.SimpleWebAuthnBrowser.startAuthentication(options);
-
-        const verifyRes = await fetch('/api/webauthn-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ action: 'verify', assertionResponse })
-        });
-        const data = await verifyRes.json();
-        if (!verifyRes.ok) {
-            alert(data.error || 'Face ID sign-in failed.');
-            return;
-        }
-        faceIdSignIn = data;
-        rememberLocalFaceId(assertionResponse.id);
+        faceIdSignIn = await faceIdAuthenticate(email);
     } catch (err) {
+        if (err.serverMessage) { alert(err.message); return; }
         if (err.name === 'NotAllowedError') {
-            if (!email) alert("Face ID didn't find a saved sign-in for Apex on this device. Enter your email and try again, or sign in with your password.");
+            if (!email && !getLocalFaceIdIds().length) alert("Face ID didn't find a saved sign-in for Apex on this device. Enter your email and try again, or sign in with your password.");
             return;
         }
         console.error('Face ID login error:', err);
@@ -9256,6 +9428,261 @@ async function handleFaceIdLogin() {
         context: signinContextFrom(faceIdSignIn, 'faceid'),
     });
 }
+
+// ===== Face ID unlock screen =====
+// Bank-app style: opening Apex from the Home Screen (or coming back after
+// auto-lock) on a phone with Face ID set up shows an unlock screen instead
+// of the sign-in form. It asks for Face ID straight away on launch, and
+// offers the app passcode (on a phone that has signed in before) and the
+// password as backups. Every unlock is a full sign-in on the server.
+const faceUnlockUi = { open: false, reason: null, busy: false, mode: 'face', digits: '', autoTried: false, passBusy: false };
+
+function isStandaloneApp() {
+    try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; } catch (e) { return false; }
+}
+function faceUnlockAvailable() {
+    return isWebAuthnSupported() && getLocalFaceIdIds().length > 0;
+}
+function faceUnlockOwner() {
+    return readFaceIdOwner() || (typeof readRemembered === 'function' ? readRemembered() : null);
+}
+function faceUnlockMotionReduced() {
+    const root = document.documentElement;
+    if (root.classList.contains('ahb-reduce-motion')) return true;
+    if (root.classList.contains('ahb-allow-motion')) return false;
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+}
+
+function showFaceUnlock(reason) {
+    const el = document.getElementById('faceUnlock');
+    if (!el) return false;
+    faceUnlockUi.open = true;
+    faceUnlockUi.reason = reason;
+    faceUnlockUi.autoTried = false;
+    faceUnlockUi.busy = false;
+    const owner = faceUnlockOwner();
+    const greet = typeof timeGreeting === 'function' ? timeGreeting() : 'Welcome back';
+    document.getElementById('faceUnlockTitle').textContent = owner && owner.firstName ? `${greet}, ${owner.firstName}` : 'Welcome back';
+    document.getElementById('faceUnlockEmail').textContent = owner ? (typeof maskEmail === 'function' ? maskEmail(owner.email) : owner.email) : '';
+    const why = document.getElementById('faceUnlockReason');
+    if (reason === 'locked') {
+        why.textContent = `Locked after ${idleLockMinutes} minute${idleLockMinutes === 1 ? '' : 's'} without activity`;
+        why.classList.remove('hidden');
+    } else {
+        why.textContent = '';
+        why.classList.add('hidden');
+    }
+    faceUnlockSetMode('face');
+    faceUnlockSetState('idle', 'Tap to unlock with Face ID');
+    el.classList.remove('hidden');
+    setTimeout(() => { const b = document.getElementById('faceUnlockBtn'); if (b && faceUnlockUi.open) b.focus({ preventScroll: true }); }, 60);
+    return true;
+}
+
+function hideFaceUnlock() {
+    const el = document.getElementById('faceUnlock');
+    if (el) el.classList.add('hidden');
+    faceUnlockUi.open = false;
+    faceUnlockUi.digits = '';
+    faceUnlockUi.busy = false;
+    faceUnlockUi.passBusy = false;
+}
+
+function faceUnlockSetState(state, text) {
+    const glyph = document.getElementById('faceUnlockGlyph');
+    if (glyph) {
+        glyph.dataset.state = state;
+        // Restart the shake when a second attempt also fails.
+        if (state === 'error') { glyph.style.animation = 'none'; void glyph.offsetWidth; glyph.style.animation = ''; }
+    }
+    const status = document.getElementById('faceUnlockStatus');
+    if (status) status.textContent = text || '';
+    const btn = document.getElementById('faceUnlockBtn');
+    if (btn) {
+        btn.disabled = state === 'scanning' || state === 'success';
+        btn.querySelector('span').textContent = state === 'error' ? 'Try Face ID again' : 'Unlock with Face ID';
+    }
+}
+
+function faceUnlockSetMode(mode) {
+    faceUnlockUi.mode = mode;
+    faceUnlockUi.digits = '';
+    const pad = mode === 'passcode';
+    document.getElementById('faceUnlockMain').classList.toggle('hidden', pad);
+    document.getElementById('faceUnlockPad').classList.toggle('hidden', !pad);
+    document.getElementById('faceUnlockBtn').classList.toggle('hidden', pad);
+    const owner = faceUnlockOwner();
+    const modeBtn = document.getElementById('faceUnlockModeBtn');
+    modeBtn.textContent = pad ? 'Use Face ID' : 'Use passcode';
+    // The passcode needs to know whose it is; without that, only Face ID and password.
+    const showMode = pad || !!owner;
+    modeBtn.classList.toggle('hidden', !showMode);
+    document.getElementById('faceUnlockAltDot').classList.toggle('hidden', !showMode);
+    document.getElementById('faceUnlockPadMsg').textContent = '';
+    faceUnlockPaintDots();
+    if (pad) {
+        faceUnlockBuildKeys();
+        setTimeout(() => { const k = document.querySelector('#faceUnlockKeys button[data-key="1"]'); if (k) k.focus({ preventScroll: true }); }, 40);
+    }
+}
+
+function faceUnlockToggleMode() {
+    if (faceUnlockUi.busy || faceUnlockUi.passBusy) return;
+    if (faceUnlockUi.mode === 'face') faceUnlockSetMode('passcode');
+    else {
+        faceUnlockSetMode('face');
+        faceUnlockSetState('idle', 'Tap to unlock with Face ID');
+        setTimeout(() => { const b = document.getElementById('faceUnlockBtn'); if (b) b.focus({ preventScroll: true }); }, 40);
+    }
+}
+
+function faceUnlockBuildKeys() {
+    const wrap = document.getElementById('faceUnlockKeys');
+    if (!wrap || wrap.childElementCount) { faceUnlockPaintKeys(); return; }
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'ok', '0', 'del'].forEach((k) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.key = k;
+        if (k === 'ok') { b.className = 'fu-key-text'; b.textContent = 'Enter'; b.setAttribute('aria-label', 'Enter passcode'); }
+        else if (k === 'del') {
+            b.className = 'fu-key-text';
+            b.setAttribute('aria-label', 'Delete');
+            b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h10.5A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5H9l-6-7z M12.5 9.5l5 5 M17.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        } else b.textContent = k;
+        b.addEventListener('click', () => faceUnlockKey(k));
+        wrap.appendChild(b);
+    });
+    faceUnlockPaintKeys();
+}
+
+function faceUnlockPaintKeys() {
+    const ok = document.querySelector('#faceUnlockKeys button[data-key="ok"]');
+    const del = document.querySelector('#faceUnlockKeys button[data-key="del"]');
+    if (ok) ok.disabled = faceUnlockUi.digits.length < 4 || faceUnlockUi.passBusy;
+    if (del) del.disabled = !faceUnlockUi.digits.length || faceUnlockUi.passBusy;
+}
+
+function faceUnlockPaintDots() {
+    const n = faceUnlockUi.digits.length;
+    document.querySelectorAll('#faceUnlockDots span').forEach((d, i) => d.classList.toggle('on', i < n));
+    const count = document.getElementById('faceUnlockPadCount');
+    if (count) count.textContent = n ? `${n} digit${n === 1 ? '' : 's'} entered` : '';
+    faceUnlockPaintKeys();
+}
+
+function faceUnlockKey(k) {
+    if (faceUnlockUi.passBusy || faceUnlockUi.mode !== 'passcode') return;
+    if (k === 'del') faceUnlockUi.digits = faceUnlockUi.digits.slice(0, -1);
+    else if (k === 'ok') { faceUnlockSubmitPasscode(); return; }
+    else if (/^\d$/.test(k) && faceUnlockUi.digits.length < 6) faceUnlockUi.digits += k;
+    if (faceUnlockUi.digits.length) document.getElementById('faceUnlockPadMsg').textContent = '';
+    faceUnlockPaintDots();
+    if (faceUnlockUi.digits.length === 6) faceUnlockSubmitPasscode();
+}
+
+async function faceUnlockSubmitPasscode() {
+    const msg = document.getElementById('faceUnlockPadMsg');
+    if (faceUnlockUi.passBusy) return;
+    if (faceUnlockUi.digits.length < 4) { msg.textContent = 'Your passcode is 4 to 6 digits.'; return; }
+    const owner = faceUnlockOwner();
+    if (!owner) { faceUnlockUsePassword(); return; }
+    faceUnlockUi.passBusy = true;
+    faceUnlockPaintKeys();
+    const passcode = faceUnlockUi.digits;
+    let res, data = {};
+    try {
+        res = await fetch('/api/auth-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'login-passcode', email: owner.email, passcode })
+        });
+        data = await res.json().catch(() => ({}));
+    } catch (err) {
+        res = null;
+    }
+    faceUnlockUi.passBusy = false;
+    if (!faceUnlockUi.open) return;
+    if (!res || !res.ok) {
+        faceUnlockUi.digits = '';
+        faceUnlockPaintDots();
+        const dots = document.getElementById('faceUnlockDots');
+        dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
+        msg.textContent = !res ? 'Network error. Check your connection and try again.' : (data.error || 'That passcode didn’t work. Try again.');
+        try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
+        return;
+    }
+    hideFaceUnlock();
+    runLoginSequence({
+        dataPromise: loadRealAccountDataWithRetry().catch(err => console.error('Post-login data load failed (passcode sign-in itself succeeded):', err)),
+        context: signinContextFrom(data, 'passcode'),
+    });
+}
+
+async function faceUnlockWithFaceId(auto) {
+    if (faceUnlockUi.busy || !faceUnlockUi.open || faceUnlockUi.mode !== 'face') return;
+    faceUnlockUi.busy = true;
+    faceUnlockSetState('scanning', 'Looking for your face…');
+    let data;
+    try {
+        data = await faceIdAuthenticate();
+    } catch (err) {
+        faceUnlockUi.busy = false;
+        if (!faceUnlockUi.open) return;
+        const backup = faceUnlockOwner() ? 'use your passcode' : 'use your password';
+        if (err.serverMessage) { faceUnlockSetState('error', err.message); return; }
+        if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+            // An automatic attempt the phone didn't allow (or that was dismissed) just waits for a tap.
+            if (auto) faceUnlockSetState('idle', 'Tap to unlock with Face ID');
+            else faceUnlockSetState('error', `Face ID didn’t unlock the app. Try again, or ${backup}.`);
+            return;
+        }
+        console.error('Face ID unlock error:', err);
+        faceUnlockSetState('error', `Face ID isn’t available right now. ${backup.charAt(0).toUpperCase() + backup.slice(1)}.`);
+        return;
+    }
+    faceUnlockSetState('success', 'Unlocked');
+    try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
+    await new Promise(r => setTimeout(r, faceUnlockMotionReduced() ? 120 : 520));
+    hideFaceUnlock();
+    runLoginSequence({
+        dataPromise: loadRealAccountDataWithRetry().catch(err => console.error('Post-login data load failed (Face ID sign-in itself succeeded):', err)),
+        context: signinContextFrom(data, 'faceid'),
+    });
+}
+
+// Ask for Face ID without a tap: once when the screen first appears on
+// launch, and again each time the app comes back to the foreground.
+function faceUnlockAuto() {
+    if (!faceUnlockUi.open || faceUnlockUi.autoTried || faceUnlockUi.busy || faceUnlockUi.mode !== 'face') return;
+    if (document.visibilityState !== 'visible') return;
+    faceUnlockUi.autoTried = true;
+    faceUnlockWithFaceId(true);
+}
+
+function faceUnlockUsePassword() {
+    if (faceUnlockUi.busy && faceUnlockUi.mode === 'face') return;
+    hideFaceUnlock();
+    const owner = faceUnlockOwner();
+    const signup = document.getElementById('signupFormWrapper');
+    if (signup && !signup.classList.contains('hidden') && typeof toggleAuthMode === 'function') toggleAuthMode();
+    const email = document.getElementById('loginEmailInput');
+    if (owner && email && !email.value) email.value = owner.email;
+    const pw = document.getElementById('loginPasswordInput');
+    setTimeout(() => { const target = email && !email.value ? email : pw; if (target) target.focus(); }, 60);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !faceUnlockUi.open) return;
+    faceUnlockUi.autoTried = false;
+    setTimeout(faceUnlockAuto, 300);
+});
+document.addEventListener('keydown', (e) => {
+    if (!faceUnlockUi.open || faceUnlockUi.mode !== 'passcode' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^\d$/.test(e.key)) { e.preventDefault(); faceUnlockKey(e.key); }
+    else if (e.key === 'Backspace') { e.preventDefault(); faceUnlockKey('del'); }
+    else if (e.key === 'Enter' && faceUnlockUi.digits.length >= 4) { e.preventDefault(); faceUnlockKey('ok'); }
+});
 
 // ===== Step-up confirmation for large transfers =====
 // The server answers { stepUpRequired: true } (HTTP 403) when a payment is at or
@@ -16943,7 +17370,7 @@ const HELP_ARTICLES = [
       intro: "Pick a strong password you don't use anywhere else.",
       steps: ['Tap More, then Settings.', 'Tap Change Password.', 'Enter your current password, then your new one.'],
       note: 'Forgot it? Sign out and tap "Forgot password" on the sign-in screen.', action: { label: 'Change password', view: 'settings-change-password' } },
-    { id: 'faceid', icon: 'fa-face-smile', title: 'Sign in with Face ID', keywords: 'face id biometrics touch id fingerprint passkey sign in',
+    { id: 'faceid', icon: 'fa-face-smile', title: 'Sign in with Face ID', keywords: 'face id biometrics touch id fingerprint unlock sign in',
       intro: 'Sign in with a glance instead of typing your password.',
       steps: ['Tap More, then Settings.', 'Tap Face ID and follow the prompts.'],
       action: { label: 'Set up Face ID', view: 'settings-biometrics' } },
@@ -20114,6 +20541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const q = params.toString();
             history.replaceState(null, '', location.pathname + (q ? `?${q}` : '') + location.hash);
             const go = () => {
+                if (typeof hideFaceUnlock === 'function') hideFaceUnlock();
                 const signup = document.getElementById('signupFormWrapper');
                 if (signup && signup.classList.contains('hidden')) toggleAuthMode();
                 if (start === 'application-status') oaShow('status');

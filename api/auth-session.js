@@ -9,7 +9,7 @@ const { getClientIp, checkLoginRateLimit, recordLoginAttempt, pruneOldAttempts }
 const { isKnownDevice, recordKnownDevice, fingerprintFromRequest } = require('../lib/fraud');
 const { sendEmail } = require('../lib/email');
 const deviceCheck = require('../lib/deviceCheck');
-const crypto = require('crypto');
+const deviceTrust = require('../lib/deviceTrust');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -18,39 +18,10 @@ const { withPush } = require('../lib/push');
 // Same device fingerprint lib/fraud.js uses for the known-device list.
 const deviceFingerprint = (req) => fingerprintFromRequest(req);
 
-// A long-lived "this device" cookie, so a browser update (which changes the
-// user agent the fingerprint is made from) doesn't make a phone look new.
-const DEVICE_COOKIE = 'ahb_dev';
-function deviceCookieFingerprint(token) {
-  return 'c' + crypto.createHash('sha256').update(token).digest('hex').slice(0, 31);
-}
-function readDeviceToken(req) {
-  const token = parseCookies(req)[DEVICE_COOKIE];
-  return token && /^[a-f0-9]{64}$/.test(token) ? token : null;
-}
-async function knownByDeviceCookie(userId, req) {
-  const token = readDeviceToken(req);
-  if (!token) return false;
-  const rows = await sql`SELECT 1 FROM known_devices WHERE user_id = ${userId} AND device_fingerprint = ${deviceCookieFingerprint(token)} LIMIT 1`;
-  return rows.length > 0;
-}
-function appendCookie(res, cookie) {
-  const prev = typeof res.getHeader === 'function' ? res.getHeader('Set-Cookie') : (res.headers && res.headers['Set-Cookie']);
-  res.setHeader('Set-Cookie', [].concat(prev || [], cookie));
-}
-async function rememberThisDevice(req, res, userId) {
-  try {
-    const token = readDeviceToken(req) || crypto.randomBytes(32).toString('hex');
-    await sql`
-      INSERT INTO known_devices (user_id, device_fingerprint, user_agent)
-      VALUES (${userId}, ${deviceCookieFingerprint(token)}, ${(req.headers && req.headers['user-agent']) || 'unknown'})
-      ON CONFLICT (user_id, device_fingerprint) DO NOTHING
-    `;
-    appendCookie(res, `${DEVICE_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
-  } catch (err) {
-    console.error('Remember device error (non-fatal):', err);
-  }
-}
+// The long-lived "this device" cookie lives in lib/deviceTrust.js (Face ID
+// sign-in sets it too). These wrappers keep the call sites below short.
+const knownByDeviceCookie = (userId, req) => deviceTrust.knownByDeviceCookie(sql, userId, req);
+const rememberThisDevice = (req, res, userId) => deviceTrust.rememberThisDevice(sql, req, res, userId);
 
 // Rough location from Vercel's edge headers (no extra lookup), e.g. "Lagos, NG".
 function edgeLocation(req) {
@@ -231,6 +202,84 @@ module.exports = withPush(async function handler(req, res) {
     }
   }
 
+  // Unlock with the app passcode, like a bank app's PIN. Only on a device
+  // this account has already signed in on (it carries the "this device"
+  // cookie), and wrong passcodes count toward the same lockout as wrong
+  // passwords, so a 4-6 digit code can't be guessed from anywhere else.
+  if (action === 'login-passcode') {
+    const ip = getClientIp(req);
+    try {
+      const { email, passcode } = req.body || {};
+      if (!email || !passcode) {
+        return res.status(400).json({ error: 'Enter your passcode.' });
+      }
+      if (!/^\d{4,6}$/.test(String(passcode))) {
+        return res.status(400).json({ error: 'Your passcode is 4 to 6 digits.' });
+      }
+      const normalizedEmail = normalizeEmail(email);
+
+      const rateLimit = await checkLoginRateLimit(sql, { email: normalizedEmail, ip });
+      if (rateLimit.blocked) {
+        res.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+        const minutes = Math.ceil(rateLimit.retryAfterSeconds / 60);
+        return res.status(429).json({
+          error: `Too many incorrect attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}, or use Face ID.`,
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        });
+      }
+
+      const rows = await sql`
+        SELECT id, email, passcode_hash, full_name, is_active, approval_status, approval_reason
+        FROM users WHERE email = ${normalizedEmail} LIMIT 1
+      `;
+      const user = rows[0];
+      // Same answer for "no such account" and "not a device you've used",
+      // so this can't be used to find out who banks with Apex.
+      const trusted = user ? await knownByDeviceCookie(user.id, req) : false;
+      if (!user || !trusted) {
+        return res.status(403).json({ error: "Passcode unlock only works on a phone you've signed in on before. Use your password.", usePassword: true });
+      }
+      if (!user.passcode_hash) {
+        return res.status(400).json({ error: "You haven't set up an app passcode yet. Sign in with your password, then create one in Settings.", noPasscode: true });
+      }
+
+      const ok = await bcrypt.compare(String(passcode), user.passcode_hash);
+      if (!ok) {
+        await recordLoginAttempt(sql, { email: normalizedEmail, ip, success: false });
+        const after = await checkLoginRateLimit(sql, { email: normalizedEmail, ip });
+        if (after.blocked) {
+          const minutes = Math.ceil(after.retryAfterSeconds / 60);
+          return res.status(429).json({
+            error: `Too many incorrect attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}, or use Face ID.`,
+            retryAfterSeconds: after.retryAfterSeconds,
+          });
+        }
+        return res.status(401).json({ error: 'Incorrect passcode. Try again.' });
+      }
+
+      if (user.approval_status === 'pending') {
+        return res.status(403).json({ error: "Your account is still under review. We'll notify you by email once a decision is made.", approvalStatus: 'pending' });
+      }
+      if (user.approval_status === 'rejected') {
+        return res.status(403).json({
+          error: user.approval_reason
+            ? `Your account application was not approved: ${user.approval_reason}`
+            : 'Your account application was not approved. Please contact support for details.',
+          approvalStatus: 'rejected',
+        });
+      }
+      if (!user.is_active) {
+        return res.status(403).json({ error: 'This account has been disabled. Please contact support.' });
+      }
+
+      await recordLoginAttempt(sql, { email: normalizedEmail, ip, success: true });
+      return await completeSignIn({ req, res, user, known: true, method: 'passcode' });
+    } catch (err) {
+      console.error('Passcode sign-in error:', err);
+      return res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
+  }
+
   // Finish a new-device sign-in with the emailed code (or the app passcode).
   if (action === 'verify-device') {
     try {
@@ -279,5 +328,5 @@ module.exports = withPush(async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'Invalid or missing action. Use "login", "verify-device", "resend-device-code" or "logout".' });
+  return res.status(400).json({ error: 'Invalid or missing action. Use "login", "login-passcode", "verify-device", "resend-device-code" or "logout".' });
 }, sql);

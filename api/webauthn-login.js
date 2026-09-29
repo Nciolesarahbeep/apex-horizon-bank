@@ -4,6 +4,7 @@ const { normalizeEmail, signToken, setSessionCookie, createSession } = require('
 const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('../lib/webauthn');
 const { logSignInActivity, getPreviousSignIn } = require('../lib/loginActivity');
 const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
+const { rememberThisDevice } = require('../lib/deviceTrust');
 
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -19,14 +20,30 @@ module.exports = withPush(async function handler(req, res) {
 
   if (action === 'options') {
     try {
-      const { email } = req.body || {};
+      const { email, credentialIds } = req.body || {};
 
-      // No email: passkey-style sign-in. The phone offers the Face ID
-      // credential saved for this site, and verify works out whose it is.
+      // No email: the app sends the Face ID keys it saved on this phone, and
+      // we ask the phone for exactly those, so it goes straight to the Face
+      // ID scan instead of showing a list to choose from. With no saved keys
+      // (or none we still know), the phone offers whatever key it has for
+      // Apex, and verify works out whose it is.
       if (!email) {
+        const ids = Array.isArray(credentialIds)
+          ? [...new Set(credentialIds.filter((id) => typeof id === 'string' && /^[A-Za-z0-9_-]{16,1400}$/.test(id)))].slice(0, 10)
+          : [];
+        const known = ids.length
+          ? await sql`SELECT credential_id FROM webauthn_credentials WHERE credential_id = ANY(${`{${ids.join(',')}}`}::text[])`
+          : [];
         const options = await generateAuthenticationOptions({
           rpID: RP_ID,
           userVerification: 'required',
+          ...(known.length ? {
+            allowCredentials: known.map((c) => ({
+              id: Buffer.from(c.credential_id, 'base64url'),
+              type: 'public-key',
+              transports: ['internal'],
+            })),
+          } : {}),
         });
         setChallengeCookie(res, options.challenge, { userId: null, purpose: 'login' });
         return res.status(200).json(options);
@@ -51,6 +68,7 @@ module.exports = withPush(async function handler(req, res) {
         allowCredentials: creds.map((c) => ({
           id: Buffer.from(c.credential_id, 'base64url'),
           type: 'public-key',
+          transports: ['internal'],
         })),
       });
 
@@ -152,6 +170,9 @@ module.exports = withPush(async function handler(req, res) {
       if (!known) {
         await recordKnownDevice({ userId: user.id, req });
       }
+      // Face ID proves it's this phone, so mark it as a trusted device
+      // (that's what lets the passcode unlock work here later).
+      await rememberThisDevice(sql, req, res, user.id);
       const previousSignIn = await getPreviousSignIn(user.id);
       await logSignInActivity({ req, userId: user.id, email: user.email, method: 'webauthn', isNewDevice: !known });
 
