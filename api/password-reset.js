@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { neon } = require('@neondatabase/serverless');
 const { normalizeEmail } = require('../lib/auth');
 const { sendEmail, passwordResetEmailHtml } = require('../lib/email');
+const { publicAppUrl } = require('../lib/appUrl');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -39,7 +40,7 @@ async function handleRequestReset(req, res) {
     VALUES (${user.id}, ${tokenHash}, ${expiresAt.toISOString()})
   `;
 
-  const resetLink = `${process.env.APP_URL || 'https://apexhorizonbank.com'}/?resetToken=${rawToken}`;
+  const resetLink = `${publicAppUrl()}/?resetToken=${rawToken}`;
 
   const emailSent = await sendEmail({
     to: normalizedEmail,

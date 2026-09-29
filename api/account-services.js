@@ -2,6 +2,7 @@ const { neon } = require('@neondatabase/serverless');
 const { getQuery } = require('../lib/query');
 const { getUserFromRequest, revokeSessionByJti } = require('../lib/auth');
 const { sendEmail } = require('../lib/email');
+const { publicAppUrl } = require('../lib/appUrl');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const PDFDocument = require('pdfkit');
@@ -1571,7 +1572,7 @@ module.exports = push.withPush(async function handler(req, res) {
             WHERE id = ${session.userId}
           `;
 
-          const confirmUrl = `${process.env.APP_URL || 'https://apexhorizonbank.com'}/?emailChangeToken=${changeToken}`;
+          const confirmUrl = `${publicAppUrl()}/?emailChangeToken=${changeToken}`;
 
           await sendEmail({
             to: normalizedNewEmail,
