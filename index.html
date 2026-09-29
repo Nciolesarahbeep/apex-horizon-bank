@@ -30,7 +30,7 @@
 </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/@simplewebauthn/browser@9/dist/bundle/index.umd.min.js"></script>
+    <script src="https://unpkg.com/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 
     <style>
@@ -9294,7 +9294,7 @@ async function enrollFaceId() {
             return;
         }
 
-        const attestationResponse = await window.SimpleWebAuthnBrowser.startRegistration(options);
+        const attestationResponse = await window.SimpleWebAuthnBrowser.startRegistration({ optionsJSON: options });
 
         const verifyRes = await fetch('/api/webauthn-register', {
             method: 'POST',
@@ -9392,7 +9392,7 @@ async function faceIdAuthenticate(email) {
     const options = await optionsRes.json().catch(() => ({}));
     if (!optionsRes.ok) throw Object.assign(new Error(options.error || 'Face ID sign-in is not available for this account yet.'), { serverMessage: true });
 
-    const assertionResponse = await window.SimpleWebAuthnBrowser.startAuthentication(options);
+    const assertionResponse = await window.SimpleWebAuthnBrowser.startAuthentication({ optionsJSON: options });
 
     const verifyRes = await fetch('/api/webauthn-login', {
         method: 'POST',
@@ -9831,7 +9831,7 @@ async function openStepUpSheet(info, done) {
                 }
                 return;
             }
-            const assertion = await window.SimpleWebAuthnBrowser.startAuthentication(opts);
+            const assertion = await window.SimpleWebAuthnBrowser.startAuthentication({ optionsJSON: opts });
             const verRes = await nativeFetchForStepUp('/api/webauthn-register', {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },

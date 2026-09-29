@@ -1,7 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server');
 const { normalizeEmail, signToken, setSessionCookie, createSession } = require('../lib/auth');
-const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN, relyingParty } = require('../lib/webauthn');
+const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, relyingParty, credentialFromRow } = require('../lib/webauthn');
 const { logSignInActivity, getPreviousSignIn } = require('../lib/loginActivity');
 const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
 const { rememberThisDevice } = require('../lib/deviceTrust');
@@ -38,11 +38,7 @@ module.exports = withPush(async function handler(req, res) {
           rpID: relyingParty(req).rpID,
           userVerification: 'required',
           ...(known.length ? {
-            allowCredentials: known.map((c) => ({
-              id: Buffer.from(c.credential_id, 'base64url'),
-              type: 'public-key',
-              transports: ['internal'],
-            })),
+            allowCredentials: known.map((c) => ({ id: c.credential_id, transports: ['internal'] })),
           } : {}),
         });
         setChallengeCookie(res, options.challenge, { userId: null, purpose: 'login' });
@@ -65,11 +61,7 @@ module.exports = withPush(async function handler(req, res) {
       const options = await generateAuthenticationOptions({
         rpID: relyingParty(req).rpID,
         userVerification: 'required',
-        allowCredentials: creds.map((c) => ({
-          id: Buffer.from(c.credential_id, 'base64url'),
-          type: 'public-key',
-          transports: ['internal'],
-        })),
+        allowCredentials: creds.map((c) => ({ id: c.credential_id, transports: ['internal'] })),
       });
 
       setChallengeCookie(res, options.challenge, { userId: user.id, purpose: 'login' });
@@ -110,11 +102,8 @@ module.exports = withPush(async function handler(req, res) {
         expectedChallenge: challengeData.challenge,
         expectedOrigin: relyingParty(req).origin,
         expectedRPID: relyingParty(req).rpID,
-        authenticator: {
-          credentialID: Buffer.from(credRow.credential_id, 'base64url'),
-          credentialPublicKey: Buffer.from(credRow.public_key, 'base64url'),
-          counter: Number(credRow.counter),
-        },
+        requireUserVerification: true,
+        credential: credentialFromRow(credRow),
       });
 
       if (!verification.verified) {

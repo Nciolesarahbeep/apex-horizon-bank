@@ -6,7 +6,16 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const { getUserFromRequest } = require('../lib/auth');
-const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_NAME, RP_ID, ORIGIN, relyingParty } = require('../lib/webauthn');
+const {
+  setChallengeCookie,
+  readChallengeCookie,
+  clearChallengeCookie,
+  RP_NAME,
+  relyingParty,
+  webauthnUserHandle,
+  SUPPORTED_ALGORITHM_IDS,
+  credentialFromRow,
+} = require('../lib/webauthn');
 const { issueStepUpToken, ensureStepUpSchema } = require('../lib/stepUp');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -68,19 +77,17 @@ module.exports = withPush(async function handler(req, res) {
       const options = await generateRegistrationOptions({
         rpName: RP_NAME,
         rpID: relyingParty(req).rpID,
-        userID: Buffer.from(String(user.id)),
+        userID: webauthnUserHandle(user.id),
         userName: user.email,
         userDisplayName: user.full_name || user.email,
         attestationType: 'none',
-        excludeCredentials: existingCreds.map((c) => ({
-          id: Buffer.from(c.credential_id, 'base64url'),
-          type: 'public-key',
-        })),
+        excludeCredentials: existingCreds.map((c) => ({ id: c.credential_id })),
         authenticatorSelection: {
           authenticatorAttachment: 'platform',
           userVerification: 'required',
           residentKey: 'preferred',
         },
+        supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       });
 
       setChallengeCookie(res, options.challenge, { userId: user.id, purpose: 'register' });
@@ -111,14 +118,19 @@ module.exports = withPush(async function handler(req, res) {
         expectedOrigin: relyingParty(req).origin,
         expectedRPID: relyingParty(req).rpID,
         requireUserVerification: true,
+        supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS,
       });
 
       if (!verification.verified || !verification.registrationInfo) {
         return res.status(400).json({ error: 'Could not verify Face ID registration. Please try again.' });
       }
 
-      const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
-      const credentialId = Buffer.from(credentialID).toString('base64url');
+      // credential.id is already base64url; publicKey is the raw COSE key,
+      // stored base64url the same way as keys saved before this version.
+      const { credential } = verification.registrationInfo;
+      const credentialId = credential.id;
+      const credentialPublicKey = credential.publicKey;
+      const counter = credential.counter;
       const name = cleanDeviceName(deviceName);
 
       await sql`
@@ -199,10 +211,7 @@ module.exports = withPush(async function handler(req, res) {
       const options = await generateAuthenticationOptions({
         rpID: relyingParty(req).rpID,
         userVerification: 'required',
-        allowCredentials: creds.map((c) => ({
-          id: Buffer.from(c.credential_id, 'base64url'),
-          type: 'public-key',
-        })),
+        allowCredentials: creds.map((c) => ({ id: c.credential_id })),
       });
       const scope = (req.body || {}).scope === 'card-details' ? 'card-details' : 'money';
       setChallengeCookie(res, options.challenge, { userId: session.userId, purpose: 'stepup', amount, scope });
@@ -244,11 +253,7 @@ module.exports = withPush(async function handler(req, res) {
         expectedOrigin: relyingParty(req).origin,
         expectedRPID: relyingParty(req).rpID,
         requireUserVerification: true,
-        authenticator: {
-          credentialID: Buffer.from(credRow.credential_id, 'base64url'),
-          credentialPublicKey: Buffer.from(credRow.public_key, 'base64url'),
-          counter: Number(credRow.counter),
-        },
+        credential: credentialFromRow(credRow),
       });
 
       if (!verification.verified) {
