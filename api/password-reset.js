@@ -39,7 +39,7 @@ async function handleRequestReset(req, res) {
     VALUES (${user.id}, ${tokenHash}, ${expiresAt.toISOString()})
   `;
 
-  const resetLink = `https://apex-horizon-bank-eight.vercel.app/?resetToken=${rawToken}`;
+  const resetLink = `${process.env.APP_URL || 'https://apexhorizonbank.com'}/?resetToken=${rawToken}`;
 
   const emailSent = await sendEmail({
     to: normalizedEmail,

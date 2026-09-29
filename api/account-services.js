@@ -1571,7 +1571,7 @@ module.exports = push.withPush(async function handler(req, res) {
             WHERE id = ${session.userId}
           `;
 
-          const confirmUrl = `https://apex-horizon-bank-eight.vercel.app/?emailChangeToken=${changeToken}`;
+          const confirmUrl = `${process.env.APP_URL || 'https://apexhorizonbank.com'}/?emailChangeToken=${changeToken}`;
 
           await sendEmail({
             to: normalizedNewEmail,

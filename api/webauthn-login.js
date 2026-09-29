@@ -1,7 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { generateAuthenticationOptions, verifyAuthenticationResponse } = require('@simplewebauthn/server');
 const { normalizeEmail, signToken, setSessionCookie, createSession } = require('../lib/auth');
-const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN } = require('../lib/webauthn');
+const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_ID, ORIGIN, relyingParty } = require('../lib/webauthn');
 const { logSignInActivity, getPreviousSignIn } = require('../lib/loginActivity');
 const { isKnownDevice, recordKnownDevice } = require('../lib/fraud');
 const { rememberThisDevice } = require('../lib/deviceTrust');
@@ -35,7 +35,7 @@ module.exports = withPush(async function handler(req, res) {
           ? await sql`SELECT credential_id FROM webauthn_credentials WHERE credential_id = ANY(${`{${ids.join(',')}}`}::text[])`
           : [];
         const options = await generateAuthenticationOptions({
-          rpID: RP_ID,
+          rpID: relyingParty(req).rpID,
           userVerification: 'required',
           ...(known.length ? {
             allowCredentials: known.map((c) => ({
@@ -63,7 +63,7 @@ module.exports = withPush(async function handler(req, res) {
       }
 
       const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
+        rpID: relyingParty(req).rpID,
         userVerification: 'required',
         allowCredentials: creds.map((c) => ({
           id: Buffer.from(c.credential_id, 'base64url'),
@@ -108,8 +108,8 @@ module.exports = withPush(async function handler(req, res) {
       const verification = await verifyAuthenticationResponse({
         response: assertionResponse,
         expectedChallenge: challengeData.challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: relyingParty(req).origin,
+        expectedRPID: relyingParty(req).rpID,
         authenticator: {
           credentialID: Buffer.from(credRow.credential_id, 'base64url'),
           credentialPublicKey: Buffer.from(credRow.public_key, 'base64url'),

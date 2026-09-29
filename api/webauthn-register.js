@@ -6,7 +6,7 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const { getUserFromRequest } = require('../lib/auth');
-const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_NAME, RP_ID, ORIGIN } = require('../lib/webauthn');
+const { setChallengeCookie, readChallengeCookie, clearChallengeCookie, RP_NAME, RP_ID, ORIGIN, relyingParty } = require('../lib/webauthn');
 const { issueStepUpToken, ensureStepUpSchema } = require('../lib/stepUp');
 
 const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -67,7 +67,7 @@ module.exports = withPush(async function handler(req, res) {
 
       const options = await generateRegistrationOptions({
         rpName: RP_NAME,
-        rpID: RP_ID,
+        rpID: relyingParty(req).rpID,
         userID: Buffer.from(String(user.id)),
         userName: user.email,
         userDisplayName: user.full_name || user.email,
@@ -108,8 +108,8 @@ module.exports = withPush(async function handler(req, res) {
       const verification = await verifyRegistrationResponse({
         response: attestationResponse,
         expectedChallenge: challengeData.challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: relyingParty(req).origin,
+        expectedRPID: relyingParty(req).rpID,
         requireUserVerification: true,
       });
 
@@ -197,7 +197,7 @@ module.exports = withPush(async function handler(req, res) {
       }
       const amount = Number((req.body || {}).amount) || null;
       const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
+        rpID: relyingParty(req).rpID,
         userVerification: 'required',
         allowCredentials: creds.map((c) => ({
           id: Buffer.from(c.credential_id, 'base64url'),
@@ -241,8 +241,8 @@ module.exports = withPush(async function handler(req, res) {
       const verification = await verifyAuthenticationResponse({
         response: assertionResponse,
         expectedChallenge: challengeData.challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: relyingParty(req).origin,
+        expectedRPID: relyingParty(req).rpID,
         requireUserVerification: true,
         authenticator: {
           credentialID: Buffer.from(credRow.credential_id, 'base64url'),
