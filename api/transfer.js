@@ -438,7 +438,10 @@ module.exports = withPush(async function handler(req, res) {
         const senderName = senderFullName;
         const senderEmail = senderEmailForNotify;
         const amountFormatted = transferAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
+        const txRef = outboundTransactionId ? `AH-TX-${String(outboundTransactionId).padStart(8, '0')}` : undefined;
+        const fromLabel = fromAccountType === 'savings' ? 'High-Yield Savings' : 'Everyday Checking';
+        const toLabel = recipientInfo.account_number ? `Everyday Checking ending ${String(recipientInfo.account_number).slice(-4)}` : 'Everyday Checking';
         await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at) VALUES (${session.userId}, 'Payment Sent', ${'You sent $' + amountFormatted + ' to ' + recipientInfo.full_name + '.'}, FALSE, NOW())`;
         await sql`INSERT INTO notifications (user_id, title, message, is_read, created_at) VALUES (${recipientInfo.id}, 'Payment Received', ${'You received $' + amountFormatted + ' from ' + senderName + '.'}, FALSE, NOW())`;
         // "Email receipts" in Settings > Notifications. The column only exists
@@ -448,8 +451,8 @@ module.exports = withPush(async function handler(req, res) {
           const offRows = await sql`SELECT id FROM users WHERE id IN (${session.userId}, ${recipientInfo.id}) AND notif_email = FALSE`;
           emailOff = new Set(offRows.map((r) => Number(r.id)));
         } catch (_) { /* no preference column yet */ }
-        if (senderEmail && !emailOff.has(Number(session.userId))) await sendEmail({ to: senderEmail, subject: `You sent $${amountFormatted} - Apex Horizon Bank`, html: moneySentEmailHtml({ senderName, recipientName: recipientInfo.full_name, amount: amountFormatted, note: description, date: nowStr }) });
-        if (recipientInfo.email && !emailOff.has(Number(recipientInfo.id))) await sendEmail({ to: recipientInfo.email, subject: `You received $${amountFormatted} - Apex Horizon Bank`, html: moneyReceivedEmailHtml({ recipientName: recipientInfo.full_name, senderName, amount: amountFormatted, note: description, date: nowStr }) });
+        if (senderEmail && !emailOff.has(Number(session.userId))) await sendEmail({ to: senderEmail, subject: `You sent $${amountFormatted} - Apex Horizon Bank`, html: moneySentEmailHtml({ senderName, recipientName: recipientInfo.full_name, amount: amountFormatted, note: description, date: nowStr, reference: txRef, fromAccount: fromLabel }) });
+        if (recipientInfo.email && !emailOff.has(Number(recipientInfo.id))) await sendEmail({ to: recipientInfo.email, subject: `You received $${amountFormatted} - Apex Horizon Bank`, html: moneyReceivedEmailHtml({ recipientName: recipientInfo.full_name, senderName, amount: amountFormatted, note: description, date: nowStr, reference: txRef, toAccount: toLabel }) });
       } catch (notifyErr) { console.error('Notification/email dispatch error (non-fatal):', notifyErr); }
     } else {
       try {
