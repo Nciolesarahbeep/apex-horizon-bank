@@ -2688,20 +2688,37 @@ async function submitCreateRecurringTransfer(event) {
                         </div>
                     </div>
 
-                    <div id="cardDetailsPanel" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
-                        <div class="flex items-center gap-3 px-4 py-3">
-                            <span class="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0" aria-hidden="true"><i id="cardDetailsIcon" class="fa-solid fa-eye-slash text-sm"></i></span>
-                            <div class="flex-1 min-w-0">
-                                <p id="cardDetailsLabel" class="text-xs font-bold text-gray-900">Show card details</p>
-                                <p id="cardDetailsSub" class="text-[10px] text-gray-500">Card number, expiry date and security code</p>
-                            </div>
-                            <button type="button" id="cardDetailsSwitch" role="switch" aria-checked="false" aria-labelledby="cardDetailsLabel" aria-controls="cardDetailsList" onclick="toggleCardDetails()" class="ahb-switch shrink-0"><span></span></button>
-                        </div>
-                        <div id="cardDetailsList" class="hidden border-t border-gray-100 px-4 py-1" aria-live="polite"></div>
+                    <!-- Two sections instead of one long page: Overview (money) and Manage card (card settings). -->
+                    <div id="cardsTabs" class="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-xl" role="tablist" aria-label="Card sections">
+                        <button type="button" role="tab" id="cardsTabBtn-overview" aria-controls="cardsPanel-overview" aria-selected="true" tabindex="0" onclick="setCardsTab('overview')" class="cards-tab py-2 rounded-lg text-xs font-bold transition bg-white text-gray-900 shadow-sm">Overview</button>
+                        <button type="button" role="tab" id="cardsTabBtn-manage" aria-controls="cardsPanel-manage" aria-selected="false" tabindex="-1" onclick="setCardsTab('manage')" class="cards-tab py-2 rounded-lg text-xs font-bold transition text-gray-500 inline-flex items-center justify-center gap-1.5">Manage card<span id="cardsTabFrozenIcon" class="hidden"><i class="fa-solid fa-snowflake text-sky-500 text-[10px]" aria-hidden="true"></i><span class="sr-only">(card frozen)</span></span></button>
                     </div>
 
+                    <div id="cardsPanel-overview" role="tabpanel" aria-labelledby="cardsTabBtn-overview" class="space-y-4">
                     <div id="cardDueCard" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
                         <div class="p-4 space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-[9px] text-gray-400 font-bold uppercase block">Current balance</span>
+                                    <span id="cardCurrentBalanceLabel" class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$0.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] text-gray-400 font-bold uppercase block">Available credit</span>
+                                    <span id="cardAvailableCreditLabel" class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$0.00</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between text-[10px] font-bold">
+                                    <span class="text-gray-500 uppercase">Credit used</span>
+                                    <span id="cardUtilLabel" class="text-gray-700 font-mono">0% of $0</span>
+                                </div>
+                                <div class="h-2 bg-gray-100 rounded-full overflow-hidden mt-1.5" role="progressbar" aria-label="Credit used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="cardUtilBar">
+                                    <div id="cardUtilFill" class="h-full rounded-full bg-emerald-500 transition-all duration-500" style="width:0%"></div>
+                                </div>
+                                <p id="cardUtilNote" class="text-[10px] text-gray-500 mt-1.5 leading-snug"></p>
+                            </div>
+                        </div>
+                        <div class="px-4 pb-4 pt-3 space-y-3 border-t border-gray-100">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payment</p>
@@ -2731,29 +2748,6 @@ async function submitCreateRecurringTransfer(event) {
                         </button>
                     </div>
 
-                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <span class="text-[9px] text-gray-400 font-bold uppercase block">Current balance</span>
-                                <span id="cardCurrentBalanceLabel" class="text-base font-bold font-mono text-gray-900 mt-0.5 block">$0.00</span>
-                            </div>
-                            <div>
-                                <span class="text-[9px] text-gray-400 font-bold uppercase block">Available credit</span>
-                                <span id="cardAvailableCreditLabel" class="text-base font-bold font-mono text-emerald-600 mt-0.5 block">$0.00</span>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex items-center justify-between text-[10px] font-bold">
-                                <span class="text-gray-500 uppercase">Credit used</span>
-                                <span id="cardUtilLabel" class="text-gray-700 font-mono">0% of $0</span>
-                            </div>
-                            <div class="h-2 bg-gray-100 rounded-full overflow-hidden mt-1.5" role="progressbar" aria-label="Credit used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="cardUtilBar">
-                                <div id="cardUtilFill" class="h-full rounded-full bg-emerald-500 transition-all duration-500" style="width:0%"></div>
-                            </div>
-                            <p id="cardUtilNote" class="text-[10px] text-gray-500 mt-1.5 leading-snug"></p>
-                        </div>
-                    </div>
-
                     <div id="cardRewardsCard" class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-xs">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-start gap-3 min-w-0">
@@ -2780,9 +2774,38 @@ async function submitCreateRecurringTransfer(event) {
                         <div id="cardSpendList" class="space-y-2"></div>
                     </div>
 
+                    <div class="space-y-2">
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-1">Activity</h3>
+                    <div class="flex border-b border-gray-200 pt-1">
+                        <button id="tabBtn-cleared" onclick="switchCreditTab('cleared')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-slate-900 text-slate-900 cursor-pointer">
+                            Posted
+                        </button>
+                        <button id="tabBtn-pending" onclick="switchCreditTab('pending')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-transparent text-gray-400 cursor-pointer">
+                            Pending
+                        </button>
+                    </div>
+
+                    <div id="creditTab-cleared" class="space-y-2"></div>
+
+                    <div id="creditTab-pending" class="hidden space-y-2"></div>
+                    </div>
+                    </div>
+
+                    <div id="cardsPanel-manage" role="tabpanel" aria-labelledby="cardsTabBtn-manage" class="hidden space-y-4">
+                    <div id="cardDetailsPanel" class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+                        <div class="flex items-center gap-3 px-4 py-3">
+                            <span class="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0" aria-hidden="true"><i id="cardDetailsIcon" class="fa-solid fa-eye-slash text-sm"></i></span>
+                            <div class="flex-1 min-w-0">
+                                <p id="cardDetailsLabel" class="text-xs font-bold text-gray-900">Show card details</p>
+                                <p id="cardDetailsSub" class="text-[10px] text-gray-500">Card number, expiry date and security code</p>
+                            </div>
+                            <button type="button" id="cardDetailsSwitch" role="switch" aria-checked="false" aria-labelledby="cardDetailsLabel" aria-controls="cardDetailsList" onclick="toggleCardDetails()" class="ahb-switch shrink-0"><span></span></button>
+                        </div>
+                        <div id="cardDetailsList" class="hidden border-t border-gray-100 px-4 py-1" aria-live="polite"></div>
+                    </div>
+
                     <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
                         <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Card controls</h3>
-                        
                         <div class="grid grid-cols-2 gap-2">
                             <button onclick="toggleCardFreezeState()" id="cardFreezeBtn" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center space-x-2 min-w-0">
@@ -2823,10 +2846,14 @@ async function submitCreateRecurringTransfer(event) {
                             </button>
                         </div>
 
-                        <div class="bg-slate-50 border border-gray-100 p-3 rounded-xl space-y-2">
+                    </div>
 
-                        <div class="grid grid-cols-1 gap-2 pt-1">
-                            <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Channel locks</p>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 space-y-3 shadow-xs">
+                        <div>
+                            <h3 class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Where your card works</h3>
+                            <p class="text-[10px] text-gray-500 mt-0.5">Turn off anything you don't use. Purchases of that kind are declined until you turn it back on.</p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2">
                             <button type="button" onclick="toggleCardChannel('online')" id="cardChannel-online" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-gray-100 rounded-xl text-left transition flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center space-x-2 min-w-0">
                                     <i class="fa-solid fa-globe text-sky-500 text-xs"></i>
@@ -2849,7 +2876,7 @@ async function submitCreateRecurringTransfer(event) {
                                 <div id="channelToggle-international" class="w-7 h-4 bg-emerald-500 rounded-full p-0.5 flex items-center transition-colors duration-300"><div class="w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-300 translate-x-3"></div></div>
                             </button>
                         </div>
-
+                        <div class="border-t border-gray-100 pt-3 space-y-2">
                             <div class="flex justify-between items-center text-[10px] font-bold">
                                 <span class="text-gray-500 uppercase">Single Transaction Limit</span>
                                 <span id="cardVelocityLimitText" class="text-emerald-600 font-mono font-bold bg-emerald-50 px-2 py-0.5 rounded">$5,000</span>
@@ -2861,26 +2888,6 @@ async function submitCreateRecurringTransfer(event) {
                             </div>
                         </div>
                     </div>
-
-                    <div class="flex border-b border-gray-200 pt-1">
-                        <button id="tabBtn-cleared" onclick="switchCreditTab('cleared')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-slate-900 text-slate-900 cursor-pointer">
-                            Posted
-                        </button>
-                        <button id="tabBtn-pending" onclick="switchCreditTab('pending')" class="w-1/2 text-center text-[10px] font-bold uppercase pb-2 border-b-2 border-transparent text-gray-400 cursor-pointer">
-                            Pending
-                        </button>
-                    </div>
-
-                    <div id="creditTab-cleared" class="space-y-2 max-h-[380px] overflow-y-auto pr-1 scroll-smooth"></div>
-
-                    <div id="creditTab-pending" class="hidden space-y-2">
-                        <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center">
-                            <div>
-                                <h4 class="text-xs font-bold text-gray-900">Maintenance Charge</h4>
-                                <p class="text-[9px] text-gray-400 font-mono">June 01, 2026</p>
-                            </div>
-                            <span class="text-xs font-bold font-mono text-gray-900">$45.00</span>
-                        </div>
                     </div>
                 </section>
 
@@ -4270,6 +4277,7 @@ if (activeLoanBalanceEl) {
                 loadMyLoans();
             }
             if (targetViewId === 'credit') {
+                if (typeof setCardsTab === 'function') { cardsUi.showAllActivity = false; setCardsTab('overview'); }
                 loadCreditCardData();
             }
             if (targetViewId === 'settings-linked-devices') {
@@ -11759,6 +11767,8 @@ function applyFreezeUI(isFrozen) {
   cardIsFrozen = !!isFrozen;
   const overlay = document.getElementById('cardFrostOverlay');
   if (overlay) overlay.classList.toggle('hidden', !isFrozen);
+  const frozenMark = document.getElementById('cardsTabFrozenIcon');
+  if (frozenMark) frozenMark.classList.toggle('hidden', !isFrozen);
 
   const toggleContainer = document.getElementById('freezeToggleNode');
   if (toggleContainer) {
@@ -11845,7 +11855,29 @@ function renderCreditTransactions(transactions) {
     empty.appendChild(cardEl('p', 'text-xs text-gray-400 mt-1', 'Purchases and payments will show up here.'));
     clearedEl.appendChild(empty);
   } else {
-    transactions.forEach((t) => clearedEl.appendChild(renderCreditTransactionRow(t)));
+    // The 3 most recent, with the rest one tap away, so Overview stays short.
+    const extra = [];
+    transactions.forEach((t, i) => {
+      const row = renderCreditTransactionRow(t);
+      if (i >= CARD_ACTIVITY_PREVIEW) { extra.push(row); row.classList.toggle('hidden', !cardsUi.showAllActivity); }
+      clearedEl.appendChild(row);
+    });
+    if (extra.length) {
+      const more = cardEl('button', 'w-full text-center text-[11px] font-bold text-emerald-700 bg-white border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50');
+      more.type = 'button';
+      more.id = 'cardActivityMore';
+      const paint = () => {
+        more.textContent = cardsUi.showAllActivity ? 'Show less' : `Show all ${transactions.length} transactions`;
+        more.setAttribute('aria-expanded', String(cardsUi.showAllActivity));
+      };
+      paint();
+      more.addEventListener('click', () => {
+        cardsUi.showAllActivity = !cardsUi.showAllActivity;
+        extra.forEach((r) => r.classList.toggle('hidden', !cardsUi.showAllActivity));
+        paint();
+      });
+      clearedEl.appendChild(more);
+    }
   }
 
   // Every card transaction posts straight away, so pending is honestly empty.
@@ -11857,6 +11889,50 @@ function renderCreditTransactions(transactions) {
     pendingEl.replaceChildren(empty);
   }
 }
+
+// ----- Cards: Overview and Manage card -----
+// Two sections instead of one long page. Cards always opens on Overview;
+// openCardsManage() jumps straight to the card settings (help links use it).
+const CARD_ACTIVITY_PREVIEW = 3;
+const cardsUi = { tab: 'overview', showAllActivity: false };
+
+function setCardsTab(tab) {
+  const next = tab === 'manage' ? 'manage' : 'overview';
+  const changed = cardsUi.tab !== next;
+  cardsUi.tab = next;
+  ['overview', 'manage'].forEach((key) => {
+    const on = key === next;
+    const btn = document.getElementById(`cardsTabBtn-${key}`);
+    const panel = document.getElementById(`cardsPanel-${key}`);
+    if (panel) panel.classList.toggle('hidden', !on);
+    if (btn) {
+      btn.setAttribute('aria-selected', String(on));
+      btn.tabIndex = on ? 0 : -1;
+      btn.classList.toggle('bg-white', on);
+      btn.classList.toggle('text-gray-900', on);
+      btn.classList.toggle('shadow-sm', on);
+      btn.classList.toggle('text-gray-500', !on);
+    }
+  });
+  if (!changed) return;
+  // Keep the card in view and show the top of the section just opened.
+  const tabs = document.getElementById('cardsTabs');
+  try {
+    if (tabs && tabs.getBoundingClientRect().top < 0) tabs.scrollIntoView({ block: 'start' });
+  } catch (e) {}
+}
+function openCardsManage() { setCardsTab('manage'); }
+
+document.addEventListener('keydown', (e) => {
+  const t = e.target;
+  if (!t || !t.classList || !t.classList.contains('cards-tab')) return;
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  e.preventDefault();
+  const next = (e.key === 'ArrowRight' || e.key === 'End') ? 'manage' : 'overview';
+  setCardsTab(next);
+  const btn = document.getElementById(`cardsTabBtn-${next}`);
+  if (btn) btn.focus();
+});
 
 function switchCreditTab(tabKey) {
   const clearedTab = document.getElementById('creditTab-cleared');
@@ -17399,7 +17475,7 @@ const HELP_CHAT_LINKS = [
     { re: /\bbudgets?\b/i, label: 'Open Budgets', view: 'budgets' },
     { re: /\bgoals?\b|round-?ups/i, label: 'Open Goals', view: 'goals' },
     { re: /\bstatements?\b/i, label: 'Open Statements', view: 'statements' },
-    { re: /\bfreez|\bfrozen|Cards tab/i, label: 'Open Cards', view: 'credit' },
+    { re: /\bfreez|\bfrozen|Cards tab/i, label: 'Open Cards', view: 'credit', after: 'openCardsManage' },
     { re: /direct deposit|routing/i, label: 'Direct deposit', view: 'direct-deposit' },
     { re: /deposit check|paper check/i, label: 'Deposit a check', view: 'check-deposit' },
     { re: /linked devices|login history/i, label: 'Linked devices', view: 'settings-linked-devices' },
