@@ -3,6 +3,23 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "apex-horizon-bank-eight\\.vercel\\.app"
+        }
+      ],
+      "missing": [
+        {
+          "type": "header",
+          "key": "x-vercel-cron-schedule"
+        }
+      ],
+      "destination": "https://apexhorizonbank.com/:path*",
+      "permanent": true
+    },
+    {
       "source": "/signup",
       "destination": "/?start=open-account",
       "permanent": false
