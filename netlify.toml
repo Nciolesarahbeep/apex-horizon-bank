@@ -1,0 +1,37 @@
+# Netlify settings for Apex Horizon Bank. This does on Netlify what
+# vercel.json did on Vercel.
+
+[build]
+  # Copies the public files into public/ and keeps server code private.
+  command = "node netlify/build.js"
+  publish = "public"
+
+[build.environment]
+  # Same Node.js version as "engines" in package.json.
+  NODE_VERSION = "24"
+
+[functions]
+  # pdfkit (statement PDFs) reads its font files from disk at runtime,
+  # so its package is shipped whole instead of bundled.
+  external_node_modules = ["pdfkit"]
+
+# The API (/api/*) is routed by netlify/functions/api.mjs, and the daily
+# recurring-transfer run by netlify/functions/recurring-transfers.mjs.
+
+[[redirects]]
+  from = "/signup"
+  to = "/?start=open-account"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/signup-pending"
+  to = "/?start=application-status"
+  status = 302
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
