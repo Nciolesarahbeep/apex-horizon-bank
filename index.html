@@ -1335,6 +1335,11 @@ async function submitCreateRecurringTransfer(event) {
 
         <div id="authScreen" class="hidden w-full flex-1 flex items-center justify-center bg-slate-900 px-4 py-8">
             <div class="w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                <!-- Demo notice: always visible on the sign-in and open-account screens. -->
+                <div id="ahbDemoNotice" class="bg-amber-100 border-b border-amber-300 text-amber-900 px-4 py-2.5 text-center" role="note">
+                    <p class="text-[11px] font-bold leading-snug"><i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>Portfolio demo by Femi Ogbonnema &mdash; not a real bank</p>
+                    <p class="text-[10px] leading-snug mt-0.5">No real money is held here. Please don't enter real personal details.</p>
+                </div>
                 <div id="ahbLoginHeader" class="bg-slate-950 p-6 text-center border-b border-gray-800">
                     <div class="inline-flex items-center justify-center bg-emerald-500 p-3 rounded-xl text-slate-950 font-bold mb-2 ahb-lock-pulse relative z-10">
                         <i class="fa-solid fa-building-columns text-2xl" aria-hidden="true"></i>
